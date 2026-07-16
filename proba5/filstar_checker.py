@@ -5,7 +5,7 @@
 # - На всяко пускане обхожда всички SKU от CSV (без resume).
 # - Търси през /search?term=<sku> и събира кандидат продуктови линкове.
 # - Отваря продуктите, намира точния ред по "КОД" и:
-#     * Цена: НОРМАЛНАТА цена в ЕВРО (от <strike> ако има; иначе € от нормалния div)
+#     * Цена: нормалната (от <strike> ако има; иначе първата „... лв.“ в реда)
 #     * Наличност: ако редът съдържа tooltip "Изчерпан продукт!" / Email иконата за нотификация → "Изчерпан", иначе "Наличен"
 # - Не чете и не записва бройки (пише "-" за колона „Бройки“).
 # - Серийно и щадящо (леки паузи).
@@ -47,6 +47,7 @@ def save_debug_html(driver, sku: str, tag: str):
         path = os.path.join(DEBUG_DIR, f"debug_{sku}_{tag}.html")
         with open(path, "w", encoding="utf-8") as f:
             f.write(driver.page_source)
+        print(f"   🐞 Debug HTML записан: {path}")
     except Exception:
         pass
 
@@ -62,7 +63,7 @@ def create_driver() -> webdriver.Chrome:
 
 def init_result_files():
     with open(RES_CSV, "w", newline="", encoding="utf-8") as f:
-        csv.writer(f).writerow(["SKU", "Наличност", "Бройки", "Цена"])
+        csv.writer(f).writerow(["SKU", "Наличност", "Бройки", "Цена (лв.)"])
     with open(NF_CSV, "w", newline="", encoding="utf-8") as f:
         csv.writer(f).writerow(["SKU"])
 
@@ -89,30 +90,43 @@ def read_skus(path: str):
 
 # ---------------- ТЪРСЕНЕ ----------------
 def get_search_candidates(driver, sku: str):
-    driver.get(SEARCH_URL.format(q=sku))
+    url = SEARCH_URL.format(q=sku)
+    driver.get(url)
     time.sleep(REQUEST_WAIT)
+
+    try:
+        WebDriverWait(driver, PAGE_TIMEOUT).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "main"))
+        )
+    except Exception:
+        pass
 
     links = []
 
     try:
         for a in driver.find_elements(By.CSS_SELECTOR, ".product-item-wapper a.product-name"):
-            href = a.get_attribute("href")
+            href = (a.get_attribute("href") or "").strip()
             if href:
-                links.append(urljoin("https://filstar.com", href))
+                if href.startswith("/"):
+                    href = urljoin("https://filstar.com", href)
+                links.append(href)
     except Exception:
         pass
 
     try:
         for a in driver.find_elements(By.CSS_SELECTOR, ".product-title a"):
-            href = a.get_attribute("href")
+            href = (a.get_attribute("href") or "").strip()
             if href:
-                links.append(urljoin("https://filstar.com", href))
+                if href.startswith("/"):
+                    href = urljoin("https://filstar.com", href)
+                links.append(href)
     except Exception:
         pass
 
-    uniq = []
+    seen, uniq = set(), []
     for h in links:
-        if h not in uniq:
+        if h not in seen:
+            seen.add(h)
             uniq.append(h)
 
     return uniq[:MAX_CANDIDATES]
@@ -126,30 +140,42 @@ def extract_from_product_page(driver, sku: str):
     except Exception:
         return None, None, None
 
-    rows = driver.find_elements(By.CSS_SELECTOR, "#fast-order-table tbody tr")
+    tbody = driver.find_element(By.CSS_SELECTOR, "#fast-order-table tbody")
+    rows = tbody.find_elements(By.CSS_SELECTOR, "tr")
     target = None
 
     for row in rows:
         try:
-            code = row.find_element(By.CSS_SELECTOR, "td.td-sky").text.strip()
-            if only_digits(code) == str(sku):
+            code_td = row.find_element(By.CSS_SELECTOR, "td.td-sky")
+            if only_digits(code_td.text.strip()) == str(sku):
                 target = row
                 break
         except Exception:
             continue
 
     if target is None:
+        for row in rows:
+            try:
+                if re.search(rf"\b{re.escape(str(sku))}\b", row.text):
+                    target = row
+                    break
+            except Exception:
+                continue
+
+    if target is None:
         return None, None, None
 
-    # --- ЦЕНА: НОРМАЛНА В ЕВРО ---
+    # --- Цена (евро, ненамалена ако има) ---
     price = None
     try:
         strike_el = target.find_element(By.TAG_NAME, "strike")
-        txt = strike_el.text.strip()
-        m = re.search(r"(\d+[.,]?\d*)\s*€", txt)
+        m = re.search(r"(\d+[.,]?\d*)\s*€", strike_el.text)
         if m:
             price = m.group(1).replace(",", ".")
     except Exception:
+        pass
+
+    if price is None:
         try:
             m2 = re.search(r"(\d+[.,]?\d*)\s*€", target.text)
             if m2:
@@ -157,22 +183,35 @@ def extract_from_product_page(driver, sku: str):
         except Exception:
             pass
 
-    # --- НАЛИЧНОСТ ---
+    # --- Наличност само по tooltip/email (без бройки) ---
     status = "Наличен"
     try:
         target.find_element(By.CSS_SELECTOR, "[data-target='#send-request']")
         status = "Изчерпан"
     except Exception:
-        if "Изчерпан продукт!" in target.text:
-            status = "Изчерпан"
+        try:
+            if "Изчерпан продукт!" in target.text:
+                status = "Изчерпан"
+            else:
+                emails = target.find_elements(
+                    By.CSS_SELECTOR,
+                    ".custom-tooltip-holder img[alt='Shopping cart']"
+                )
+                if emails:
+                    status = "Изчерпан"
+        except Exception:
+            pass
 
-    return status, "-", price
+    qty_placeholder = "-"
+    return status, qty_placeholder, price
 
-# ---------------- ОБРАБОТКА НА SKU ----------------
+# ---------------- ОБРАБОТКА НА 1 SKU ----------------
 def process_one_sku(driver, sku: str):
-    candidates = get_search_candidates(driver, sku)
+    print(f"\n➡️ Обработвам SKU: {sku}")
 
+    candidates = get_search_candidates(driver, sku)
     if not candidates:
+        save_debug_html(driver, sku, "search_no_results")
         append_nf(sku)
         return
 
@@ -180,22 +219,26 @@ def process_one_sku(driver, sku: str):
         try:
             driver.get(link)
             time.sleep(REQUEST_WAIT)
-            status, qty, price = extract_from_product_page(driver, sku)
-            if price:
-                append_result([sku, status, qty, price])
+            status, qty_ph, price = extract_from_product_page(driver, sku)
+            if price is not None:
+                print(f"  ✅ {sku} → {price} лв. | {status} | {link}")
+                append_result([sku, status or "Наличен", qty_ph, price])
                 return
         except Exception:
             continue
 
+    save_debug_html(driver, sku, "no_price_or_row")
     append_nf(sku)
 
 # ---------------- MAIN ----------------
 def main():
     if not os.path.exists(SKU_CSV):
+        print(f"❌ Липсва {SKU_CSV}")
         return
 
     init_result_files()
     skus = read_skus(SKU_CSV)
+    print(f"🧾 Общо SKU в CSV: {len(skus)}")
 
     driver = create_driver()
     try:
@@ -204,6 +247,9 @@ def main():
             time.sleep(BETWEEN_SKU)
     finally:
         driver.quit()
+
+    print(f"\n✅ Резултати: {RES_CSV}")
+    print(f"📄 Not found: {NF_CSV}")
 
 if __name__ == "__main__":
     main()
