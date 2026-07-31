@@ -77,15 +77,34 @@ def append_nf(sku: str):
 
 def read_skus(path: str):
     out = []
+    in_comment_block = False
+
     with open(path, newline="", encoding="utf-8") as f:
         r = csv.reader(f)
-        _ = next(r, None)
+
         for row in r:
             if not row:
                 continue
+
             v = (row[0] or "").strip()
-            if v and v.lower() != "sku":
+
+            # пропускаме заглавния ред
+            if v.lower() == "sku":
+                continue
+
+            # начало/край на блок коментар ##
+            if v == "##":
+                in_comment_block = not in_comment_block
+                continue
+
+            # игнорира всичко между ##
+            if in_comment_block:
+                continue
+
+            # добавяме активните SKU
+            if v:
                 out.append(v)
+
     return out
 
 # ---------------- ТЪРСЕНЕ ----------------
