@@ -12,29 +12,37 @@ from urllib.parse import urljoin
 from playwright.sync_api import sync_playwright
 
 
+
 # ================= PATHS =================
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(
+    os.path.abspath(__file__)
+)
+
 
 SKU_CSV = os.path.join(
     BASE_DIR,
     "sku_list_filstar.csv"
 )
 
+
 RESULT_CSV = os.path.join(
     BASE_DIR,
     "results_filstar.csv"
 )
+
 
 NOT_FOUND_CSV = os.path.join(
     BASE_DIR,
     "not_found_filstar.csv"
 )
 
+
 DEBUG_DIR = os.path.join(
     BASE_DIR,
     "debug_html"
 )
+
 
 os.makedirs(
     DEBUG_DIR,
@@ -51,7 +59,9 @@ SEARCH_URL = (
     "https://filstar.com/api/search?term={}"
 )
 
+
 WAIT_TIME = 1
+
 
 
 
@@ -65,15 +75,16 @@ def save_debug(filename, content):
         filename
     )
 
+
     try:
 
         with open(
             path,
             "w",
             encoding="utf-8"
-        ) as f:
+        ) as file:
 
-            f.write(content)
+            file.write(content)
 
 
         print(
@@ -102,10 +113,11 @@ def read_skus():
         SKU_CSV,
         "r",
         encoding="utf-8-sig"
-    ) as f:
+    ) as file:
 
 
-        for line in f:
+        for line in file:
+
 
             value = line.strip()
 
@@ -115,9 +127,11 @@ def read_skus():
                 continue
 
 
+
             if value.upper() == "SKU":
 
                 continue
+
 
 
             if value == "##":
@@ -127,9 +141,11 @@ def read_skus():
                 continue
 
 
+
             if comment_block:
 
                 continue
+
 
 
             skus.append(value)
@@ -143,14 +159,17 @@ def read_skus():
 
 def init_csv():
 
+
     with open(
         RESULT_CSV,
         "w",
         newline="",
         encoding="utf-8"
-    ) as f:
+    ) as file:
 
-        writer = csv.writer(f)
+
+        writer = csv.writer(file)
+
 
         writer.writerow(
             [
@@ -162,14 +181,17 @@ def init_csv():
         )
 
 
+
     with open(
         NOT_FOUND_CSV,
         "w",
         newline="",
         encoding="utf-8"
-    ) as f:
+    ) as file:
 
-        writer = csv.writer(f)
+
+        writer = csv.writer(file)
+
 
         writer.writerow(
             [
@@ -180,30 +202,37 @@ def init_csv():
 
 
 
+
 def save_result(row):
+
 
     with open(
         RESULT_CSV,
         "a",
         newline="",
         encoding="utf-8"
-    ) as f:
+    ) as file:
 
-        csv.writer(f).writerow(row)
+
+        csv.writer(file).writerow(
+            row
+        )
 
 
 
 
 def save_not_found(sku):
 
+
     with open(
         NOT_FOUND_CSV,
         "a",
         newline="",
         encoding="utf-8"
-    ) as f:
+    ) as file:
 
-        csv.writer(f).writerow(
+
+        csv.writer(file).writerow(
             [
                 sku
             ]
@@ -211,10 +240,12 @@ def save_not_found(sku):
 
 
 
+
 # ================= SEARCH =================
 
 
 def find_product_link(sku):
+
 
     url = SEARCH_URL.format(
         sku
@@ -247,9 +278,11 @@ def find_product_link(sku):
     )
 
 
+
     if response.status_code != 200:
 
         return None
+
 
 
     links = re.findall(
@@ -258,10 +291,13 @@ def find_product_link(sku):
     )
 
 
+
     products = []
 
 
+
     for link in links:
+
 
         full_url = urljoin(
             BASE_URL,
@@ -275,9 +311,11 @@ def find_product_link(sku):
 
 
 
+
     print(
         f"🔎 Намерени продукти: {len(products)}"
     )
+
 
 
     if products:
@@ -285,28 +323,62 @@ def find_product_link(sku):
         return products[0]
 
 
+
     return None
-    # ================= PRODUCT EXTRACTION =================
+    # ================= PRODUCT PAGE =================
+
+
+def open_product(page, url):
+
+
+    print(
+        f"➡️ PRODUCT: {url}"
+    )
+
+
+    page.goto(
+        url,
+        wait_until="domcontentloaded",
+        timeout=30000
+    )
+
+
+    time.sleep(
+        WAIT_TIME
+    )
+
+
+
+
+
+# ================= EXTRACT PRODUCT =================
 
 
 def extract_product(page, sku):
 
+
     html = page.content()
+
 
     save_debug(
         f"product_{sku}.html",
         html
     )
 
+
     price = None
+
     status = "Наличен"
+
 
 
     try:
 
+
         print(
             "⏳ Търся fast-order-table..."
         )
+
 
 
         page.wait_for_selector(
@@ -315,12 +387,15 @@ def extract_product(page, sku):
         )
 
 
+
         rows = page.locator(
             "#fast-order-table tbody tr"
         )
 
 
+
         total_rows = rows.count()
+
 
 
         print(
@@ -328,11 +403,15 @@ def extract_product(page, sku):
         )
 
 
+
         for index in range(total_rows):
+
 
             row = rows.nth(index)
 
+
             text = row.inner_text()
+
 
 
             print(
@@ -340,22 +419,23 @@ def extract_product(page, sku):
             )
 
 
-    except Exception as e:
 
-        print(
-            f"⚠️ Не намерих таблица: {e}"
-        )
-
-
-    return (
-        status,
-        "-",
-        price
-    )
+            if re.search(
+                rf"\b{re.escape(str(sku))}\b",
+                text
+            ):
 
 
 
-                # наличност
+                print(
+                    f"✅ Намерен SKU ред: {text}"
+                )
+
+
+
+                row_html = row.inner_html()
+
+
 
                 if (
                     "Изчерпан продукт" in text
@@ -363,11 +443,11 @@ def extract_product(page, sku):
                     "send-request" in row_html
                 ):
 
+
                     status = "Изчерпан"
 
 
 
-                # цена в евро
 
                 euro_price = re.search(
                     r"(\d+[.,]?\d*)\s*€",
@@ -375,7 +455,9 @@ def extract_product(page, sku):
                 )
 
 
+
                 if euro_price:
+
 
                     price = (
                         euro_price
@@ -388,13 +470,16 @@ def extract_product(page, sku):
                 else:
 
 
+
                     leva_price = re.search(
                         r"(\d+[.,]?\d*)\s*лв",
                         text
                     )
 
 
+
                     if leva_price:
+
 
                         price = (
                             leva_price
@@ -412,7 +497,7 @@ def extract_product(page, sku):
 
 
         print(
-            f"⚠️ Не намерих таблица: {e}"
+            f"⚠️ Не намерих fast-order-table: {e}"
         )
 
 
@@ -422,38 +507,18 @@ def extract_product(page, sku):
         "-",
         price
     )
-
-
-
-
-
-# ================= OPEN PRODUCT =================
-
-
-def open_product(page, url):
-
-    print(
-        f"➡️ PRODUCT: {url}"
-    )
-
-
-    page.goto(
-        url,
-        wait_until="domcontentloaded",
-        timeout=30000
-    )
-
-
-    time.sleep(1)
     # ================= MAIN =================
 
 
 def main():
 
+
     init_csv()
 
 
+
     skus = read_skus()
+
 
 
     print(
@@ -461,12 +526,15 @@ def main():
     )
 
 
+
     with sync_playwright() as p:
+
 
 
         browser = p.chromium.launch(
             headless=True
         )
+
 
 
         context = browser.new_context(
@@ -477,11 +545,13 @@ def main():
         )
 
 
+
         page = context.new_page()
 
 
 
         for sku in skus:
+
 
 
             print("================")
@@ -491,12 +561,15 @@ def main():
             )
 
 
+
             product_url = find_product_link(
                 sku
             )
 
 
+
             if not product_url:
+
 
 
                 print(
@@ -508,6 +581,7 @@ def main():
                     sku
                 )
 
+
                 continue
 
 
@@ -515,10 +589,12 @@ def main():
             try:
 
 
+
                 open_product(
                     page,
                     product_url
                 )
+
 
 
                 status, qty, price = extract_product(
@@ -528,12 +604,14 @@ def main():
 
 
 
-                if price is not None:
+                if price:
+
 
 
                     print(
                         f"✅ {price} | {status}"
                     )
+
 
 
                     save_result(
@@ -550,9 +628,11 @@ def main():
                 else:
 
 
+
                     print(
                         "❌ Няма цена"
                     )
+
 
 
                     save_not_found(
@@ -562,6 +642,7 @@ def main():
 
 
             except Exception as e:
+
 
 
                 print(
