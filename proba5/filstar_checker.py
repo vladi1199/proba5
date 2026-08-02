@@ -111,7 +111,7 @@ def get_search_candidates(driver, sku: str):
 
     try:
         WebDriverWait(driver, PAGE_TIMEOUT).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "main"))
+            EC.presence_of_element_located((By.CSS_SELECTOR, ""))
         )
     except Exception:
         pass
@@ -246,6 +246,7 @@ def process_one_sku(driver, sku: str):
     append_nf(sku)
 
 # ---------------- MAIN ----------------
+# ---------------- MAIN ----------------
 def main():
     if not os.path.exists(SKU_CSV):
         print(f"❌ Липсва {SKU_CSV}")
@@ -253,10 +254,12 @@ def main():
 
     init_result_files()
     skus = read_skus(SKU_CSV)
+
     print(f"🧾 Общо SKU в CSV: {len(skus)}")
+
     print("Първи 20 SKU:")
-for s in skus[:20]:
-    print(repr(s))
+    for s in skus[:20]:
+        print(repr(s))
 
     driver = create_driver()
     try:
@@ -268,6 +271,5 @@ for s in skus[:20]:
 
     print(f"\n✅ Резултати: {RES_CSV}")
     print(f"📄 Not found: {NF_CSV}")
-
 if __name__ == "__main__":
     main()
