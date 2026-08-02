@@ -254,6 +254,9 @@ def main():
     init_result_files()
     skus = read_skus(SKU_CSV)
     print(f"🧾 Общо SKU в CSV: {len(skus)}")
+    print("Първи 20 SKU:")
+for s in skus[:20]:
+    print(repr(s))
 
     driver = create_driver()
     try:
