@@ -1,9 +1,9 @@
 name: Update XML Daily
 
 on:
-   schedule:
+  schedule:
     - cron: '0 0 * * *'  # Всеки ден в 00:00 UTC (03:00 BG време)
-   workflow_dispatch:
+  workflow_dispatch:
 
 jobs:
   update-xml:
@@ -23,19 +23,23 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          python -c "import requests, bs4, lxml; print('✅ requests/bs4/lxml OK')"
+          python -m playwright install --with-deps chromium
+          python -c "import requests, bs4, lxml, playwright; print('✅ Dependencies OK')"
 
       - name: Run Filstar checker
         working-directory: ./proba5
-        run: python filstar_checker.py
+        run: |
+          python filstar_checker.py
 
       - name: Run Filstar converter
         working-directory: ./proba5
-        run: python filstar_converter.py
+        run: |
+          python filstar_converter.py
 
       - name: List generated XML and CSV files
         working-directory: ./proba5
-        run: ls -lh *.xml *.csv || echo "No XML or CSV files found"
+        run: |
+          ls -lh *.xml *.csv || echo "No XML or CSV files found"
 
       - name: Commit and Push changes
         working-directory: ./proba5
