@@ -8,7 +8,6 @@ import time
 import requests
 
 from urllib.parse import urljoin
-
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
 
@@ -21,6 +20,7 @@ RES_CSV = os.path.join(BASE_DIR, "results_filstar.csv")
 NF_CSV = os.path.join(BASE_DIR, "not_found_filstar.csv")
 
 DEBUG_DIR = os.path.join(BASE_DIR, "debug_html")
+
 os.makedirs(DEBUG_DIR, exist_ok=True)
 
 
@@ -31,12 +31,14 @@ SEARCH_URL = "https://filstar.com/api/search?term={}"
 WAIT = 3
 
 
-# ================= HELPERS =================
+
+# ================= DEBUG =================
 
 
-def save_debug(name, html):
+def save_debug(filename, html):
+
     try:
-        path = os.path.join(DEBUG_DIR, name)
+        path = os.path.join(DEBUG_DIR, filename)
 
         with open(path, "w", encoding="utf-8") as f:
             f.write(html)
@@ -48,17 +50,28 @@ def save_debug(name, html):
 
 
 
+# ================= CSV =================
+
+
 def read_skus():
 
-    result = []
+    skus = []
 
-    comment = False
+    comment_block = False
 
-    with open(SKU_CSV, "r", encoding="utf-8-sig") as f:
+
+    with open(
+        SKU_CSV,
+        "r",
+        encoding="utf-8-sig"
+    ) as f:
+
 
         for line in f:
 
+
             value = line.strip()
+
 
             if not value:
                 continue
@@ -68,25 +81,35 @@ def read_skus():
                 continue
 
 
+
             if value == "##":
-                comment = not comment
+
+                comment_block = not comment_block
                 continue
 
 
-            if comment:
+
+            if comment_block:
                 continue
 
 
-            result.append(value)
+
+            skus.append(value)
 
 
-    return result
+    return skus
 
 
 
 def init_files():
 
-    with open(RES_CSV, "w", newline="", encoding="utf-8") as f:
+    with open(
+        RES_CSV,
+        "w",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
         csv.writer(f).writerow(
             [
                 "SKU",
@@ -97,7 +120,14 @@ def init_files():
         )
 
 
-    with open(NF_CSV, "w", newline="", encoding="utf-8") as f:
+
+    with open(
+        NF_CSV,
+        "w",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
         csv.writer(f).writerow(
             [
                 "SKU"
@@ -132,14 +162,19 @@ def save_not_found(sku):
 
 
 
+
 # ================= SEARCH =================
 
 
 def find_product_link(sku):
 
+
     url = SEARCH_URL.format(sku)
 
-    print(f"🌐 {url}")
+
+    print(
+        f"🌐 {url}"
+    )
 
 
     r = requests.get(
@@ -167,50 +202,79 @@ def find_product_link(sku):
         return None
 
 
+
     links = re.findall(
         r'href="([^"]+)"',
         r.text
     )
 
 
+
+    exclude = [
+
+        "manifest.json",
+
+        "/build/",
+        "/css/",
+        "/js/",
+        "/images/",
+
+        "/brands/",
+        "/category/",
+        "/categories/",
+
+        "/search",
+        "/api/",
+
+        ".css",
+        ".js",
+        ".png",
+        ".jpg",
+        ".svg",
+        ".ico"
+
+    ]
+
+
+
     products = []
+
 
 
     for link in links:
 
-        if (
-            link.startswith("/")
-            and not link.startswith("//")
-            and len(link) > 3
+
+        if not link.startswith("/"):
+
+            continue
+
+
+
+        if any(
+            x in link
+            for x in exclude
         ):
 
-            full = urljoin(
-                BASE_URL,
-                link
-            )
-
-
-            if full not in products:
-                products.append(full)
+            continue
 
 
 
-    # махаме категории
-    bad = [
-        "/brands/",
-        "/category/",
-        "/search",
-        "/api/"
-    ]
-
-
-    products = [
-        x for x in products
-        if not any(
-            b in x
-            for b in bad
+        full = urljoin(
+            BASE_URL,
+            link
         )
-    ]
+
+
+
+        if full not in products:
+
+            products.append(full)
+
+
+
+    print(
+        f"🔎 Продуктови линкове: {len(products)}"
+    )
 
 
 
@@ -219,7 +283,10 @@ def find_product_link(sku):
         return products[0]
 
 
+
     return None
+
+
 
 
 
@@ -228,59 +295,64 @@ def find_product_link(sku):
 
 def extract_product(page, sku):
 
-    try:
 
-        text = page.content()
-
-
-        save_debug(
-            f"product_{sku}.html",
-            text
-        )
-
-
-        # цена евро / лева
-
-        price = None
-
-
-        prices = re.findall(
-            r'(\d+[.,]?\d*)\s*(?:лв\.|€)',
-            text
-        )
-
-
-        if prices:
-            price = prices[0].replace(",", ".")
+    html = page.content()
 
 
 
-        status = "Наличен"
+    save_debug(
+        f"product_{sku}.html",
+        html
+    )
 
 
 
-        if (
-            "Изчерпан продукт" in text
-            or "send-request" in text
-        ):
-            status = "Изчерпан"
+    # цена
+
+    prices = re.findall(
+
+        r'(\d+[.,]?\d*)\s*(?:лв\.|€)',
+
+        html
+
+    )
+
+
+    price = None
+
+
+    if prices:
+
+        price = prices[0].replace(",", ".")
 
 
 
-        return (
-            status,
-            "-",
-            price
-        )
+    status = "Наличен"
 
 
-    except Exception:
 
-        return (
-            None,
-            None,
-            None
-        )
+    if (
+
+        "Изчерпан продукт" in html
+
+        or
+
+        "send-request" in html
+
+    ):
+
+        status = "Изчерпан"
+
+
+
+    return (
+        status,
+        "-",
+        price
+    )
+
+
+
 
 
 
@@ -289,15 +361,18 @@ def extract_product(page, sku):
 
 def main():
 
+
     init_files()
 
 
     skus = read_skus()
 
 
+
     print(
         f"🧾 SKU: {len(skus)}"
     )
+
 
 
     with sync_playwright() as p:
@@ -308,12 +383,14 @@ def main():
         )
 
 
+
         page = browser.new_page(
             user_agent=
+
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 "
-            "(KHTML, like Gecko) "
             "Chrome/120 Safari/537.36"
+
         )
 
 
@@ -321,23 +398,31 @@ def main():
         for sku in skus:
 
 
+
             print("================")
+
             print(
                 f"➡️ SKU: {sku}"
             )
 
 
+
             product = find_product_link(sku)
 
 
+
             if not product:
+
 
                 print(
                     "❌ Няма продукт"
                 )
 
+
                 save_not_found(sku)
+
                 continue
+
 
 
 
@@ -346,14 +431,20 @@ def main():
             )
 
 
+
             try:
 
 
                 page.goto(
+
                     product,
+
                     wait_until="domcontentloaded",
+
                     timeout=60000
+
                 )
+
 
 
                 time.sleep(WAIT)
@@ -361,28 +452,44 @@ def main():
 
 
                 status, qty, price = extract_product(
+
                     page,
+
                     sku
+
                 )
+
 
 
                 if price:
 
+
                     print(
+
                         f"✅ {price} | {status}"
+
                     )
 
 
                     save_result(
+
                         [
+
                             sku,
+
                             status,
+
                             qty,
+
                             price
+
                         ]
+
                     )
 
+
                 else:
+
 
                     print(
                         "❌ няма цена"
@@ -392,11 +499,14 @@ def main():
 
 
 
+
             except PlaywrightTimeoutError:
+
 
                 print(
                     "⏱ Timeout"
                 )
+
 
                 save_not_found(sku)
 
@@ -404,11 +514,14 @@ def main():
 
             except Exception as e:
 
+
                 print(
                     f"ERROR: {e}"
                 )
 
+
                 save_not_found(sku)
+
 
 
 
@@ -422,5 +535,7 @@ def main():
 
 
 
+
 if __name__ == "__main__":
+
     main()
