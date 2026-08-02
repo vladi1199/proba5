@@ -51,7 +51,7 @@ SEARCH_URL = (
     "https://filstar.com/api/search?term={}"
 )
 
-WAIT_TIME = 3
+WAIT_TIME = 1
 
 
 
@@ -305,30 +305,29 @@ def extract_product(page, sku):
     status = "Наличен"
 
 
-    try:
+    
+
+           try:
 
         print(
             "⏳ Търся fast-order-table..."
         )
 
-
         page.wait_for_selector(
             "#fast-order-table tbody tr",
-            timeout=20000
+            timeout=10000
         )
-
 
         rows = page.locator(
             "#fast-order-table tbody tr"
         )
 
-
         total_rows = rows.count()
-
 
         print(
             f"🔎 Намерени редове: {total_rows}"
         )
+
 
 
 
@@ -439,7 +438,6 @@ def extract_product(page, sku):
 
 def open_product(page, url):
 
-
     print(
         f"➡️ PRODUCT: {url}"
     )
@@ -447,14 +445,12 @@ def open_product(page, url):
 
     page.goto(
         url,
-        wait_until="networkidle",
-        timeout=60000
+        wait_until="domcontentloaded",
+        timeout=30000
     )
 
 
-    time.sleep(
-        WAIT_TIME
-    )
+    time.sleep(1)
     # ================= MAIN =================
 
 
