@@ -11,8 +11,6 @@ from urllib.parse import urljoin
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
 
-# ================= PATHS =================
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 SKU_CSV = os.path.join(BASE_DIR, "sku_list_filstar.csv")
@@ -20,13 +18,11 @@ RES_CSV = os.path.join(BASE_DIR, "results_filstar.csv")
 NF_CSV = os.path.join(BASE_DIR, "not_found_filstar.csv")
 
 DEBUG_DIR = os.path.join(BASE_DIR, "debug_html")
-
 os.makedirs(DEBUG_DIR, exist_ok=True)
 
 
 BASE_URL = "https://filstar.com"
 SEARCH_URL = "https://filstar.com/api/search?term={}"
-
 
 WAIT = 3
 
@@ -35,17 +31,17 @@ WAIT = 3
 # ================= DEBUG =================
 
 
-def save_debug(filename, html):
+def save_debug(filename, content):
 
     try:
         path = os.path.join(DEBUG_DIR, filename)
 
         with open(path, "w", encoding="utf-8") as f:
-            f.write(html)
+            f.write(content)
 
         print(f"🐞 Debug: {path}")
 
-    except Exception:
+    except:
         pass
 
 
@@ -55,9 +51,9 @@ def save_debug(filename, html):
 
 def read_skus():
 
-    skus = []
+    result = []
 
-    comment_block = False
+    comment = False
 
 
     with open(
@@ -69,35 +65,33 @@ def read_skus():
 
         for line in f:
 
+            sku = line.strip()
 
-            value = line.strip()
 
-
-            if not value:
+            if not sku:
                 continue
 
 
-            if value.upper() == "SKU":
+            if sku.upper() == "SKU":
                 continue
 
 
+            if sku == "##":
 
-            if value == "##":
-
-                comment_block = not comment_block
+                comment = not comment
                 continue
 
 
-
-            if comment_block:
+            if comment:
                 continue
 
 
+            result.append(sku)
 
-            skus.append(value)
 
 
-    return skus
+    return result
+
 
 
 
@@ -118,7 +112,6 @@ def init_files():
                 "Цена (лв.)"
             ]
         )
-
 
 
     with open(
@@ -149,7 +142,7 @@ def save_result(row):
 
 
 
-def save_not_found(sku):
+def save_nf(sku):
 
     with open(
         NF_CSV,
@@ -203,67 +196,23 @@ def find_product_link(sku):
 
 
 
+    # Само продуктови линкове
     links = re.findall(
-        r'href="([^"]+)"',
+        r'<a href="([^"]+)"\s+class="product-name"',
         r.text
     )
-
-
-
-    exclude = [
-
-        "manifest.json",
-
-        "/build/",
-        "/css/",
-        "/js/",
-        "/images/",
-
-        "/brands/",
-        "/category/",
-        "/categories/",
-
-        "/search",
-        "/api/",
-
-        ".css",
-        ".js",
-        ".png",
-        ".jpg",
-        ".svg",
-        ".ico"
-
-    ]
-
 
 
     products = []
 
 
-
     for link in links:
-
-
-        if not link.startswith("/"):
-
-            continue
-
-
-
-        if any(
-            x in link
-            for x in exclude
-        ):
-
-            continue
-
 
 
         full = urljoin(
             BASE_URL,
             link
         )
-
 
 
         if full not in products:
@@ -273,7 +222,7 @@ def find_product_link(sku):
 
 
     print(
-        f"🔎 Продуктови линкове: {len(products)}"
+        f"🔎 Намерени продукти: {len(products)}"
     )
 
 
@@ -299,7 +248,6 @@ def extract_product(page, sku):
     html = page.content()
 
 
-
     save_debug(
         f"product_{sku}.html",
         html
@@ -307,23 +255,35 @@ def extract_product(page, sku):
 
 
 
-    # цена
-
-    prices = re.findall(
-
-        r'(\d+[.,]?\d*)\s*(?:лв\.|€)',
-
-        html
-
-    )
-
-
     price = None
 
 
-    if prices:
 
-        price = prices[0].replace(",", ".")
+    # първо търсим евро
+    m = re.search(
+        r'(\d+[.,]?\d*)\s*€',
+        html
+    )
+
+
+    if m:
+
+        price = m.group(1).replace(",", ".")
+
+
+
+    else:
+
+
+        m = re.search(
+            r'(\d+[.,]?\d*)\s*лв\.',
+            html
+        )
+
+
+        if m:
+
+            price = m.group(1).replace(",", ".")
 
 
 
@@ -332,13 +292,9 @@ def extract_product(page, sku):
 
 
     if (
-
         "Изчерпан продукт" in html
-
         or
-
         "send-request" in html
-
     ):
 
         status = "Изчерпан"
@@ -350,7 +306,6 @@ def extract_product(page, sku):
         "-",
         price
     )
-
 
 
 
@@ -368,7 +323,6 @@ def main():
     skus = read_skus()
 
 
-
     print(
         f"🧾 SKU: {len(skus)}"
     )
@@ -383,20 +337,16 @@ def main():
         )
 
 
-
         page = browser.new_page(
             user_agent=
-
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 "
             "Chrome/120 Safari/537.36"
-
         )
 
 
 
         for sku in skus:
-
 
 
             print("================")
@@ -413,16 +363,13 @@ def main():
 
             if not product:
 
-
                 print(
                     "❌ Няма продукт"
                 )
 
-
-                save_not_found(sku)
+                save_nf(sku)
 
                 continue
-
 
 
 
@@ -436,15 +383,10 @@ def main():
 
 
                 page.goto(
-
                     product,
-
                     wait_until="domcontentloaded",
-
                     timeout=60000
-
                 )
-
 
 
                 time.sleep(WAIT)
@@ -452,11 +394,8 @@ def main():
 
 
                 status, qty, price = extract_product(
-
                     page,
-
                     sku
-
                 )
 
 
@@ -465,26 +404,17 @@ def main():
 
 
                     print(
-
                         f"✅ {price} | {status}"
-
                     )
 
 
                     save_result(
-
                         [
-
                             sku,
-
                             status,
-
                             qty,
-
                             price
-
                         ]
-
                     )
 
 
@@ -495,8 +425,7 @@ def main():
                         "❌ няма цена"
                     )
 
-                    save_not_found(sku)
-
+                    save_nf(sku)
 
 
 
@@ -507,8 +436,7 @@ def main():
                     "⏱ Timeout"
                 )
 
-
-                save_not_found(sku)
+                save_nf(sku)
 
 
 
@@ -519,8 +447,7 @@ def main():
                     f"ERROR: {e}"
                 )
 
-
-                save_not_found(sku)
+                save_nf(sku)
 
 
 
@@ -535,7 +462,5 @@ def main():
 
 
 
-
 if __name__ == "__main__":
-
     main()
