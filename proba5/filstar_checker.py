@@ -88,7 +88,7 @@ def create_driver() -> webdriver.Chrome:
 
     driver.set_page_load_timeout(PAGE_TIMEOUT)
 
-return driver
+    return driver
 
 def init_result_files():
     with open(RES_CSV, "w", newline="", encoding="utf-8") as f:
@@ -134,15 +134,17 @@ def read_skus(path: str):
 
 # ---------------- ТЪРСЕНЕ ----------------
 def get_search_candidates(driver, sku: str):
+    url = SEARCH_URL.format(q=sku)
+
     driver.get(url)
 
-time.sleep(REQUEST_WAIT)
+    time.sleep(REQUEST_WAIT)
 
-print("DEBUG TITLE:", driver.title)
+    print("DEBUG TITLE:", driver.title)
 
     try:
         WebDriverWait(driver, PAGE_TIMEOUT).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, ""))
+            EC.presence_of_element_located((By.CSS_SELECTOR, "main"))
         )
     except Exception:
         pass
