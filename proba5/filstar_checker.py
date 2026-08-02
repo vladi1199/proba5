@@ -1,308 +1,370 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# === Selenium вариант — без проверка за бройки ===
-# - На всяко пускане обхожда всички SKU от CSV (без resume).
-# - Търси през /search?term=<sku> и събира кандидат продуктови линкове.
-# - Отваря продуктите, намира точния ред по "КОД" и:
-#     * Цена: нормалната (от <strike> ако има; иначе първата „... лв.“ в реда)
-#     * Наличност: ако редът съдържа tooltip "Изчерпан продукт!" / Email иконата за нотификация → "Изчерпан", иначе "Наличен"
-# - Не чете и не записва бройки (пише "-" за колона „Бройки“).
-# - Серийно и щадящо (леки паузи).
-
 import csv
 import os
 import re
 import time
-from urllib.parse import urljoin
 
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
-# ---------------- ПЪТИЩА ----------------
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 SKU_CSV = os.path.join(BASE_DIR, "sku_list_filstar.csv")
 RES_CSV = os.path.join(BASE_DIR, "results_filstar.csv")
-NF_CSV  = os.path.join(BASE_DIR, "not_found_filstar.csv")
+NF_CSV = os.path.join(BASE_DIR, "not_found_filstar.csv")
 DEBUG_DIR = os.path.join(BASE_DIR, "debug_html")
+
 os.makedirs(DEBUG_DIR, exist_ok=True)
 
-SEARCH_URL = "https://filstar.com/search?term={q}"
+SEARCH_URL = "https://filstar.com/search?term={}"
 
-# ---------------- НАСТРОЙКИ ----------------
-REQUEST_WAIT = 8
-BETWEEN_SKU  = 3
-PAGE_TIMEOUT = 40
-MAX_CANDIDATES = 12
 
-# ---------------- ПОМОЩНИ ----------------
-def only_digits(s: str) -> str:
-    return re.sub(r"\D+", "", s or "")
+WAIT = 5
 
-def save_debug_html(driver, sku: str, tag: str):
+
+def save_debug(page, sku, name):
     try:
-        path = os.path.join(DEBUG_DIR, f"debug_{sku}_{tag}.html")
+        path = os.path.join(
+            DEBUG_DIR,
+            f"debug_{sku}_{name}.html"
+        )
+
         with open(path, "w", encoding="utf-8") as f:
-            f.write(driver.page_source)
-        print(f"   🐞 Debug HTML записан: {path}")
+            f.write(page.content())
+
+        print("🐞 Debug:", path)
+
     except Exception:
         pass
 
-def create_driver() -> webdriver.Chrome:
-    opts = Options()
 
-    opts.add_argument("--headless=new")
-    opts.add_argument("--no-sandbox")
-    opts.add_argument("--disable-dev-shm-usage")
-    opts.add_argument("--window-size=1280,2200")
 
-    # анти-bot настройки
-    opts.add_argument("--disable-blink-features=AutomationControlled")
+def init_files():
 
-    opts.add_argument(
-        "--user-agent="
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
-    )
-
-    driver = webdriver.Chrome(options=opts)
-
-    driver.execute_cdp_cmd(
-        "Page.addScriptToEvaluateOnNewDocument",
-        {
-            "source": """
-                Object.defineProperty(
-                    navigator,
-                    'webdriver',
-                    {
-                        get: () => undefined
-                    }
-                )
-            """
-        }
-    )
-
-    driver.set_page_load_timeout(PAGE_TIMEOUT)
-
-    return driver
-
-def init_result_files():
     with open(RES_CSV, "w", newline="", encoding="utf-8") as f:
-        csv.writer(f).writerow(["SKU", "Наличност", "Бройки", "Цена (лв.)"])
+        csv.writer(f).writerow(
+            ["SKU", "Наличност", "Бройки", "Цена"]
+        )
+
     with open(NF_CSV, "w", newline="", encoding="utf-8") as f:
-        csv.writer(f).writerow(["SKU"])
+        csv.writer(f).writerow(
+            ["SKU"]
+        )
+
+
 
 def append_result(row):
-    with open(RES_CSV, "a", newline="", encoding="utf-8") as f:
+
+    with open(
+        RES_CSV,
+        "a",
+        newline="",
+        encoding="utf-8"
+    ) as f:
         csv.writer(f).writerow(row)
 
-def append_nf(sku: str):
-    with open(NF_CSV, "a", newline="", encoding="utf-8") as f:
+
+
+def append_nf(sku):
+
+    with open(
+        NF_CSV,
+        "a",
+        newline="",
+        encoding="utf-8"
+    ) as f:
         csv.writer(f).writerow([sku])
 
-def read_skus(path: str):
-    out = []
-    in_comment_block = False
 
-    with open(path, "r", encoding="utf-8-sig") as f:
-        for raw_line in f:
-            v = raw_line.strip()
 
-            if not v:
+def read_skus():
+
+    result = []
+
+    with open(
+        SKU_CSV,
+        encoding="utf-8-sig"
+    ) as f:
+
+        for line in f:
+
+            sku = line.strip()
+
+            if not sku:
                 continue
 
-            # Заглавен ред
-            if v.upper() == "SKU":
+            if sku.upper() == "SKU":
                 continue
 
-            # Маркер за начало/край на блок
-            if v == "##":
-                in_comment_block = not in_comment_block
-                continue
+            result.append(sku)
 
-            # Игнорирай всичко в блока
-            if in_comment_block:
-                continue
+    return result
 
-            out.append(v)
 
-    return out
 
-# ---------------- ТЪРСЕНЕ ----------------
-def get_search_candidates(driver, sku: str):
-    url = SEARCH_URL.format(q=sku)
+def only_digits(x):
 
-    driver.get(url)
+    return re.sub(
+        r"\D+",
+        "",
+        x or ""
+    )
 
-    time.sleep(REQUEST_WAIT)
 
-    print("DEBUG TITLE:", driver.title)
 
-    try:
-        WebDriverWait(driver, PAGE_TIMEOUT).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "main"))
-        )
-    except Exception:
-        pass
+def cloudflare_detected(page):
 
-    links = []
+    title = page.title()
 
-    try:
-        for a in driver.find_elements(By.CSS_SELECTOR, ".product-item-wapper a.product-name"):
-            href = (a.get_attribute("href") or "").strip()
-            if href:
-                if href.startswith("/"):
-                    href = urljoin("https://filstar.com", href)
-                links.append(href)
-    except Exception:
-        pass
+    text = page.content()
 
-    try:
-        for a in driver.find_elements(By.CSS_SELECTOR, ".product-title a"):
-            href = (a.get_attribute("href") or "").strip()
-            if href:
-                if href.startswith("/"):
-                    href = urljoin("https://filstar.com", href)
-                links.append(href)
-    except Exception:
-        pass
+    if "Just a moment" in title:
+        return True
 
-    seen, uniq = set(), []
-    for h in links:
-        if h not in seen:
-            seen.add(h)
-            uniq.append(h)
+    if "Performing security verification" in text:
+        return True
 
-    return uniq[:MAX_CANDIDATES]
+    return False
 
-# ---------------- ПРОДУКТОВА СТРАНИЦА ----------------
-def extract_from_product_page(driver, sku: str):
-    try:
-        WebDriverWait(driver, PAGE_TIMEOUT).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "#fast-order-table tbody"))
-        )
-    except Exception:
-        return None, None, None
 
-    tbody = driver.find_element(By.CSS_SELECTOR, "#fast-order-table tbody")
-    rows = tbody.find_elements(By.CSS_SELECTOR, "tr")
-    target = None
 
-    for row in rows:
+def find_product(page, sku):
+
+    links = page.locator(
+        "a"
+    )
+
+    count = links.count()
+
+    result = []
+
+    for i in range(count):
+
         try:
-            code_td = row.find_element(By.CSS_SELECTOR, "td.td-sky")
-            if only_digits(code_td.text.strip()) == str(sku):
-                target = row
-                break
-        except Exception:
-            continue
 
-    if target is None:
-        for row in rows:
-            try:
-                if re.search(rf"\b{re.escape(str(sku))}\b", row.text):
-                    target = row
-                    break
-            except Exception:
-                continue
+            href = links.nth(i).get_attribute("href")
 
-    if target is None:
-        return None, None, None
+            if href and "/product/" in href:
 
-    # --- Цена (евро, ненамалена ако има) ---
-    price = None
-    try:
-        strike_el = target.find_element(By.TAG_NAME, "strike")
-        m = re.search(r"(\d+[.,]?\d*)\s*€", strike_el.text)
-        if m:
-            price = m.group(1).replace(",", ".")
-    except Exception:
-        pass
+                if href not in result:
+                    result.append(href)
 
-    if price is None:
-        try:
-            m2 = re.search(r"(\d+[.,]?\d*)\s*€", target.text)
-            if m2:
-                price = m2.group(1).replace(",", ".")
-        except Exception:
+        except:
             pass
 
-    # --- Наличност само по tooltip/email (без бройки) ---
-    status = "Наличен"
+
+    return result[:10]
+
+
+
+def parse_product(page, sku):
+
     try:
-        target.find_element(By.CSS_SELECTOR, "[data-target='#send-request']")
-        status = "Изчерпан"
-    except Exception:
-        try:
-            if "Изчерпан продукт!" in target.text:
-                status = "Изчерпан"
-            else:
-                emails = target.find_elements(
-                    By.CSS_SELECTOR,
-                    ".custom-tooltip-holder img[alt='Shopping cart']"
+
+        table = page.locator(
+            "#fast-order-table tbody tr"
+        )
+
+        rows = table.count()
+
+
+        for i in range(rows):
+
+            row = table.nth(i)
+
+            txt = row.inner_text()
+
+
+            if sku in txt:
+
+                price = None
+
+
+                m = re.search(
+                    r"(\d+[.,]?\d*)\s*лв",
+                    txt
                 )
-                if emails:
+
+
+                if m:
+                    price = (
+                        m.group(1)
+                        .replace(",", ".")
+                    )
+
+
+                status = "Наличен"
+
+
+                if "Изчерпан" in txt:
                     status = "Изчерпан"
-        except Exception:
-            pass
 
-    qty_placeholder = "-"
-    return status, qty_placeholder, price
 
-# ---------------- ОБРАБОТКА НА 1 SKU ----------------
-def process_one_sku(driver, sku: str):
-    print(f"\n➡️ Обработвам SKU: {sku}")
+                return (
+                    status,
+                    "-",
+                    price
+                )
 
-    candidates = get_search_candidates(driver, sku)
-    if not candidates:
-        save_debug_html(driver, sku, "search_no_results")
+
+    except Exception:
+        pass
+
+
+    return None, None, None
+
+
+
+def process(page, sku):
+
+    print(
+        "➡️ SKU:",
+        sku
+    )
+
+    url = SEARCH_URL.format(sku)
+
+    page.goto(
+        url,
+        wait_until="domcontentloaded",
+        timeout=60000
+    )
+
+    time.sleep(WAIT)
+
+
+    if cloudflare_detected(page):
+
+        print(
+            "⚠️ Cloudflare challenge"
+        )
+
+        save_debug(
+            page,
+            sku,
+            "cloudflare"
+        )
+
         append_nf(sku)
+
         return
 
-    for link in candidates:
+
+    products = find_product(
+        page,
+        sku
+    )
+
+
+    if not products:
+
+        save_debug(
+            page,
+            sku,
+            "no_products"
+        )
+
+        append_nf(sku)
+
+        return
+
+
+
+    for link in products:
+
         try:
-            driver.get(link)
-            time.sleep(REQUEST_WAIT)
-            status, qty_ph, price = extract_from_product_page(driver, sku)
-            if price is not None:
-                print(f"  ✅ {sku} → {price} лв. | {status} | {link}")
-                append_result([sku, status or "Наличен", qty_ph, price])
+
+            page.goto(
+                link,
+                wait_until="domcontentloaded",
+                timeout=60000
+            )
+
+            time.sleep(WAIT)
+
+
+            status, qty, price = parse_product(
+                page,
+                sku
+            )
+
+
+            if price:
+
+                append_result(
+                    [
+                        sku,
+                        status,
+                        qty,
+                        price
+                    ]
+                )
+
+                print(
+                    "✅",
+                    sku,
+                    price
+                )
+
                 return
+
+
         except Exception:
             continue
 
-    save_debug_html(driver, sku, "no_price_or_row")
+
     append_nf(sku)
 
-# ---------------- MAIN ----------------
-# ---------------- MAIN ----------------
+
+
 def main():
-    if not os.path.exists(SKU_CSV):
-        print(f"❌ Липсва {SKU_CSV}")
-        return
 
-    init_result_files()
-    skus = read_skus(SKU_CSV)
+    init_files()
 
-    print(f"🧾 Общо SKU в CSV: {len(skus)}")
+    skus = read_skus()
 
-    print("Първи 20 SKU:")
-    for s in skus[:20]:
-        print(repr(s))
+    print(
+        "SKU:",
+        len(skus)
+    )
 
-    driver = create_driver()
-    try:
+
+    with sync_playwright() as p:
+
+
+        browser = p.chromium.launch(
+            headless=True
+        )
+
+
+        page = browser.new_page(
+            viewport={
+                "width":1280,
+                "height":2000
+            },
+            user_agent=(
+                "Mozilla/5.0 "
+                "(Windows NT 10.0; Win64; x64) "
+                "Chrome/120 Safari/537.36"
+            )
+        )
+
+
         for sku in skus:
-            process_one_sku(driver, sku)
-            time.sleep(BETWEEN_SKU)
-    finally:
-        driver.quit()
 
-    print(f"\n✅ Резултати: {RES_CSV}")
-    print(f"📄 Not found: {NF_CSV}")
+            process(
+                page,
+                sku
+            )
+
+            time.sleep(3)
+
+
+        browser.close()
+
+
+
 if __name__ == "__main__":
     main()
