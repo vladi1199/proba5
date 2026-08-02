@@ -33,9 +33,9 @@ os.makedirs(DEBUG_DIR, exist_ok=True)
 SEARCH_URL = "https://filstar.com/search?term={q}"
 
 # ---------------- НАСТРОЙКИ ----------------
-REQUEST_WAIT = 0.5
-BETWEEN_SKU  = 0.6
-PAGE_TIMEOUT = 20
+REQUEST_WAIT = 8
+BETWEEN_SKU  = 3
+PAGE_TIMEOUT = 40
 MAX_CANDIDATES = 12
 
 # ---------------- ПОМОЩНИ ----------------
@@ -53,13 +53,42 @@ def save_debug_html(driver, sku: str, tag: str):
 
 def create_driver() -> webdriver.Chrome:
     opts = Options()
+
     opts.add_argument("--headless=new")
     opts.add_argument("--no-sandbox")
     opts.add_argument("--disable-dev-shm-usage")
     opts.add_argument("--window-size=1280,2200")
+
+    # анти-bot настройки
+    opts.add_argument("--disable-blink-features=AutomationControlled")
+
+    opts.add_argument(
+        "--user-agent="
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    )
+
     driver = webdriver.Chrome(options=opts)
+
+    driver.execute_cdp_cmd(
+        "Page.addScriptToEvaluateOnNewDocument",
+        {
+            "source": """
+                Object.defineProperty(
+                    navigator,
+                    'webdriver',
+                    {
+                        get: () => undefined
+                    }
+                )
+            """
+        }
+    )
+
     driver.set_page_load_timeout(PAGE_TIMEOUT)
-    return driver
+
+return driver
 
 def init_result_files():
     with open(RES_CSV, "w", newline="", encoding="utf-8") as f:
@@ -105,9 +134,11 @@ def read_skus(path: str):
 
 # ---------------- ТЪРСЕНЕ ----------------
 def get_search_candidates(driver, sku: str):
-    url = SEARCH_URL.format(q=sku)
     driver.get(url)
-    time.sleep(REQUEST_WAIT)
+
+time.sleep(REQUEST_WAIT)
+
+print("DEBUG TITLE:", driver.title)
 
     try:
         WebDriverWait(driver, PAGE_TIMEOUT).until(
