@@ -26,11 +26,12 @@ SEARCH_URL = "https://filstar.com/api/search?term={}"
 
 
 HEADERS = {
-    "User-Agent": (
+    "User-Agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 Chrome/120 Safari/537.36"
-    ),
-    "Accept-Language": "bg-BG,bg;q=0.9"
+        "AppleWebKit/537.36 Chrome/120 Safari/537.36",
+
+    "Accept-Language":
+        "bg-BG,bg;q=0.9"
 }
 
 
@@ -42,7 +43,9 @@ session.headers.update(HEADERS)
 
 
 
-# ---------------- DEBUG ----------------
+# ==================================================
+# DEBUG
+# ==================================================
 
 def save_debug(sku, html):
 
@@ -56,13 +59,20 @@ def save_debug(sku, html):
         "w",
         encoding="utf-8"
     ) as f:
+
         f.write(html)
 
-    print("🐞 Debug:", path)
+
+    print(
+        "🐞 Debug:",
+        path
+    )
 
 
 
-# ---------------- SKU ----------------
+# ==================================================
+# SKU READER
+# ==================================================
 
 def read_skus():
 
@@ -70,11 +80,13 @@ def read_skus():
 
     in_comment = False
 
+
     with open(
         SKU_CSV,
         "r",
         encoding="utf-8-sig"
     ) as f:
+
 
         for line in f:
 
@@ -85,12 +97,10 @@ def read_skus():
                 continue
 
 
-            # заглавен ред
             if line.upper() == "SKU":
                 continue
 
 
-            # начало / край коментар
             if line == "##":
 
                 in_comment = not in_comment
@@ -108,7 +118,10 @@ def read_skus():
 
 
 
-# ---------------- FIND PRODUCT ----------------
+
+# ==================================================
+# FIND PRODUCT LINK
+# ==================================================
 
 def find_product_link(html):
 
@@ -118,18 +131,20 @@ def find_product_link(html):
     )
 
 
+    # вариант 1
     links = soup.select(
-        ".product-item a[href]"
+        ".product-image a[href]"
     )
 
 
     print(
-        "🔎 product-item линкове:",
+        "🔎 product-image линкове:",
         len(links)
     )
 
 
     for a in links:
+
 
         href = a.get("href")
 
@@ -146,12 +161,10 @@ def find_product_link(html):
             )
 
 
-        # махаме начална страница
         if href.rstrip("/") == BASE_URL:
             continue
 
 
-        # махаме api
         if "/api/" in href:
             continue
 
@@ -166,14 +179,57 @@ def find_product_link(html):
 
 
 
+
+    # вариант 2 - търсим всички линкове
+
+    print(
+        "🔎 Резервно търсене..."
+    )
+
+
+    for a in soup.find_all(
+        "a",
+        href=True
+    ):
+
+
+        href = a["href"]
+
+
+        if href.startswith("/"):
+
+            href = urljoin(
+                BASE_URL,
+                href
+            )
+
+
+        if (
+            href.startswith(BASE_URL)
+            and href.rstrip("/") != BASE_URL
+            and "/api/" not in href
+        ):
+
+            print(
+                "➡️ Резервен продукт:",
+                href
+            )
+
+            return href
+
+
+
     return None
 
 
 
 
-# ---------------- PRODUCT DATA ----------------
+# ==================================================
+# EXTRACT PRODUCT
+# ==================================================
 
 def extract_product(html, sku):
+
 
     soup = BeautifulSoup(
         html,
@@ -187,18 +243,11 @@ def extract_product(html, sku):
     )
 
 
-    # проверяваме дали SKU е вътре
-    if sku not in text:
-
-        print(
-            "⚠️ SKU не е намерен в продукта"
-        )
-
-
     price = None
 
 
-    # първо търсим евро
+    # търсим евро цена
+
     prices = re.findall(
         r"(\d+[.,]\d+)\s*€",
         text
@@ -218,8 +267,8 @@ def extract_product(html, sku):
 
     if (
         "Изчерпан продукт" in text
-        or "Няма наличност" in text
         or "Изчерпан" in text
+        or "Няма наличност" in text
     ):
 
         status = "Изчерпан"
@@ -231,25 +280,33 @@ def extract_product(html, sku):
 
 
 
-# ---------------- PROCESS ----------------
+# ==================================================
+# PROCESS SKU
+# ==================================================
 
 def process_sku(sku):
 
+
     print("\n================")
-    print("➡️ SKU:", sku)
+    print(
+        "➡️ SKU:",
+        sku
+    )
 
 
-    url = SEARCH_URL.format(sku)
+    search_url = SEARCH_URL.format(
+        sku
+    )
 
 
     print(
         "🌐",
-        url
+        search_url
     )
 
 
     r = session.get(
-        url,
+        search_url,
         timeout=30
     )
 
@@ -292,6 +349,7 @@ def process_sku(sku):
     time.sleep(WAIT)
 
 
+
     print(
         "🌐 Отварям:",
         product_url
@@ -322,7 +380,9 @@ def process_sku(sku):
     )
 
 
+
     if price:
+
 
         print(
             "✅",
@@ -340,6 +400,7 @@ def process_sku(sku):
         ]
 
 
+
     print(
         "❌ Няма цена"
     )
@@ -350,9 +411,12 @@ def process_sku(sku):
 
 
 
-# ---------------- MAIN ----------------
+# ==================================================
+# MAIN
+# ==================================================
 
 def main():
+
 
     skus = read_skus()
 
@@ -390,7 +454,9 @@ def main():
     ) as f:
 
         csv.writer(f).writerow(
-            ["SKU"]
+            [
+                "SKU"
+            ]
         )
 
 
@@ -403,7 +469,9 @@ def main():
         )
 
 
+
         if result:
+
 
             with open(
                 RES_CSV,
@@ -419,6 +487,7 @@ def main():
 
         else:
 
+
             with open(
                 NF_CSV,
                 "a",
@@ -427,7 +496,9 @@ def main():
             ) as f:
 
                 csv.writer(f).writerow(
-                    [sku]
+                    [
+                        sku
+                    ]
                 )
 
 
@@ -437,4 +508,5 @@ def main():
 
 
 if __name__ == "__main__":
+
     main()
