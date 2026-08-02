@@ -1,253 +1,350 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# === Filstar API TEST checker ===
-#
-# - Без Selenium
-# - Без Google
-# - Директно през requests
-# - Чете SKU от CSV
-# - Игнорира коментари между ##
-# - Тества:
-#       https://filstar.com/search?term=SKU
-#       https://filstar.com/api/search?term=SKU
-#
-# Резултатите се записват в debug_html/
-
-
 import csv
 import os
+import re
 import time
 import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin
 
-
-# ---------------- ПЪТИЩА ----------------
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 SKU_CSV = os.path.join(BASE_DIR, "sku_list_filstar.csv")
+RES_CSV = os.path.join(BASE_DIR, "results_filstar.csv")
+NF_CSV = os.path.join(BASE_DIR, "not_found_filstar.csv")
 
 DEBUG_DIR = os.path.join(BASE_DIR, "debug_html")
-
 os.makedirs(DEBUG_DIR, exist_ok=True)
 
 
-# ---------------- НАСТРОЙКИ ----------------
+BASE_URL = "https://filstar.com"
 
-WAIT = 3
-
-
-URLS = [
-    "https://filstar.com/search?term={sku}",
-    "https://filstar.com/api/search?term={sku}"
-]
+API_SEARCH = "https://filstar.com/api/search?term={}"
 
 
 HEADERS = {
-    "User-Agent":
+    "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 Chrome/120 Safari/537.36",
-
-    "Accept":
-        "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-
-    "Accept-Language":
-        "bg-BG,bg;q=0.9,en;q=0.8"
+        "AppleWebKit/537.36 Chrome/120 Safari/537.36"
+    ),
+    "Accept-Language": "bg-BG,bg;q=0.9"
 }
 
 
+WAIT = 2
 
-# ---------------- CSV ЧЕТЕНЕ ----------------
 
-def read_skus(path):
+session = requests.Session()
+session.headers.update(HEADERS)
+
+
+
+def save_debug(sku, html):
+    path = os.path.join(
+        DEBUG_DIR,
+        f"debug_{sku}.html"
+    )
+
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(html)
+
+    print("🐞 Debug:", path)
+
+
+
+def read_skus():
 
     skus = []
 
     comment = False
 
-    with open(path, "r", encoding="utf-8-sig") as f:
+    with open(SKU_CSV, "r", encoding="utf-8-sig") as f:
 
         for line in f:
 
-            value = line.strip()
+            line=line.strip()
 
-            if not value:
+            if not line:
                 continue
 
 
-            # пропускаме заглавието
-            if value.upper() == "SKU":
+            if line.upper()=="SKU":
                 continue
 
 
-            # начало / край на коментар
-            if value == "##":
+            if line=="##":
                 comment = not comment
                 continue
 
 
-            # игнорира коментарния блок
             if comment:
                 continue
 
 
-            skus.append(value)
+            skus.append(line)
 
 
     return skus
 
 
 
-# ---------------- SAVE DEBUG ----------------
+def find_product_link(html, sku):
 
-def save_html(sku, name, html):
+    soup = BeautifulSoup(html,"html.parser")
 
-    path = os.path.join(
-        DEBUG_DIR,
-        f"{sku}_{name}.html"
+
+    links=[]
+
+
+    for a in soup.find_all("a", href=True):
+
+        href=a["href"]
+
+        if href.startswith("/"):
+
+            href=urljoin(BASE_URL,href)
+
+
+        links.append(href)
+
+
+
+    # махаме дубли
+    links=list(dict.fromkeys(links))
+
+
+    for link in links:
+
+        if link.startswith(BASE_URL):
+
+            if "/api/" not in link:
+
+                return link
+
+
+    return None
+
+
+
+def extract_product(driver_html, sku):
+
+    soup=BeautifulSoup(driver_html,"html.parser")
+
+
+    text=soup.get_text(" ",strip=True)
+
+
+
+    price=None
+
+
+    # търси евро
+    m=re.search(
+        r"(\d+[.,]\d+)\s*€",
+        text
     )
 
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(html)
 
-
-    print("🐞 HTML:", path)
+    if m:
+        price=m.group(1).replace(",", ".")
 
 
 
-# ---------------- TEST ----------------
-
-def check_url(sku, url):
-
-    try:
-
-        print("\n🌐", url)
-
-        r = requests.get(
-            url,
-            headers=HEADERS,
-            timeout=30
-        )
+    status="Наличен"
 
 
-        print(
-            "STATUS:",
-            r.status_code,
-            "SIZE:",
-            len(r.text)
-        )
+    if (
+        "Изчерпан продукт" in text
+        or "Няма наличност" in text
+    ):
+        status="Изчерпан"
 
 
-        html = r.text.lower()
 
-
-        save_html(
-            sku,
-            "result",
-            r.text
-        )
-
-
-        if "just a moment" in html:
-
-            print("⚠️ CLOUDFLARE CHALLENGE")
-            return False
-
-
-        if "950594" in r.text or sku in r.text:
-
-            print("✅ SKU намерен в HTML")
-            return True
-
-
-        if "product" in html:
-
-            print("ℹ️ Има продуктово съдържание")
-            return True
-
-
-        print("❌ Няма очевиден резултат")
-
-        return False
-
-
-    except Exception as e:
-
-        print(
-            "ERROR:",
-            e
-        )
-
-        return False
+    return status, price
 
 
 
 
-# ---------------- MAIN ----------------
+def process_sku(sku):
 
-def main():
-
-    if not os.path.exists(SKU_CSV):
-
-        print(
-            "❌ Липсва:",
-            SKU_CSV
-        )
-
-        return
+    print("\n================")
+    print("➡️ SKU:",sku)
 
 
-    skus = read_skus(SKU_CSV)
+    url=API_SEARCH.format(sku)
+
+
+    print("🌐",url)
+
+
+    r=session.get(url,timeout=30)
 
 
     print(
-        "🧾 SKU намерени:",
+        "STATUS:",
+        r.status_code,
+        "SIZE:",
+        len(r.text)
+    )
+
+
+    save_debug(sku,r.text)
+
+
+
+    if r.status_code!=200:
+
+        print("❌ Грешка")
+        return None
+
+
+
+    product=find_product_link(
+        r.text,
+        sku
+    )
+
+
+    if not product:
+
+        print("❌ Няма продукт")
+        return None
+
+
+
+    print("✅ PRODUCT:")
+    print(product)
+
+
+
+    time.sleep(WAIT)
+
+
+
+    p=session.get(
+        product,
+        timeout=30
+    )
+
+
+    if p.status_code!=200:
+
+        print("❌ Не може да отвори продукта")
+        return None
+
+
+
+    status,price=extract_product(
+        p.text,
+        sku
+    )
+
+
+    if price:
+
+        print(
+            "✅",
+            sku,
+            status,
+            price
+        )
+
+        return [
+            sku,
+            status,
+            "-",
+            price
+        ]
+
+
+
+    print("❌ Няма цена")
+
+    return None
+
+
+
+
+def main():
+
+    skus=read_skus()
+
+
+    print(
+        "🧾 SKU:",
         len(skus)
     )
+
+
+    with open(
+        RES_CSV,
+        "w",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        csv.writer(f).writerow(
+            [
+                "SKU",
+                "Наличност",
+                "Бройки",
+                "Цена (€)"
+            ]
+        )
+
+
+    with open(
+        NF_CSV,
+        "w",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        csv.writer(f).writerow(
+            ["SKU"]
+        )
+
 
 
     for sku in skus:
 
 
-        print("\n====================")
-        print("➡️ SKU:", sku)
-        print("====================")
-
-
-        found = False
-
-
-        for template in URLS:
-
-            url = template.format(
-                sku=sku
-            )
-
-
-            if check_url(
-                sku,
-                url
-            ):
-
-                found = True
-                break
-
-
-            time.sleep(WAIT)
+        result=process_sku(sku)
 
 
 
-        if not found:
+        if result:
 
-            print(
-                "❌ Няма резултат за",
-                sku
-            )
+            with open(
+                RES_CSV,
+                "a",
+                newline="",
+                encoding="utf-8"
+            ) as f:
+
+                csv.writer(f).writerow(result)
+
+
+        else:
+
+            with open(
+                NF_CSV,
+                "a",
+                newline="",
+                encoding="utf-8"
+            ) as f:
+
+                csv.writer(f).writerow([sku])
 
 
         time.sleep(WAIT)
 
 
 
-if __name__ == "__main__":
+
+if __name__=="__main__":
     main()
