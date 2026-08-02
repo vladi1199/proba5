@@ -6,11 +6,10 @@ import os
 import re
 import time
 import requests
+
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
-
-# ================= ПЪТИЩА =================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -23,90 +22,45 @@ DEBUG_DIR = os.path.join(BASE_DIR, "debug_html")
 os.makedirs(DEBUG_DIR, exist_ok=True)
 
 
-# ================= НАСТРОЙКИ =================
-
-API_URL = "https://filstar.com/api/search?term={}"
-
-WAIT = 3
-
-
 HEADERS = {
     "User-Agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 "
-        "Chrome/120 Safari/537.36",
-
-    "Accept-Language": "bg-BG,bg;q=0.9"
+        "AppleWebKit/537.36 Chrome/120 Safari/537.36"
 }
 
 
-# ================= CSV =================
+SEARCH_URL = "https://filstar.com/api/search?term={}"
 
-def init_files():
+SERIAL_URL = "https://filstar.com/get-serialize-product/{}"
+
+
+WAIT = 2
+
+
+
+def save_debug(name, data):
+
+    path = os.path.join(
+        DEBUG_DIR,
+        name
+    )
 
     with open(
-        RES_CSV,
+        path,
         "w",
-        newline="",
         encoding="utf-8"
     ) as f:
 
-        csv.writer(f).writerow(
-            [
-                "SKU",
-                "Наличност",
-                "Бройки",
-                "Цена (лв.)",
-                "URL"
-            ]
-        )
+        f.write(data)
+
+    print("🐞 Debug:", path)
 
 
-    with open(
-        NF_CSV,
-        "w",
-        newline="",
-        encoding="utf-8"
-    ) as f:
-
-        csv.writer(f).writerow(
-            ["SKU"]
-        )
-
-
-
-def append_result(row):
-
-    with open(
-        RES_CSV,
-        "a",
-        newline="",
-        encoding="utf-8"
-    ) as f:
-
-        csv.writer(f).writerow(row)
-
-
-
-def append_nf(sku):
-
-    with open(
-        NF_CSV,
-        "a",
-        newline="",
-        encoding="utf-8"
-    ) as f:
-
-        csv.writer(f).writerow([sku])
-
-
-
-# ================= SKU =================
 
 
 def read_skus():
 
-    skus=[]
+    result=[]
 
     comment=False
 
@@ -132,7 +86,7 @@ def read_skus():
 
             if v=="##":
 
-                comment=not comment
+                comment = not comment
                 continue
 
 
@@ -140,45 +94,80 @@ def read_skus():
                 continue
 
 
-            skus.append(v)
+            result.append(v)
 
 
 
-    return skus
+    return result
 
 
 
-# ================= DEBUG =================
 
-
-def save_debug(name,html):
-
-    path=os.path.join(
-        DEBUG_DIR,
-        name
-    )
-
+def init_files():
 
     with open(
-        path,
+        RES_CSV,
         "w",
+        newline="",
         encoding="utf-8"
     ) as f:
 
-        f.write(html)
+        csv.writer(f).writerow(
+            [
+                "SKU",
+                "Наличност",
+                "Цена",
+                "URL"
+            ]
+        )
 
 
-    print("🐞 Debug:",path)
+    with open(
+        NF_CSV,
+        "w",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        csv.writer(f).writerow(
+            ["SKU"]
+        )
 
 
 
-# ================= PARSE =================
+
+def append_result(row):
+
+    with open(
+        RES_CSV,
+        "a",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        csv.writer(f).writerow(row)
 
 
-def get_product_from_api(sku):
 
 
-    url=API_URL.format(sku)
+def append_nf(sku):
+
+    with open(
+        NF_CSV,
+        "a",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        csv.writer(f).writerow([sku])
+
+
+
+
+
+def find_product(sku):
+
+    url = SEARCH_URL.format(sku)
 
 
     print("🌐",url)
@@ -200,15 +189,9 @@ def get_product_from_api(sku):
 
 
     save_debug(
-        f"debug_{sku}.html",
+        f"search_{sku}.html",
         r.text
     )
-
-
-    if r.status_code != 200:
-
-        return None
-
 
 
     soup=BeautifulSoup(
@@ -217,14 +200,11 @@ def get_product_from_api(sku):
     )
 
 
-    # намиране на продукт
-
-
-    links=[]
+    product=None
 
 
     for a in soup.select(
-        ".product-image a"
+        ".product-name"
     ):
 
         href=a.get("href")
@@ -232,123 +212,145 @@ def get_product_from_api(sku):
 
         if href:
 
-            links.append(
-                urljoin(
-                    "https://filstar.com",
-                    href
-                )
+            product=urljoin(
+                "https://filstar.com",
+                href
             )
 
-
-    if not links:
-
-
-        for a in soup.find_all("a",href=True):
-
-            href=a["href"]
-
-
-            if href.startswith("/"):
-
-                links.append(
-                    urljoin(
-                        "https://filstar.com",
-                        href
-                    )
-                )
+            break
 
 
 
-    links=list(dict.fromkeys(links))
-
-
-    print(
-        "🔎 намерени линкове:",
-        len(links)
-    )
-
-
-    if not links:
+    if not product:
 
         return None
 
 
 
-    product_url=links[0]
+    print(
+        "➡️ PRODUCT:",
+        product
+    )
+
+
+    return product
+
+
+
+
+
+def find_product_id(html):
+
+
+    patterns=[
+
+        r'data-product-id="(\d+)"',
+
+        r'product_id.?(\d+)',
+
+        r'productId.?(\d+)',
+
+        r'/get-serialize-product/(\d+)'
+
+    ]
+
+
+    for p in patterns:
+
+        m=re.search(
+            p,
+            html
+        )
+
+        if m:
+
+            return m.group(1)
+
+
+
+    return None
+
+
+
+
+
+def get_serialized(product_id):
+
+
+    url=SERIAL_URL.format(
+        product_id
+    )
 
 
     print(
-        "➡️ PRODUCT:",
-        product_url
+        "🔗 SERIAL:",
+        url
     )
 
 
-    text=soup.get_text(
-        " ",
-        strip=True
+    r=requests.get(
+        url,
+        headers=HEADERS,
+        timeout=30
     )
 
 
-    # проверка SKU
-
-    if sku not in text:
-
-        print(
-            "⚠️ SKU не е в текста"
-        )
-
+    print(
+        "SERIAL STATUS:",
+        r.status_code,
+        "SIZE:",
+        len(r.text)
+    )
 
 
-    # =====================
-    # Цена
-    # =====================
+    save_debug(
+        f"serialize_{product_id}.html",
+        r.text
+    )
+
+
+    return r.text
+
+
+
+
+
+def parse_data(html,sku):
 
 
     price=None
 
 
-    price_match=re.search(
-        r"(\d+[.,]\d+)\s*лв",
-        text
+    m=re.search(
+        r'(\d+[.,]\d+)\s*(?:лв|€)',
+        html
     )
 
 
-    if price_match:
+    if m:
 
-        price=price_match.group(1).replace(",", ".")
+        price=m.group(1).replace(",", ".")
 
-
-
-    # =====================
-    # Наличност
-    # =====================
 
 
     status="Наличен"
 
 
     if (
-        "Изчерпан продукт" in text
+        "Изчерпан" in html
         or
-        "Няма наличност" in text
+        "out-of-stock" in html
     ):
 
         status="Изчерпан"
 
 
 
-    return {
-
-        "url":product_url,
-        "price":price,
-        "status":status
-
-    }
+    return status,price
 
 
 
 
-# ================= MAIN =================
 
 
 def main():
@@ -365,7 +367,6 @@ def main():
     )
 
 
-
     for sku in skus:
 
 
@@ -373,63 +374,91 @@ def main():
         print("➡️ SKU:",sku)
 
 
-        try:
+
+        product=find_product(sku)
 
 
-            result=get_product_from_api(
-                sku
-            )
+        if not product:
+
+            print("❌ няма продукт")
+
+            append_nf(sku)
+
+            continue
 
 
-            if result and result["price"]:
+
+        # пробваме да вземем ID от search HTML
+
+        search_html=open(
+            os.path.join(
+                DEBUG_DIR,
+                f"search_{sku}.html"
+            ),
+            encoding="utf-8"
+        ).read()
 
 
-                print(
-                    "✅",
-                    result["price"],
-                    result["status"]
-                )
+        product_id=find_product_id(
+            search_html
+        )
 
 
-                append_result(
-                    [
-                        sku,
-                        result["status"],
-                        "-",
-                        result["price"],
-                        result["url"]
-                    ]
-                )
+        if not product_id:
 
-
-            else:
-
-                print(
-                    "❌ Няма данни"
-                )
-
-                append_nf(
-                    sku
-                )
-
-
-        except Exception as e:
 
             print(
-                "ERROR:",
-                e
+                "❌ няма product ID"
             )
 
-            append_nf(
-                sku
+            append_nf(sku)
+
+            continue
+
+
+
+        serialize=get_serialized(
+            product_id
+        )
+
+
+        status,price=parse_data(
+            serialize,
+            sku
+        )
+
+
+        if price:
+
+            print(
+                "✅",
+                price,
+                status
             )
+
+
+            append_result(
+                [
+                    sku,
+                    status,
+                    price,
+                    product
+                ]
+            )
+
+
+        else:
+
+            print(
+                "❌ няма цена"
+            )
+
+            append_nf(sku)
+
 
 
         time.sleep(WAIT)
 
-
-
-    print("\n✅ Готово")
 
 
 
