@@ -4,3 +4,4 @@ lxml
 python-dotenv
 selenium
 chromedriver-autoinstaller
+playwright
