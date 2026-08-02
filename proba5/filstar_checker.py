@@ -79,31 +79,27 @@ def read_skus(path: str):
     out = []
     in_comment_block = False
 
-    with open(path, newline="", encoding="utf-8") as f:
-        r = csv.reader(f)
+    with open(path, "r", encoding="utf-8-sig") as f:
+        for raw_line in f:
+            v = raw_line.strip()
 
-        for row in r:
-            if not row:
+            if not v:
                 continue
 
-            v = (row[0] or "").strip()
-
-            # пропускаме заглавния ред
-            if v.lower() == "sku":
+            # Заглавен ред
+            if v.upper() == "SKU":
                 continue
 
-            # начало/край на блок коментар ##
+            # Маркер за начало/край на блок
             if v == "##":
                 in_comment_block = not in_comment_block
                 continue
 
-            # игнорира всичко между ##
+            # Игнорирай всичко в блока
             if in_comment_block:
                 continue
 
-            # добавяме активните SKU
-            if v:
-                out.append(v)
+            out.append(v)
 
     return out
 
