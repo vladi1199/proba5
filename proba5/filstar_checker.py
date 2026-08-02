@@ -1,18 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+# === Filstar API TEST checker ===
+#
+# - Без Selenium
+# - Без Google
+# - Директно през requests
+# - Чете SKU от CSV
+# - Игнорира коментари между ##
+# - Тества:
+#       https://filstar.com/search?term=SKU
+#       https://filstar.com/api/search?term=SKU
+#
+# Резултатите се записват в debug_html/
+
+
 import csv
 import os
-import re
 import time
 import requests
-from urllib.parse import urljoin
-
-from bs4 import BeautifulSoup
-
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
 
 
 # ---------------- ПЪТИЩА ----------------
@@ -20,421 +26,228 @@ from selenium.webdriver.chrome.options import Options
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 SKU_CSV = os.path.join(BASE_DIR, "sku_list_filstar.csv")
-RES_CSV = os.path.join(BASE_DIR, "results_filstar.csv")
-NF_CSV = os.path.join(BASE_DIR, "not_found_filstar.csv")
 
 DEBUG_DIR = os.path.join(BASE_DIR, "debug_html")
+
 os.makedirs(DEBUG_DIR, exist_ok=True)
 
 
 # ---------------- НАСТРОЙКИ ----------------
 
-BETWEEN_SKU = 4
-PAGE_TIMEOUT = 40
+WAIT = 3
 
 
-# ---------------- DRIVER ----------------
+URLS = [
+    "https://filstar.com/search?term={sku}",
+    "https://filstar.com/api/search?term={sku}"
+]
 
 
-def create_driver():
+HEADERS = {
+    "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 Chrome/120 Safari/537.36",
 
-    opts = Options()
+    "Accept":
+        "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 
-    opts.add_argument("--headless=new")
-    opts.add_argument("--no-sandbox")
-    opts.add_argument("--disable-dev-shm-usage")
-    opts.add_argument("--window-size=1280,2000")
+    "Accept-Language":
+        "bg-BG,bg;q=0.9,en;q=0.8"
+}
 
-    opts.add_argument(
-        "--user-agent="
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-        " AppleWebKit/537.36 Chrome/120 Safari/537.36"
+
+
+# ---------------- CSV ЧЕТЕНЕ ----------------
+
+def read_skus(path):
+
+    skus = []
+
+    comment = False
+
+    with open(path, "r", encoding="utf-8-sig") as f:
+
+        for line in f:
+
+            value = line.strip()
+
+            if not value:
+                continue
+
+
+            # пропускаме заглавието
+            if value.upper() == "SKU":
+                continue
+
+
+            # начало / край на коментар
+            if value == "##":
+                comment = not comment
+                continue
+
+
+            # игнорира коментарния блок
+            if comment:
+                continue
+
+
+            skus.append(value)
+
+
+    return skus
+
+
+
+# ---------------- SAVE DEBUG ----------------
+
+def save_html(sku, name, html):
+
+    path = os.path.join(
+        DEBUG_DIR,
+        f"{sku}_{name}.html"
     )
 
-    driver = webdriver.Chrome(options=opts)
-
-    driver.set_page_load_timeout(PAGE_TIMEOUT)
-
-    return driver
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(html)
 
 
-
-# ---------------- HELPERS ----------------
-
-
-def only_digits(s):
-
-    return re.sub(r"\D+", "", s or "")
+    print("🐞 HTML:", path)
 
 
 
-def save_debug(driver, sku, name):
+# ---------------- TEST ----------------
+
+def check_url(sku, url):
 
     try:
 
-        path = os.path.join(
-            DEBUG_DIR,
-            f"debug_{sku}_{name}.html"
-        )
+        print("\n🌐", url)
 
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(driver.page_source)
-
-        print("🐞 Debug:", path)
-
-    except:
-        pass
-
-
-
-def read_skus():
-
-    result=[]
-
-    with open(
-        SKU_CSV,
-        "r",
-        encoding="utf-8-sig"
-    ) as f:
-
-        for row in f:
-
-            row=row.strip()
-
-            if not row:
-                continue
-
-            if row.upper()=="SKU":
-                continue
-
-            result.append(row)
-
-    return result
-
-
-
-def init_files():
-
-    with open(
-        RES_CSV,
-        "w",
-        newline="",
-        encoding="utf-8"
-    ) as f:
-
-        csv.writer(f).writerow(
-            [
-                "SKU",
-                "Наличност",
-                "Бройки",
-                "Цена"
-            ]
+        r = requests.get(
+            url,
+            headers=HEADERS,
+            timeout=30
         )
 
 
-    with open(
-        NF_CSV,
-        "w",
-        newline="",
-        encoding="utf-8"
-    ) as f:
-
-        csv.writer(f).writerow(
-            [
-                "SKU"
-            ]
+        print(
+            "STATUS:",
+            r.status_code,
+            "SIZE:",
+            len(r.text)
         )
 
 
+        html = r.text.lower()
 
-def append_result(row):
 
-    with open(
-        RES_CSV,
-        "a",
-        newline="",
-        encoding="utf-8"
-    ) as f:
-
-        csv.writer(f).writerow(row)
-
-
-
-def append_not_found(sku):
-
-    with open(
-        NF_CSV,
-        "a",
-        newline="",
-        encoding="utf-8"
-    ) as f:
-
-        csv.writer(f).writerow([sku])
-
-
-
-# ---------------- GOOGLE SEARCH ----------------
-
-
-def google_search(driver, sku):
-
-    query = f"site:filstar.com {sku}"
-
-    url = (
-        "https://www.google.com/search?q="
-        + query.replace(" ","+")
-    )
-
-
-    print("🔎 Google:", query)
-
-
-    driver.get(url)
-
-    time.sleep(3)
-
-
-    links=[]
-
-
-    soup = BeautifulSoup(
-        driver.page_source,
-        "html.parser"
-    )
-
-
-    for a in soup.find_all("a"):
-
-        href=a.get("href")
-
-        if not href:
-            continue
-
-
-        if "filstar.com" in href:
-
-            if href.startswith("/url?q="):
-
-                href=href.split("/url?q=")[1].split("&")[0]
-
-
-            links.append(href)
-
-
-
-    clean=[]
-
-    for x in links:
-
-        if x not in clean:
-            clean.append(x)
-
-
-    return clean[:10]
-
-
-
-# ---------------- PRODUCT CHECK ----------------
-
-
-def extract_product(driver, sku):
-
-    html = driver.page_source
-
-
-    if (
-        "Just a moment" in html
-        or "Cloudflare" in html
-    ):
-
-        return None
-
-
-    soup=BeautifulSoup(
-        html,
-        "html.parser"
-    )
-
-
-    text=soup.get_text(
-        " ",
-        strip=True
-    )
-
-
-    if str(sku) not in text:
-        return None
-
-
-
-    price=None
-
-
-    m=re.search(
-        r"(\d+[.,]?\d*)\s*€",
-        text
-    )
-
-    if m:
-
-        price=m.group(1).replace(",", ".")
-
-
-
-    if not price:
-
-        m=re.search(
-            r"(\d+[.,]?\d*)\s*лв",
-            text
+        save_html(
+            sku,
+            "result",
+            r.text
         )
 
-        if m:
 
-            price=m.group(1).replace(",", ".")
+        if "just a moment" in html:
 
-
-
-    status="Наличен"
+            print("⚠️ CLOUDFLARE CHALLENGE")
+            return False
 
 
-    if (
-        "Изчерпан продукт" in text
-        or "Няма наличност" in text
-    ):
+        if "950594" in r.text or sku in r.text:
 
-        status="Изчерпан"
+            print("✅ SKU намерен в HTML")
+            return True
 
 
+        if "product" in html:
 
-    return [
-        sku,
-        status,
-        "-",
-        price or "-"
-    ]
+            print("ℹ️ Има продуктово съдържание")
+            return True
 
 
+        print("❌ Няма очевиден резултат")
 
-# ---------------- PROCESS ----------------
-
-
-def process(driver, sku):
+        return False
 
 
-    print("\n➡️ SKU:", sku)
+    except Exception as e:
 
+        print(
+            "ERROR:",
+            e
+        )
 
-    links=google_search(
-        driver,
-        sku
-    )
+        return False
 
-
-    if not links:
-
-        print("❌ няма Google резултат")
-
-        append_not_found(sku)
-
-        return
-
-
-
-    for link in links:
-
-
-        try:
-
-            print("🌐", link)
-
-
-            driver.get(link)
-
-            time.sleep(3)
-
-
-            result=extract_product(
-                driver,
-                sku
-            )
-
-
-            if result:
-
-                print(
-                    "✅ намерен:",
-                    result
-                )
-
-                append_result(result)
-
-                return
-
-
-
-        except Exception as e:
-
-            continue
-
-
-
-    save_debug(
-        driver,
-        sku,
-        "failed"
-    )
-
-
-    append_not_found(sku)
 
 
 
 # ---------------- MAIN ----------------
 
-
 def main():
 
+    if not os.path.exists(SKU_CSV):
 
-    init_files()
+        print(
+            "❌ Липсва:",
+            SKU_CSV
+        )
+
+        return
 
 
-    skus=read_skus()
+    skus = read_skus(SKU_CSV)
 
 
     print(
-        "🧾 SKU:",
+        "🧾 SKU намерени:",
         len(skus)
     )
 
 
-    driver=create_driver()
+    for sku in skus:
 
 
-    try:
+        print("\n====================")
+        print("➡️ SKU:", sku)
+        print("====================")
 
 
-        for sku in skus:
+        found = False
 
-            process(
-                driver,
+
+        for template in URLS:
+
+            url = template.format(
+                sku=sku
+            )
+
+
+            if check_url(
+                sku,
+                url
+            ):
+
+                found = True
+                break
+
+
+            time.sleep(WAIT)
+
+
+
+        if not found:
+
+            print(
+                "❌ Няма резултат за",
                 sku
             )
 
-            time.sleep(
-                BETWEEN_SKU
-            )
 
-
-    finally:
-
-        driver.quit()
+        time.sleep(WAIT)
 
 
 
-    print("✅ Готово")
-
-
-
-if __name__=="__main__":
-
+if __name__ == "__main__":
     main()
