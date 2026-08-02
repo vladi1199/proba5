@@ -293,48 +293,44 @@ def extract_product(page, sku):
 
     html = page.content()
 
-
     save_debug(
         f"product_{sku}.html",
         html
     )
 
-
     price = None
-
     status = "Наличен"
 
 
-    
-
-           try:
+    try:
 
         print(
             "⏳ Търся fast-order-table..."
         )
+
 
         page.wait_for_selector(
             "#fast-order-table tbody tr",
             timeout=10000
         )
 
+
         rows = page.locator(
             "#fast-order-table tbody tr"
         )
 
+
         total_rows = rows.count()
+
 
         print(
             f"🔎 Намерени редове: {total_rows}"
         )
 
 
-
-
         for index in range(total_rows):
 
             row = rows.nth(index)
-
 
             text = row.inner_text()
 
@@ -344,20 +340,18 @@ def extract_product(page, sku):
             )
 
 
-            # търсим точния SKU
+    except Exception as e:
 
-            if re.search(
-                rf"\b{re.escape(str(sku))}\b",
-                text
-            ):
-
-
-                print(
-                    f"✅ Намерен SKU ред: {text}"
-                )
+        print(
+            f"⚠️ Не намерих таблица: {e}"
+        )
 
 
-                row_html = row.inner_html()
+    return (
+        status,
+        "-",
+        price
+    )
 
 
 
