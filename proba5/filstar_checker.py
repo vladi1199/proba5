@@ -5,52 +5,144 @@ import csv
 import os
 import re
 import time
+import requests
+from urllib.parse import urljoin
 
-from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
+from bs4 import BeautifulSoup
 
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
+
+
+# ---------------- ПЪТИЩА ----------------
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 SKU_CSV = os.path.join(BASE_DIR, "sku_list_filstar.csv")
 RES_CSV = os.path.join(BASE_DIR, "results_filstar.csv")
 NF_CSV = os.path.join(BASE_DIR, "not_found_filstar.csv")
-DEBUG_DIR = os.path.join(BASE_DIR, "debug_html")
 
+DEBUG_DIR = os.path.join(BASE_DIR, "debug_html")
 os.makedirs(DEBUG_DIR, exist_ok=True)
 
-SEARCH_URL = "https://filstar.com/search?term={}"
+
+# ---------------- НАСТРОЙКИ ----------------
+
+BETWEEN_SKU = 4
+PAGE_TIMEOUT = 40
 
 
-WAIT = 5
+# ---------------- DRIVER ----------------
 
 
-def save_debug(page, sku, name):
+def create_driver():
+
+    opts = Options()
+
+    opts.add_argument("--headless=new")
+    opts.add_argument("--no-sandbox")
+    opts.add_argument("--disable-dev-shm-usage")
+    opts.add_argument("--window-size=1280,2000")
+
+    opts.add_argument(
+        "--user-agent="
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        " AppleWebKit/537.36 Chrome/120 Safari/537.36"
+    )
+
+    driver = webdriver.Chrome(options=opts)
+
+    driver.set_page_load_timeout(PAGE_TIMEOUT)
+
+    return driver
+
+
+
+# ---------------- HELPERS ----------------
+
+
+def only_digits(s):
+
+    return re.sub(r"\D+", "", s or "")
+
+
+
+def save_debug(driver, sku, name):
+
     try:
+
         path = os.path.join(
             DEBUG_DIR,
             f"debug_{sku}_{name}.html"
         )
 
         with open(path, "w", encoding="utf-8") as f:
-            f.write(page.content())
+            f.write(driver.page_source)
 
         print("🐞 Debug:", path)
 
-    except Exception:
+    except:
         pass
+
+
+
+def read_skus():
+
+    result=[]
+
+    with open(
+        SKU_CSV,
+        "r",
+        encoding="utf-8-sig"
+    ) as f:
+
+        for row in f:
+
+            row=row.strip()
+
+            if not row:
+                continue
+
+            if row.upper()=="SKU":
+                continue
+
+            result.append(row)
+
+    return result
 
 
 
 def init_files():
 
-    with open(RES_CSV, "w", newline="", encoding="utf-8") as f:
+    with open(
+        RES_CSV,
+        "w",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
         csv.writer(f).writerow(
-            ["SKU", "Наличност", "Бройки", "Цена"]
+            [
+                "SKU",
+                "Наличност",
+                "Бройки",
+                "Цена"
+            ]
         )
 
-    with open(NF_CSV, "w", newline="", encoding="utf-8") as f:
+
+    with open(
+        NF_CSV,
+        "w",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
         csv.writer(f).writerow(
-            ["SKU"]
+            [
+                "SKU"
+            ]
         )
 
 
@@ -63,11 +155,12 @@ def append_result(row):
         newline="",
         encoding="utf-8"
     ) as f:
+
         csv.writer(f).writerow(row)
 
 
 
-def append_nf(sku):
+def append_not_found(sku):
 
     with open(
         NF_CSV,
@@ -75,296 +168,273 @@ def append_nf(sku):
         newline="",
         encoding="utf-8"
     ) as f:
+
         csv.writer(f).writerow([sku])
 
 
 
-def read_skus():
-
-    result = []
-
-    with open(
-        SKU_CSV,
-        encoding="utf-8-sig"
-    ) as f:
-
-        for line in f:
-
-            sku = line.strip()
-
-            if not sku:
-                continue
-
-            if sku.upper() == "SKU":
-                continue
-
-            result.append(sku)
-
-    return result
+# ---------------- GOOGLE SEARCH ----------------
 
 
+def google_search(driver, sku):
 
-def only_digits(x):
+    query = f"site:filstar.com {sku}"
 
-    return re.sub(
-        r"\D+",
-        "",
-        x or ""
+    url = (
+        "https://www.google.com/search?q="
+        + query.replace(" ","+")
     )
 
 
-
-def cloudflare_detected(page):
-
-    title = page.title()
-
-    text = page.content()
-
-    if "Just a moment" in title:
-        return True
-
-    if "Performing security verification" in text:
-        return True
-
-    return False
+    print("🔎 Google:", query)
 
 
+    driver.get(url)
 
-def find_product(page, sku):
+    time.sleep(3)
 
-    links = page.locator(
-        "a"
+
+    links=[]
+
+
+    soup = BeautifulSoup(
+        driver.page_source,
+        "html.parser"
     )
 
-    count = links.count()
 
-    result = []
+    for a in soup.find_all("a"):
 
-    for i in range(count):
+        href=a.get("href")
 
-        try:
-
-            href = links.nth(i).get_attribute("href")
-
-            if href and "/product/" in href:
-
-                if href not in result:
-                    result.append(href)
-
-        except:
-            pass
+        if not href:
+            continue
 
 
-    return result[:10]
+        if "filstar.com" in href:
+
+            if href.startswith("/url?q="):
+
+                href=href.split("/url?q=")[1].split("&")[0]
+
+
+            links.append(href)
 
 
 
-def parse_product(page, sku):
+    clean=[]
 
-    try:
+    for x in links:
 
-        table = page.locator(
-            "#fast-order-table tbody tr"
+        if x not in clean:
+            clean.append(x)
+
+
+    return clean[:10]
+
+
+
+# ---------------- PRODUCT CHECK ----------------
+
+
+def extract_product(driver, sku):
+
+    html = driver.page_source
+
+
+    if (
+        "Just a moment" in html
+        or "Cloudflare" in html
+    ):
+
+        return None
+
+
+    soup=BeautifulSoup(
+        html,
+        "html.parser"
+    )
+
+
+    text=soup.get_text(
+        " ",
+        strip=True
+    )
+
+
+    if str(sku) not in text:
+        return None
+
+
+
+    price=None
+
+
+    m=re.search(
+        r"(\d+[.,]?\d*)\s*€",
+        text
+    )
+
+    if m:
+
+        price=m.group(1).replace(",", ".")
+
+
+
+    if not price:
+
+        m=re.search(
+            r"(\d+[.,]?\d*)\s*лв",
+            text
         )
 
-        rows = table.count()
+        if m:
 
-
-        for i in range(rows):
-
-            row = table.nth(i)
-
-            txt = row.inner_text()
-
-
-            if sku in txt:
-
-                price = None
-
-
-                m = re.search(
-                    r"(\d+[.,]?\d*)\s*лв",
-                    txt
-                )
-
-
-                if m:
-                    price = (
-                        m.group(1)
-                        .replace(",", ".")
-                    )
-
-
-                status = "Наличен"
-
-
-                if "Изчерпан" in txt:
-                    status = "Изчерпан"
-
-
-                return (
-                    status,
-                    "-",
-                    price
-                )
-
-
-    except Exception:
-        pass
-
-
-    return None, None, None
+            price=m.group(1).replace(",", ".")
 
 
 
-def process(page, sku):
-
-    print(
-        "➡️ SKU:",
-        sku
-    )
-
-    url = SEARCH_URL.format(sku)
-
-    page.goto(
-        url,
-        wait_until="domcontentloaded",
-        timeout=60000
-    )
-
-    time.sleep(WAIT)
+    status="Наличен"
 
 
-    if cloudflare_detected(page):
+    if (
+        "Изчерпан продукт" in text
+        or "Няма наличност" in text
+    ):
 
-        print(
-            "⚠️ Cloudflare challenge"
-        )
-
-        save_debug(
-            page,
-            sku,
-            "cloudflare"
-        )
-
-        append_nf(sku)
-
-        return
+        status="Изчерпан"
 
 
-    products = find_product(
-        page,
+
+    return [
+        sku,
+        status,
+        "-",
+        price or "-"
+    ]
+
+
+
+# ---------------- PROCESS ----------------
+
+
+def process(driver, sku):
+
+
+    print("\n➡️ SKU:", sku)
+
+
+    links=google_search(
+        driver,
         sku
     )
 
 
-    if not products:
+    if not links:
 
-        save_debug(
-            page,
-            sku,
-            "no_products"
-        )
+        print("❌ няма Google резултат")
 
-        append_nf(sku)
+        append_not_found(sku)
 
         return
 
 
 
-    for link in products:
+    for link in links:
+
 
         try:
 
-            page.goto(
-                link,
-                wait_until="domcontentloaded",
-                timeout=60000
-            )
-
-            time.sleep(WAIT)
+            print("🌐", link)
 
 
-            status, qty, price = parse_product(
-                page,
+            driver.get(link)
+
+            time.sleep(3)
+
+
+            result=extract_product(
+                driver,
                 sku
             )
 
 
-            if price:
-
-                append_result(
-                    [
-                        sku,
-                        status,
-                        qty,
-                        price
-                    ]
-                )
+            if result:
 
                 print(
-                    "✅",
-                    sku,
-                    price
+                    "✅ намерен:",
+                    result
                 )
+
+                append_result(result)
 
                 return
 
 
-        except Exception:
+
+        except Exception as e:
+
             continue
 
 
-    append_nf(sku)
 
+    save_debug(
+        driver,
+        sku,
+        "failed"
+    )
+
+
+    append_not_found(sku)
+
+
+
+# ---------------- MAIN ----------------
 
 
 def main():
 
+
     init_files()
 
-    skus = read_skus()
+
+    skus=read_skus()
+
 
     print(
-        "SKU:",
+        "🧾 SKU:",
         len(skus)
     )
 
 
-    with sync_playwright() as p:
+    driver=create_driver()
 
 
-        browser = p.chromium.launch(
-            headless=True
-        )
-
-
-        page = browser.new_page(
-            viewport={
-                "width":1280,
-                "height":2000
-            },
-            user_agent=(
-                "Mozilla/5.0 "
-                "(Windows NT 10.0; Win64; x64) "
-                "Chrome/120 Safari/537.36"
-            )
-        )
+    try:
 
 
         for sku in skus:
 
             process(
-                page,
+                driver,
                 sku
             )
 
-            time.sleep(3)
+            time.sleep(
+                BETWEEN_SKU
+            )
 
 
-        browser.close()
+    finally:
+
+        driver.quit()
 
 
 
-if __name__ == "__main__":
+    print("✅ Готово")
+
+
+
+if __name__=="__main__":
+
     main()
