@@ -5,11 +5,13 @@ import csv
 import os
 import re
 import time
-import requests
 
 from urllib.parse import urljoin
+
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
+
+# ================= PATHS =================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -18,31 +20,52 @@ RES_CSV = os.path.join(BASE_DIR, "results_filstar.csv")
 NF_CSV = os.path.join(BASE_DIR, "not_found_filstar.csv")
 
 DEBUG_DIR = os.path.join(BASE_DIR, "debug_html")
+
 os.makedirs(DEBUG_DIR, exist_ok=True)
 
 
-BASE_URL = "https://filstar.com"
-SEARCH_URL = "https://filstar.com/api/search?term={}"
 
-WAIT = 3
+# ================= SETTINGS =================
+
+BASE_URL = "https://filstar.com"
+
+SEARCH_URL = (
+    "https://filstar.com/api/search?term={}"
+)
+
+WAIT_TIME = 3
 
 
 
 # ================= DEBUG =================
 
-
 def save_debug(filename, content):
 
     try:
-        path = os.path.join(DEBUG_DIR, filename)
 
-        with open(path, "w", encoding="utf-8") as f:
+        path = os.path.join(
+            DEBUG_DIR,
+            filename
+        )
+
+        with open(
+            path,
+            "w",
+            encoding="utf-8"
+        ) as f:
+
             f.write(content)
 
-        print(f"🐞 Debug: {path}")
 
-    except:
+        print(
+            f"🐞 Debug: {path}"
+        )
+
+
+    except Exception:
+
         pass
+
 
 
 
@@ -51,9 +74,9 @@ def save_debug(filename, content):
 
 def read_skus():
 
-    result = []
+    skus = []
 
-    comment = False
+    comment_block = False
 
 
     with open(
@@ -65,32 +88,46 @@ def read_skus():
 
         for line in f:
 
-            sku = line.strip()
+            value = line.strip()
 
 
-            if not sku:
+            if not value:
+
                 continue
 
 
-            if sku.upper() == "SKU":
+
+            # заглавен ред
+
+            if value.upper() == "SKU":
+
                 continue
 
 
-            if sku == "##":
 
-                comment = not comment
+            # начало / край коментари
+
+            if value == "##":
+
+                comment_block = not comment_block
+
                 continue
 
 
-            if comment:
+
+            # игнорирай коментари
+
+            if comment_block:
+
                 continue
 
 
-            result.append(sku)
+
+            skus.append(value)
 
 
 
-    return result
+    return skus
 
 
 
@@ -114,6 +151,7 @@ def init_files():
         )
 
 
+
     with open(
         NF_CSV,
         "w",
@@ -126,6 +164,8 @@ def init_files():
                 "SKU"
             ]
         )
+
+
 
 
 
@@ -142,7 +182,8 @@ def save_result(row):
 
 
 
-def save_nf(sku):
+
+def save_not_found(sku):
 
     with open(
         NF_CSV,
@@ -151,7 +192,12 @@ def save_nf(sku):
         encoding="utf-8"
     ) as f:
 
-        csv.writer(f).writerow([sku])
+        csv.writer(f).writerow(
+            [
+                sku
+            ]
+        )
+
 
 
 
@@ -162,12 +208,18 @@ def save_nf(sku):
 def find_product_link(sku):
 
 
-    url = SEARCH_URL.format(sku)
+    url = SEARCH_URL.format(
+        sku
+    )
 
 
     print(
         f"🌐 {url}"
     )
+
+
+
+    import requests
 
 
     r = requests.get(
@@ -185,25 +237,32 @@ def find_product_link(sku):
     )
 
 
+
     save_debug(
         f"search_{sku}.html",
         r.text
     )
 
 
+
     if r.status_code != 200:
+
         return None
 
 
 
-    # Само продуктови линкове
+
+    # само реални продуктови линкове
+
     links = re.findall(
         r'<a href="([^"]+)"\s+class="product-name"',
         r.text
     )
 
 
+
     products = []
+
 
 
     for link in links:
@@ -221,6 +280,7 @@ def find_product_link(sku):
 
 
 
+
     print(
         f"🔎 Намерени продукти: {len(products)}"
     )
@@ -230,16 +290,7 @@ def find_product_link(sku):
     if products:
 
         return products[0]
-
-
-
-    return None
-
-
-
-
-
-# ================= PRODUCT =================
+# ================= PRODUCT EXTRACTION =================
 
 
 def extract_product(page, sku):
@@ -254,50 +305,138 @@ def extract_product(page, sku):
     )
 
 
-
     price = None
-
-
-
-    # първо търсим евро
-    m = re.search(
-        r'(\d+[.,]?\d*)\s*€',
-        html
-    )
-
-
-    if m:
-
-        price = m.group(1).replace(",", ".")
-
-
-
-    else:
-
-
-        m = re.search(
-            r'(\d+[.,]?\d*)\s*лв\.',
-            html
-        )
-
-
-        if m:
-
-            price = m.group(1).replace(",", ".")
-
-
 
     status = "Наличен"
 
 
 
-    if (
-        "Изчерпан продукт" in html
-        or
-        "send-request" in html
-    ):
+    try:
 
-        status = "Изчерпан"
+
+        print(
+            "⏳ Чакам fast-order-table..."
+        )
+
+
+        page.wait_for_selector(
+            "#fast-order-table tbody tr",
+            timeout=20000
+        )
+
+
+
+        rows = page.locator(
+            "#fast-order-table tbody tr"
+        )
+
+
+
+        count = rows.count()
+
+
+
+        print(
+            f"🔎 Варианти: {count}"
+        )
+
+
+
+        for i in range(count):
+
+
+            row = rows.nth(i)
+
+
+
+            text = row.inner_text()
+
+
+
+            print(
+                f"ROW {i}: {text[:120]}"
+            )
+
+
+
+            # точно SKU
+
+            if re.search(
+                rf"\b{re.escape(str(sku))}\b",
+                text
+            ):
+
+
+
+                print(
+                    f"✅ Намерен SKU ред: {text}"
+                )
+
+
+
+                row_html = row.inner_html()
+
+
+
+                # наличност
+
+
+                if (
+                    "Изчерпан продукт" in text
+                    or
+                    "send-request" in row_html
+                ):
+
+                    status = "Изчерпан"
+
+
+
+                # първо нормална цена в €
+
+                euro = re.search(
+                    r"(\d+[.,]?\d*)\s*€",
+                    text
+                )
+
+
+                if euro:
+
+                    price = (
+                        euro.group(1)
+                        .replace(",", ".")
+                    )
+
+
+
+                else:
+
+
+                    lev = re.search(
+                        r"(\d+[.,]?\d*)\s*лв",
+                        text
+                    )
+
+
+                    if lev:
+
+                        price = (
+                            lev.group(1)
+                            .replace(",", ".")
+                        )
+
+
+
+                break
+
+
+
+
+    except Exception as e:
+
+
+        print(
+            f"⚠️ Няма fast-order-table: {e}"
+        )
 
 
 
@@ -320,7 +459,9 @@ def main():
     init_files()
 
 
+
     skus = read_skus()
+
 
 
     print(
@@ -332,12 +473,14 @@ def main():
     with sync_playwright() as p:
 
 
+
         browser = p.chromium.launch(
             headless=True
         )
 
 
-        page = browser.new_page(
+
+        context = browser.new_context(
             user_agent=
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 "
@@ -346,7 +489,12 @@ def main():
 
 
 
+        page = context.new_page()
+
+
+
         for sku in skus:
+
 
 
             print("================")
@@ -357,19 +505,25 @@ def main():
 
 
 
-            product = find_product_link(sku)
+            product = find_product_link(
+                sku
+            )
 
 
 
             if not product:
 
+
                 print(
                     "❌ Няма продукт"
                 )
 
-                save_nf(sku)
+                save_not_found(
+                    sku
+                )
 
                 continue
+
 
 
 
@@ -382,14 +536,18 @@ def main():
             try:
 
 
+
                 page.goto(
                     product,
-                    wait_until="domcontentloaded",
+                    wait_until="networkidle",
                     timeout=60000
                 )
 
 
-                time.sleep(WAIT)
+
+                time.sleep(
+                    WAIT_TIME
+                )
 
 
 
@@ -403,9 +561,11 @@ def main():
                 if price:
 
 
+
                     print(
                         f"✅ {price} | {status}"
                     )
+
 
 
                     save_result(
@@ -418,14 +578,18 @@ def main():
                     )
 
 
+
                 else:
+
 
 
                     print(
                         "❌ няма цена"
                     )
 
-                    save_nf(sku)
+                    save_not_found(
+                        sku
+                    )
 
 
 
@@ -436,7 +600,9 @@ def main():
                     "⏱ Timeout"
                 )
 
-                save_nf(sku)
+                save_not_found(
+                    sku
+                )
 
 
 
@@ -444,10 +610,12 @@ def main():
 
 
                 print(
-                    f"ERROR: {e}"
+                    f"❌ ERROR: {e}"
                 )
 
-                save_nf(sku)
+                save_not_found(
+                    sku
+                )
 
 
 
@@ -462,5 +630,10 @@ def main():
 
 
 
+
 if __name__ == "__main__":
+
     main()
+
+
+    return None
