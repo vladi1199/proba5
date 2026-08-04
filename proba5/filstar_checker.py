@@ -348,7 +348,7 @@ def main():
         )
 
 
-       try:
+      try:
     page.goto(
         url,
         wait_until="networkidle",
@@ -357,8 +357,6 @@ def main():
 
 except Exception as e:
     print("⚠️ Timeout при зареждане, проверявам HTML:", e)
-        )
-
 
         time.sleep(5)
 
