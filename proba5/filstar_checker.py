@@ -5,7 +5,9 @@ import csv
 import os
 import re
 import time
-import requests
+import random
+
+from playwright.sync_api import sync_playwright
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -22,47 +24,25 @@ os.makedirs(DEBUG_DIR, exist_ok=True)
 
 BASE_URL = "https://filstar.com"
 
-WAIT = 2
-
-
-HEADERS = {
-
-    "User-Agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 Chrome/128 Safari/537.36",
-
-    "Accept":
-    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-
-    "Accept-Language":
-    "bg-BG,bg;q=0.9,en;q=0.8"
-
-}
-
-
-
-session = requests.Session()
-session.headers.update(HEADERS)
+WAIT_MIN = 3
+WAIT_MAX = 6
 
 
 
 def debug(name, data):
 
     try:
-
         with open(
             os.path.join(DEBUG_DIR, name),
             "w",
             encoding="utf-8"
         ) as f:
-
             f.write(data)
 
         print("🐞 Debug:", name)
 
-    except Exception:
+    except:
         pass
-
 
 
 
@@ -72,17 +52,14 @@ def read_skus():
 
     block = False
 
-
     with open(
         SKU_CSV,
         encoding="utf-8-sig"
     ) as f:
 
-
         for line in f:
 
             line = line.strip()
-
 
             if not line:
                 continue
@@ -112,7 +89,6 @@ def read_skus():
 
 def init_csv():
 
-
     with open(
         RESULT_CSV,
         "w",
@@ -128,7 +104,6 @@ def init_csv():
                 "Цена"
             ]
         )
-
 
 
     with open(
@@ -161,7 +136,6 @@ def save_result(row):
 
 
 
-
 def save_not_found(sku):
 
     with open(
@@ -180,11 +154,9 @@ def save_not_found(sku):
 
 
 
-def search_filstar(sku):
-
+def search_product(page, sku):
 
     url = f"{BASE_URL}/api/search?term={sku}"
-
 
     print(
         "🌐 SEARCH:",
@@ -192,28 +164,22 @@ def search_filstar(sku):
     )
 
 
-    try:
+    html = page.evaluate(
+        """
+        async(url)=>{
 
-        r = session.get(
-            url,
-            timeout=30
-        )
+            let r = await fetch(url,{
+                headers:{
+                    "X-Requested-With":"XMLHttpRequest"
+                }
+            });
 
+            return await r.text();
 
-        html = r.text
-
-
-    except Exception as e:
-
-
-        print(
-            "SEARCH ERROR:",
-            e
-        )
-
-        return None
-
-
+        }
+        """,
+        url
+    )
 
 
     debug(
@@ -222,84 +188,19 @@ def search_filstar(sku):
     )
 
 
-
-    return html
-
-
-
-
-
-def extract_price(html):
-
-
-    patterns = [
-
-
-        # 43.30 лв
-        r'(\d+\.\d+)\s*лв',
-
-
-        # 43,30 лв
-        r'(\d+,\d+)\s*лв'
-
-
-    ]
-
-
-
-    for pattern in patterns:
-
-
-        m = re.search(
-            pattern,
-            html,
-            re.I
-        )
-
-
-        if m:
-
-
-            price = m.group(1)
-
-            return price.replace(
-                ",",
-                "."
-            )
-
-
-
-    return None
-
-
-
-
-
-def extract_product_id(html):
-
-
     ids = re.findall(
-
         r'/get-serialize-product/(\d+)',
-
         html
-
     )
 
 
     if not ids:
 
-
         ids = re.findall(
-
             r'product.?id.?[:="\']+(\d+)',
-
             html,
-
             re.I
-
         )
-
 
 
     ids = list(dict.fromkeys(ids))
@@ -311,9 +212,88 @@ def extract_product_id(html):
     )
 
 
-    if ids:
+    return ids[0] if ids else None
 
-        return ids[0]
+
+
+
+def get_product_page(page, product_id):
+
+
+    url = f"{BASE_URL}/product/{product_id}"
+
+
+    print(
+        "🌐 PRODUCT:",
+        url
+    )
+
+
+    page.goto(
+        url,
+        wait_until="networkidle",
+        timeout=60000
+    )
+
+
+    time.sleep(3)
+
+
+    html = page.content()
+
+
+    if (
+        "Изпълняваме проверка за сигурност" in html
+        or
+        "Just a moment" in html
+    ):
+
+        print(
+            "⚠️ Cloudflare challenge"
+        )
+
+        return None
+
+
+
+    debug(
+        f"product_{product_id}.html",
+        html
+    )
+
+
+    return html
+
+
+
+
+def extract_price(html):
+
+
+    patterns = [
+
+        r'discount-price".*?([\d]+\.[\d]{2})\s*лв',
+
+        r'([\d]+\.[\d]{2})\s*лв\.',
+
+        r'"price"\s*:\s*"([\d\.]+)"',
+
+        r'"price"\s*:\s*([\d\.]+)'
+
+    ]
+
+
+    for pattern in patterns:
+
+        match = re.search(
+            pattern,
+            html,
+            re.I | re.S
+        )
+
+        if match:
+
+            return match.group(1)
 
 
     return None
@@ -321,15 +301,12 @@ def extract_product_id(html):
 
 
 
-
 def main():
-
 
     init_csv()
 
 
     skus = read_skus()
-
 
 
     print(
@@ -338,48 +315,84 @@ def main():
     )
 
 
+    with sync_playwright() as p:
 
 
-    for sku in skus:
+        browser = p.chromium.launch(
+            headless=True
+        )
 
 
-        print("================")
+        context = browser.new_context(
+
+            user_agent=
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/128 Safari/537.36",
+
+            locale="bg-BG",
+
+            timezone_id="Europe/Sofia",
+
+            viewport={
+                "width":1366,
+                "height":768
+            }
+
+        )
+
+
+        page = context.new_page()
 
 
         print(
-            "➡️ SKU:",
-            sku
+            "🌐 Зареждам Filstar..."
         )
 
 
-
-        html = search_filstar(
-            sku
+        page.goto(
+            BASE_URL,
+            wait_until="domcontentloaded",
+            timeout=60000
         )
 
 
+        time.sleep(5)
 
-        if not html:
+
+        print(
+            "🍪 Cookies:",
+            len(context.cookies())
+        )
+
+
+        for sku in skus:
+
+
+            print("================")
 
 
             print(
-                "❌ Няма резултат"
+                "➡️ SKU:",
+                sku
             )
 
-            save_not_found(sku)
 
-            continue
-
-
-
-
-        product_id = extract_product_id(
-            html
-        )
+            product_id = search_product(
+                page,
+                sku
+            )
 
 
+            if not product_id:
 
-        if product_id:
+                print(
+                    "❌ Няма продукт"
+                )
+
+                save_not_found(sku)
+
+                continue
+
+
 
             print(
                 "✅ Product ID:",
@@ -388,49 +401,68 @@ def main():
 
 
 
-        price = extract_price(
-            html
-        )
-
-
-
-        if price:
-
-
-            print(
-                "✅ Цена:",
-                price
+            html = get_product_page(
+                page,
+                product_id
             )
 
 
-            save_result(
 
-                [
-                    sku,
-                    "Наличен",
-                    "-",
+            if not html:
+
+                save_not_found(sku)
+
+                continue
+
+
+
+            price = extract_price(
+                html
+            )
+
+
+
+            if price:
+
+
+                print(
+                    "✅ Цена:",
                     price
-                ]
+                )
 
+
+                save_result(
+                    [
+                        sku,
+                        "Наличен",
+                        "-",
+                        price
+                    ]
+                )
+
+
+            else:
+
+
+                print(
+                    "❌ Няма цена"
+                )
+
+
+                save_not_found(sku)
+
+
+
+            time.sleep(
+                random.randint(
+                    WAIT_MIN,
+                    WAIT_MAX
+                )
             )
 
 
-        else:
 
-
-            print(
-                "❌ Няма цена"
-            )
-
-
-            save_not_found(
-                sku
-            )
-
-
-
-        time.sleep(WAIT)
-
+        browser.close()
 
 
 
@@ -441,7 +473,5 @@ def main():
 
 
 
-
 if __name__ == "__main__":
-
     main()
