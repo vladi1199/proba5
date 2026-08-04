@@ -7,8 +7,6 @@ import re
 import time
 import json
 
-from urllib.parse import urljoin
-
 from playwright.sync_api import sync_playwright
 
 
@@ -44,6 +42,7 @@ os.makedirs(
 )
 
 
+
 # ================= SETTINGS =================
 
 BASE_URL = "https://filstar.com"
@@ -52,11 +51,7 @@ SEARCH_URL = (
     "https://filstar.com/api/search?term={}"
 )
 
-PRODUCT_JSON_URL = (
-    "https://filstar.com/get-serialize-product/{}"
-)
-
-WAIT_TIME = 2
+WAIT_TIME = 3
 
 
 
@@ -67,13 +62,8 @@ def save_debug(filename, content):
 
     try:
 
-        path = os.path.join(
-            DEBUG_DIR,
-            filename
-        )
-
         with open(
-            path,
+            os.path.join(DEBUG_DIR, filename),
             "w",
             encoding="utf-8"
         ) as f:
@@ -82,13 +72,13 @@ def save_debug(filename, content):
 
 
         print(
-            f"🐞 Debug: {path}"
+            f"🐞 Debug: {filename}"
         )
 
 
     except:
-
         pass
+
 
 
 
@@ -97,20 +87,19 @@ def save_debug(filename, content):
 
 def read_skus():
 
-    skus = []
+    result = []
 
-    comment_block = False
+    block = False
 
 
     with open(
         SKU_CSV,
         "r",
         encoding="utf-8-sig"
-    ) as file:
+    ) as f:
 
 
-        for line in file:
-
+        for line in f:
 
             value = line.strip()
 
@@ -125,20 +114,19 @@ def read_skus():
 
             if value == "##":
 
-                comment_block = not comment_block
-
+                block = not block
                 continue
 
 
-            if comment_block:
+            if block:
                 continue
 
 
-            skus.append(value)
+            result.append(value)
 
 
+    return result
 
-    return skus
 
 
 
@@ -176,6 +164,7 @@ def init_csv():
 
 
 
+
 def save_result(row):
 
     with open(
@@ -206,10 +195,58 @@ def save_not_found(sku):
 
 
 
+
+# ================= RESPONSE LISTENER =================
+
+
+captured_json = {}
+
+
+
+def handle_response(response):
+
+    global captured_json
+
+
+    url = response.url
+
+
+    if "/get-serialize-product/" in url:
+
+
+        print(
+            f"📦 Хванат JSON: {url}"
+        )
+
+
+        try:
+
+            body = response.text()
+
+
+            save_debug(
+                "captured_json.html",
+                body
+            )
+
+
+            captured_json[url] = body
+
+
+        except Exception as e:
+
+            print(
+                e
+            )
+
+
+
+
+
 # ================= SEARCH =================
 
 
-def find_product_id(page, sku):
+def search_product(page, sku):
 
 
     url = SEARCH_URL.format(
@@ -222,37 +259,32 @@ def find_product_id(page, sku):
     )
 
 
+    captured_json.clear()
+
+
+
     try:
 
-        html = page.evaluate(
-            """
-            async(url)=>{
-
-                let r = await fetch(
-                    url,
-                    {
-                        headers:{
-                            "X-Requested-With":"XMLHttpRequest"
-                        }
-                    }
-                );
-
-                return await r.text();
-            }
-            """,
-            url
+        page.goto(
+            url,
+            wait_until="domcontentloaded",
+            timeout=60000
         )
 
 
     except Exception as e:
 
-
         print(
-            f"SEARCH ERROR {e}"
+            f"SEARCH PAGE ERROR: {e}"
         )
 
 
-        return None
+
+    time.sleep(3)
+
+
+
+    html = page.content()
 
 
 
@@ -262,82 +294,23 @@ def find_product_id(page, sku):
     )
 
 
-    print(
-        f"STATUS: 200 SIZE: {len(html)}"
-    )
-
-
-    # търсим директно endpoint ID
 
     ids = re.findall(
-        r'get-serialize-product/(\d+)',
+        r'"id"\s*:\s*(\d+)',
         html
     )
+
 
 
     if ids:
 
+
+        print(
+            f"✅ Product ID: {ids[0]}"
+        )
+
+
         return ids[0]
-
-
-
-    # fallback product URL
-
-    links = re.findall(
-        r'href="([^"]+)"',
-        html
-    )
-
-
-    for link in links:
-
-
-        if (
-            "filstar.com/" in link
-            and "api" not in link
-        ):
-
-
-            full = urljoin(
-                BASE_URL,
-                link
-            )
-
-
-            try:
-
-                page.goto(
-                    full,
-                    wait_until="domcontentloaded",
-                    timeout=60000
-                )
-
-            except:
-
-                pass
-
-
-            time.sleep(3)
-
-
-            html2 = page.content()
-
-
-            save_debug(
-                f"product_{sku}.html",
-                html2
-            )
-
-
-            ids = re.findall(
-                r'get-serialize-product/(\d+)',
-                html2
-            )
-
-
-            if ids:
-
-                return ids[0]
 
 
 
@@ -345,77 +318,71 @@ def find_product_id(page, sku):
 
 
 
-# ================= JSON =================
 
 
-def get_product_json(page, product_id):
+# ================= PRODUCT =================
 
 
-    url = PRODUCT_JSON_URL.format(
-        product_id
+def load_product(page, product_id):
+
+
+    url = (
+        f"https://filstar.com/get-serialize-product/{product_id}"
     )
 
 
     print(
-        f"📦 JSON: {url}"
+        f"📦 Зареждам JSON: {url}"
     )
+
+
+    captured_json.clear()
 
 
 
     try:
 
-
-        text = page.evaluate(
-            """
-            async(url)=>{
-
-
-                let r = await fetch(
-                    url,
-                    {
-                        headers:{
-                            "X-Requested-With":"XMLHttpRequest",
-                            "Accept":"application/json"
-                        }
-                    }
-                );
-
-
-                return await r.text();
-
-            }
-            """,
-            url
+        page.goto(
+            url,
+            wait_until="domcontentloaded",
+            timeout=60000
         )
-
-
-
-        save_debug(
-            f"json_{product_id}.html",
-            text
-        )
-
-
-        print(
-            f"JSON SIZE: {len(text)}"
-        )
-
-
-        return json.loads(
-            text
-        )
-
 
 
     except Exception as e:
 
-
         print(
-            f"JSON ERROR: {e}"
+            e
         )
 
 
-        return None
+
+    time.sleep(2)
+
+
+
+    if captured_json:
+
+
+        body = list(
+            captured_json.values()
+        )[0]
+
+
+        try:
+
+            return json.loads(body)
+
+
+        except:
+
+            pass
+
+
+
+    return None
+
+
 
 
 
@@ -440,20 +407,15 @@ def extract_price(data):
 
     if data.get("defaultVariant"):
 
-
-        price = data["defaultVariant"].get(
-            "price"
+        return str(
+            data["defaultVariant"]["price"]
         )
 
 
-        if price:
-
-            return str(
-                price
-            )
-
 
     return None
+
+
 
 
 
@@ -474,6 +436,7 @@ def main():
     )
 
 
+
     with sync_playwright() as p:
 
 
@@ -482,44 +445,52 @@ def main():
         )
 
 
+
         context = browser.new_context(
             user_agent=
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 Chrome/120 Safari/537.36"
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
         )
+
 
 
         page = context.new_page()
 
 
 
+        page.on(
+            "response",
+            handle_response
+        )
+
+
+
         print(
-            "🌐 Зареждам Filstar през браузър..."
+            "🌐 Отварям Filstar..."
         )
 
 
         try:
 
             page.goto(
-                BASE_URL,
+                "https://filstar.com/jo-jo-klips-rapala",
                 wait_until="domcontentloaded",
                 timeout=60000
             )
 
-
         except Exception as e:
 
             print(
-                f"⚠️ Home timeout: {e}"
+                e
             )
 
 
-        time.sleep(8)
+
+        time.sleep(5)
 
 
 
         print(
-            f"🍪 Заредени cookies: {len(context.cookies())}"
+            f"🍪 Cookies: {len(context.cookies())}"
         )
 
 
@@ -535,7 +506,8 @@ def main():
             )
 
 
-            product_id = find_product_id(
+
+            product_id = search_product(
                 page,
                 sku
             )
@@ -546,7 +518,7 @@ def main():
 
 
                 print(
-                    "❌ Няма Product ID"
+                    "❌ Няма продукт"
                 )
 
 
@@ -558,13 +530,7 @@ def main():
 
 
 
-            print(
-                f"✅ Product ID: {product_id}"
-            )
-
-
-
-            data = get_product_json(
+            data = load_product(
                 page,
                 product_id
             )
@@ -622,6 +588,7 @@ def main():
     print(
         "✅ Готово"
     )
+
 
 
 
