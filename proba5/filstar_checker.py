@@ -64,26 +64,19 @@ def read_skus():
             if not line:
                 continue
 
-
             if line.upper() == "SKU":
                 continue
 
-
             if line == "##":
-
                 block = not block
                 continue
-
 
             if block:
                 continue
 
-
             result.append(line)
 
-
     return result
-
 
 
 
@@ -121,7 +114,6 @@ def init_csv():
 
 
 
-
 def save_result(row):
 
     with open(
@@ -132,7 +124,6 @@ def save_result(row):
     ) as f:
 
         csv.writer(f).writerow(row)
-
 
 
 
@@ -150,11 +141,7 @@ def save_not_found(sku):
                 sku
             ]
         )
-
-
-
-
-def search_product(page, sku):
+        def search_product(page, sku):
 
     url = f"{BASE_URL}/api/search?term={sku}"
 
@@ -164,22 +151,33 @@ def search_product(page, sku):
     )
 
 
-    html = page.evaluate(
-        """
-        async(url)=>{
+    try:
 
-            let r = await fetch(url,{
-                headers:{
-                    "X-Requested-With":"XMLHttpRequest"
-                }
-            });
+        html = page.evaluate(
+            """
+            async(url)=>{
 
-            return await r.text();
+                let r = await fetch(url,{
+                    headers:{
+                        "X-Requested-With":"XMLHttpRequest"
+                    }
+                });
 
-        }
-        """,
-        url
-    )
+                return await r.text();
+
+            }
+            """,
+            url
+        )
+
+    except Exception as e:
+
+        print(
+            "SEARCH ERROR:",
+            e
+        )
+
+        return None
 
 
     debug(
@@ -217,6 +215,7 @@ def search_product(page, sku):
 
 
 
+
 def get_product_page(page, product_id):
 
 
@@ -229,17 +228,30 @@ def get_product_page(page, product_id):
     )
 
 
-    page.goto(
-        url,
-        wait_until="networkidle",
-        timeout=60000
-    )
+    try:
+
+        page.goto(
+            url,
+            wait_until="domcontentloaded",
+            timeout=60000
+        )
 
 
-    time.sleep(3)
+        time.sleep(3)
 
 
-    html = page.content()
+        html = page.content()
+
+
+    except Exception as e:
+
+        print(
+            "PRODUCT ERROR:",
+            e
+        )
+
+        return None
+
 
 
     if (
@@ -267,6 +279,7 @@ def get_product_page(page, product_id):
 
 
 
+
 def extract_price(html):
 
 
@@ -285,11 +298,13 @@ def extract_price(html):
 
     for pattern in patterns:
 
+
         match = re.search(
             pattern,
             html,
             re.I | re.S
         )
+
 
         if match:
 
@@ -297,11 +312,7 @@ def extract_price(html):
 
 
     return None
-
-
-
-
-def main():
+    def main():
 
     init_csv()
 
@@ -348,11 +359,20 @@ def main():
         )
 
 
-        page.goto(
-            BASE_URL,
-            wait_until="domcontentloaded",
-            timeout=60000
-        )
+        try:
+
+            page.goto(
+                BASE_URL,
+                wait_until="domcontentloaded",
+                timeout=60000
+            )
+
+        except Exception as e:
+
+            print(
+                "HOME ERROR:",
+                e
+            )
 
 
         time.sleep(5)
@@ -362,6 +382,7 @@ def main():
             "🍪 Cookies:",
             len(context.cookies())
         )
+
 
 
         for sku in skus:
@@ -384,9 +405,11 @@ def main():
 
             if not product_id:
 
+
                 print(
                     "❌ Няма продукт"
                 )
+
 
                 save_not_found(sku)
 
@@ -409,6 +432,12 @@ def main():
 
 
             if not html:
+
+
+                print(
+                    "❌ Няма продуктова страница"
+                )
+
 
                 save_not_found(sku)
 
@@ -474,4 +503,5 @@ def main():
 
 
 if __name__ == "__main__":
+
     main()
