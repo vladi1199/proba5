@@ -5,9 +5,12 @@ import csv
 import os
 import re
 import time
+import json
 import requests
 
 from urllib.parse import urljoin
+
+from playwright.sync_api import sync_playwright
 
 
 # ================= PATHS =================
@@ -16,30 +19,25 @@ BASE_DIR = os.path.dirname(
     os.path.abspath(__file__)
 )
 
-
 SKU_CSV = os.path.join(
     BASE_DIR,
     "sku_list_filstar.csv"
 )
-
 
 RESULT_CSV = os.path.join(
     BASE_DIR,
     "results_filstar.csv"
 )
 
-
 NOT_FOUND_CSV = os.path.join(
     BASE_DIR,
     "not_found_filstar.csv"
 )
 
-
 DEBUG_DIR = os.path.join(
     BASE_DIR,
     "debug_html"
 )
-
 
 os.makedirs(
     DEBUG_DIR,
@@ -55,14 +53,11 @@ SEARCH_URL = (
     "https://filstar.com/api/search?term={}"
 )
 
-
 PRODUCT_JSON_URL = (
     "https://filstar.com/get-serialize-product/{}"
 )
 
-
 WAIT_TIME = 1
-
 
 
 # ================= SESSION =================
@@ -73,22 +68,15 @@ session = requests.Session()
 session.headers.update(
     {
         "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 "
-            "Chrome/120 Safari/537.36",
-
-        "Accept":
-            "application/json, text/javascript, */*; q=0.01",
-
-        "X-Requested-With":
-            "XMLHttpRequest"
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 "
+        "Chrome/120 Safari/537.36"
     }
 )
 
 
 
 # ================= DEBUG =================
-
 
 def save_debug(filename, content):
 
@@ -97,24 +85,22 @@ def save_debug(filename, content):
         filename
     )
 
-
     try:
 
         with open(
             path,
             "w",
             encoding="utf-8"
-        ) as file:
+        ) as f:
 
-            file.write(content)
+            f.write(content)
 
 
         print(
             f"🐞 Debug: {path}"
         )
 
-
-    except Exception:
+    except:
 
         pass
 
@@ -154,7 +140,6 @@ def read_skus():
             if value == "##":
 
                 comment_block = not comment_block
-
                 continue
 
 
@@ -178,11 +163,7 @@ def init_csv():
         encoding="utf-8"
     ) as file:
 
-
-        writer = csv.writer(file)
-
-
-        writer.writerow(
+        csv.writer(file).writerow(
             [
                 "SKU",
                 "Наличност",
@@ -192,7 +173,6 @@ def init_csv():
         )
 
 
-
     with open(
         NOT_FOUND_CSV,
         "w",
@@ -200,11 +180,7 @@ def init_csv():
         encoding="utf-8"
     ) as file:
 
-
-        writer = csv.writer(file)
-
-
-        writer.writerow(
+        csv.writer(file).writerow(
             [
                 "SKU"
             ]
@@ -242,7 +218,68 @@ def save_not_found(sku):
 
 
 
-# ================= SEARCH PRODUCT =================
+# ================= BROWSER COOKIES =================
+
+
+def load_browser_cookies():
+
+    print(
+        "🌐 Зареждам Filstar през браузър..."
+    )
+
+
+    with sync_playwright() as p:
+
+
+        browser = p.chromium.launch(
+            headless=True
+        )
+
+
+        context = browser.new_context(
+            user_agent=
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 "
+            "Chrome/120 Safari/537.36"
+        )
+
+
+        page = context.new_page()
+
+
+        page.goto(
+            BASE_URL,
+            wait_until="domcontentloaded",
+            timeout=30000
+        )
+
+
+        time.sleep(3)
+
+
+        cookies = context.cookies()
+
+
+        browser.close()
+
+
+
+    for c in cookies:
+
+        session.cookies.set(
+            c["name"],
+            c["value"],
+            domain=c["domain"]
+        )
+
+
+    print(
+        f"🍪 Заредени cookies: {len(cookies)}"
+    )
+
+
+
+# ================= SEARCH =================
 
 
 def find_product_id(sku):
@@ -258,22 +295,19 @@ def find_product_id(sku):
     )
 
 
-    try:
+    session.headers.update(
+        {
+            "Referer": BASE_URL + "/",
+            "Accept":
+            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+        }
+    )
 
-        response = session.get(
-            url,
-            timeout=30
-        )
 
-
-    except Exception as e:
-
-        print(
-            f"❌ Search error: {e}"
-        )
-
-        return None
-
+    response = session.get(
+        url,
+        timeout=30
+    )
 
 
     print(
@@ -287,44 +321,34 @@ def find_product_id(sku):
     )
 
 
-
     if response.status_code != 200:
 
         return None
 
 
 
-    text = response.text
+    patterns = [
+
+        r'/get-serialize-product/(\d+)',
+
+        r'data-product-id="(\d+)"',
+
+        r'product-id="(\d+)"'
+
+    ]
 
 
-
-    # търсим product URL
-
-    links = re.findall(
-        r'href="([^"]+)"',
-        text
-    )
-
-
-
-    for link in links:
-
-
-        if link.startswith("/"):
-
-            link = urljoin(
-                BASE_URL,
-                link
-            )
+    for pattern in patterns:
 
 
         match = re.search(
-            r'-([0-9]+)$',
-            link
+            pattern,
+            response.text
         )
 
 
         if match:
+
 
             product_id = match.group(1)
 
@@ -338,31 +362,8 @@ def find_product_id(sku):
 
 
 
-    # резервен вариант
-    # ако API връща JSON
-
-    try:
-
-        data = response.json()
-
-
-        if isinstance(data, dict):
-
-            if "id" in data:
-
-                return str(
-                    data["id"]
-                )
-
-
-    except Exception:
-
-        pass
-
-
-
     print(
-        "❌ Product ID не е намерен"
+        "❌ Няма Product ID"
     )
 
 
@@ -370,10 +371,10 @@ def find_product_id(sku):
 
 
 
-# ================= PRODUCT JSON =================
+# ================= JSON =================
 
 
-def get_product_data(product_id):
+def get_product_json(product_id):
 
 
     url = PRODUCT_JSON_URL.format(
@@ -386,26 +387,34 @@ def get_product_data(product_id):
     )
 
 
-    try:
+    session.headers.update(
+        {
+            "Referer":
+            BASE_URL + "/",
 
-        response = session.get(
-            url,
-            timeout=30
-        )
+            "Accept":
+            "application/json, text/javascript, */*; q=0.01",
+
+            "X-Requested-With":
+            "XMLHttpRequest"
+        }
+    )
 
 
-    except Exception as e:
-
-        print(
-            f"❌ JSON error: {e}"
-        )
-
-        return None
-
+    response = session.get(
+        url,
+        timeout=30
+    )
 
 
     print(
         f"JSON STATUS: {response.status_code}"
+    )
+
+
+    save_debug(
+        f"json_{product_id}.html",
+        response.text
     )
 
 
@@ -420,21 +429,13 @@ def get_product_data(product_id):
         return response.json()
 
 
-    except Exception:
-
-
-        save_debug(
-            f"json_error_{product_id}.html",
-            response.text
-        )
-
+    except:
 
         return None
 
 
 
-
-# ================= PRICE =================
+# ================= EXTRACT =================
 
 
 def extract_price(data):
@@ -446,50 +447,41 @@ def extract_price(data):
 
 
 
-    # първо default variant
-
-    default = data.get(
-        "defaultVariant"
-    )
+    try:
 
 
-
-    if default:
-
-        price = default.get(
+        price = data.get(
             "price"
         )
 
 
         if price:
 
-            return str(
-                price
-            )
+            return str(price)
 
 
 
-    # ако има варианти
-
-    variants = data.get(
-        "variants",
-        []
-    )
-
-
-    for variant in variants:
-
-
-        price = variant.get(
-            "price"
+        default = data.get(
+            "defaultVariant"
         )
 
 
-        if price:
+        if default:
 
-            return str(
-                price
+            price = default.get(
+                "price"
             )
+
+
+            if price:
+
+                return str(price)
+
+
+
+    except:
+
+        pass
 
 
 
@@ -514,6 +506,9 @@ def main():
     )
 
 
+    load_browser_cookies()
+
+
 
     for sku in skus:
 
@@ -530,7 +525,6 @@ def main():
         )
 
 
-
         if not product_id:
 
 
@@ -542,16 +536,14 @@ def main():
 
 
 
-        data = get_product_data(
+        data = get_product_json(
             product_id
         )
-
 
 
         price = extract_price(
             data
         )
-
 
 
         if price:
@@ -583,7 +575,6 @@ def main():
             save_not_found(
                 sku
             )
-
 
 
         time.sleep(
