@@ -348,10 +348,15 @@ def main():
         )
 
 
-        page.goto(
-            BASE_URL,
-            wait_until="domcontentloaded",
-            timeout=60000
+       try:
+    page.goto(
+        url,
+        wait_until="networkidle",
+        timeout=90000
+    )
+
+except Exception as e:
+    print("⚠️ Timeout при зареждане, проверявам HTML:", e)
         )
 
 
