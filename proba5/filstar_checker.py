@@ -356,7 +356,6 @@ def open_product(page, url):
 
 def extract_product(page, sku):
 
-
     html = page.content()
 
 
@@ -366,146 +365,83 @@ def extract_product(page, sku):
     )
 
 
+    print(
+        "🔎 Проверявам HTML за цена..."
+    )
+
+
+    euro_prices = re.findall(
+        r"\d+[.,]?\d*\s*€",
+        html
+    )
+
+
+    leva_prices = re.findall(
+        r"\d+[.,]?\d*\s*лв",
+        html
+    )
+
+
+    print(
+        f"💶 Евро намерени: {euro_prices[:10]}"
+    )
+
+
+    print(
+        f"💰 Лева намерени: {leva_prices[:10]}"
+    )
+
+
     price = None
 
-    status = "Наличен"
 
+    if euro_prices:
 
-
-    try:
-
-
-        print(
-            "⏳ Търся fast-order-table..."
-        )
-
-
-
-        page.wait_for_selector(
-            "#fast-order-table tbody tr",
-            timeout=10000
-        )
-
-
-
-        rows = page.locator(
-            "#fast-order-table tbody tr"
-        )
-
-
-
-        total_rows = rows.count()
-
-
-
-        print(
-            f"🔎 Намерени редове: {total_rows}"
-        )
-
-
-
-        for index in range(total_rows):
-
-
-            row = rows.nth(index)
-
-
-            text = row.inner_text()
-
-
-
-            print(
-                f"ROW {index}: {text[:150]}"
+        price = (
+            re.search(
+                r"\d+[.,]?\d*",
+                euro_prices[0]
             )
-
-
-
-            if re.search(
-                rf"\b{re.escape(str(sku))}\b",
-                text
-            ):
-
-
-
-                print(
-                    f"✅ Намерен SKU ред: {text}"
-                )
-
-
-
-                row_html = row.inner_html()
-
-
-
-                if (
-                    "Изчерпан продукт" in text
-                    or
-                    "send-request" in row_html
-                ):
-
-
-                    status = "Изчерпан"
-
-
-
-
-                euro_price = re.search(
-                    r"(\d+[.,]?\d*)\s*€",
-                    text
-                )
-
-
-
-                if euro_price:
-
-
-                    price = (
-                        euro_price
-                        .group(1)
-                        .replace(",", ".")
-                    )
-
-
-
-                else:
-
-
-
-                    leva_price = re.search(
-                        r"(\d+[.,]?\d*)\s*лв",
-                        text
-                    )
-
-
-
-                    if leva_price:
-
-
-                        price = (
-                            leva_price
-                            .group(1)
-                            .replace(",", ".")
-                        )
-
-
-
-                break
-
-
-
-    except Exception as e:
-
-
-        print(
-            f"⚠️ Не намерих fast-order-table: {e}"
+            .group()
+            .replace(",", ".")
         )
 
+
+    elif leva_prices:
+
+        price = (
+            re.search(
+                r"\d+[.,]?\d*",
+                leva_prices[0]
+            )
+            .group()
+            .replace(",", ".")
+        )
+
+
+
+    if price:
+
+        print(
+            f"✅ Намерена цена: {price}"
+        )
+
+        return (
+            "Наличен",
+            "-",
+            price
+        )
+
+
+    print(
+        "❌ Няма цена в HTML"
+    )
 
 
     return (
-        status,
+        "Неизвестно",
         "-",
-        price
+        None
     )
     # ================= MAIN =================
 
