@@ -10,31 +10,37 @@ import json
 from playwright.sync_api import sync_playwright
 
 
+
 # ================= PATHS =================
 
 BASE_DIR = os.path.dirname(
     os.path.abspath(__file__)
 )
 
+
 SKU_CSV = os.path.join(
     BASE_DIR,
     "sku_list_filstar.csv"
 )
+
 
 RESULT_CSV = os.path.join(
     BASE_DIR,
     "results_filstar.csv"
 )
 
+
 NOT_FOUND_CSV = os.path.join(
     BASE_DIR,
     "not_found_filstar.csv"
 )
 
+
 DEBUG_DIR = os.path.join(
     BASE_DIR,
     "debug_html"
 )
+
 
 os.makedirs(
     DEBUG_DIR,
@@ -42,39 +48,39 @@ os.makedirs(
 )
 
 
+
 # ================= SETTINGS =================
+
 
 BASE_URL = "https://filstar.com"
 
-SEARCH_URL = (
-    "https://filstar.com/api/search?term={}"
-)
-
-WAIT_TIME = 2
+WAIT = 3
 
 
 
 # ================= DEBUG =================
 
 
-def save_debug(filename, content):
+def save_debug(name, data):
 
     try:
 
         with open(
-            os.path.join(DEBUG_DIR, filename),
+            os.path.join(DEBUG_DIR, name),
             "w",
             encoding="utf-8"
         ) as f:
 
-            f.write(content)
+            f.write(data)
 
 
         print(
-            f"🐞 Debug: {filename}"
+            f"🐞 Debug: {name}"
         )
 
-    except Exception:
+
+    except:
+
         pass
 
 
@@ -85,9 +91,9 @@ def save_debug(filename, content):
 
 def read_skus():
 
-    skus = []
+    result = []
 
-    comment_block = False
+    block = False
 
 
     with open(
@@ -113,24 +119,24 @@ def read_skus():
 
             if value == "##":
 
-                comment_block = not comment_block
+                block = not block
                 continue
 
 
-            if comment_block:
+            if block:
                 continue
 
 
-            skus.append(value)
+            result.append(value)
 
 
-
-    return skus
+    return result
 
 
 
 
 def init_csv():
+
 
     with open(
         RESULT_CSV,
@@ -138,6 +144,7 @@ def init_csv():
         newline="",
         encoding="utf-8"
     ) as f:
+
 
         csv.writer(f).writerow(
             [
@@ -157,12 +164,12 @@ def init_csv():
         encoding="utf-8"
     ) as f:
 
+
         csv.writer(f).writerow(
             [
                 "SKU"
             ]
         )
-
 
 
 
@@ -177,8 +184,6 @@ def save_result(row):
     ) as f:
 
         csv.writer(f).writerow(row)
-
-
 
 
 
@@ -200,15 +205,14 @@ def save_not_found(sku):
 
 
 
-
-# ================= SEARCH =================
+# ================= PRODUCT ID =================
 
 
 def find_product_id(page, sku):
 
 
-    url = SEARCH_URL.format(
-        sku
+    url = (
+        f"{BASE_URL}/api/search?term={sku}"
     )
 
 
@@ -225,17 +229,14 @@ def find_product_id(page, sku):
             url,
             headers={
 
-                "User-Agent":
-                "Mozilla/5.0",
+                "Accept":
+                "text/html",
 
                 "X-Requested-With":
-                "XMLHttpRequest",
+                "XMLHttpRequest"
 
-                "Accept":
-                "text/html"
             }
         )
-
 
 
         html = response.text()
@@ -249,6 +250,7 @@ def find_product_id(page, sku):
             f"SEARCH ERROR: {e}"
         )
 
+
         return None
 
 
@@ -259,7 +261,6 @@ def find_product_id(page, sku):
     )
 
 
-
     save_debug(
         f"search_{sku}.html",
         html
@@ -267,29 +268,19 @@ def find_product_id(page, sku):
 
 
 
-    # директно търсим serialize endpoint
+    # всички id полета
 
     ids = re.findall(
-        r'get-serialize-product[\/\\](\d+)',
-        html
+        r'id["\']?\s*[:=]\s*["\']?(\d+)',
+        html,
+        re.I
     )
 
 
-    if ids:
 
-        print(
-            f"✅ Product ID: {ids[0]}"
-        )
-
-        return ids[0]
-
-
-
-    # JSON структура
-
-    ids = re.findall(
-        r'"id"\s*:\s*(\d+)',
-        html
+    print(
+        "ID кандидати:",
+        ids[:20]
     )
 
 
@@ -309,25 +300,20 @@ def find_product_id(page, sku):
 
 
 
-    print(
-        "❌ Product ID не е намерен"
-    )
-
-
     return None
 
 
 
 
 
-# ================= PRODUCT JSON =================
+# ================= JSON =================
 
 
-def get_product_json(page, product_id):
+def get_product(page, pid):
 
 
     url = (
-        f"{BASE_URL}/get-serialize-product/{product_id}"
+        f"{BASE_URL}/get-serialize-product/{pid}"
     )
 
 
@@ -344,20 +330,14 @@ def get_product_json(page, product_id):
             url,
             headers={
 
-                "User-Agent":
-                "Mozilla/5.0",
-
-                "X-Requested-With":
-                "XMLHttpRequest",
-
                 "Accept":
                 "*/*",
 
-                "Referer":
-                BASE_URL
+                "X-Requested-With":
+                "XMLHttpRequest"
+
             }
         )
-
 
 
         print(
@@ -371,14 +351,13 @@ def get_product_json(page, product_id):
 
 
         save_debug(
-            f"json_{product_id}.html",
+            f"json_{pid}.html",
             text
         )
 
 
 
         if response.status == 200:
-
 
             return json.loads(text)
 
@@ -392,9 +371,7 @@ def get_product_json(page, product_id):
         )
 
 
-
     return None
-
 
 
 
@@ -403,10 +380,11 @@ def get_product_json(page, product_id):
 # ================= PRICE =================
 
 
-def extract_price(data):
+def get_price(data):
 
 
     if not data:
+
         return None
 
 
@@ -414,24 +392,20 @@ def extract_price(data):
     try:
 
 
-        if data.get("price"):
+        if data.get("defaultVariant"):
+
 
             return str(
-                data["price"]
+                data["defaultVariant"]["price"]
             )
 
 
 
-        variant = data.get(
-            "defaultVariant"
-        )
-
-
-        if variant and variant.get("price"):
+        if data.get("price"):
 
 
             return str(
-                variant["price"]
+                data["price"]
             )
 
 
@@ -468,6 +442,7 @@ def main():
     with sync_playwright() as p:
 
 
+
         browser = p.chromium.launch(
             headless=True
         )
@@ -475,10 +450,8 @@ def main():
 
 
         context = browser.new_context(
-
             user_agent=
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-
         )
 
 
@@ -488,30 +461,16 @@ def main():
 
 
         print(
-            "🌐 Зареждам Filstar..."
+            "🌐 Отварям Filstar..."
         )
 
 
-        try:
 
-
-            page.goto(
-
-                "https://filstar.com/jo-jo-klips-rapala",
-
-                wait_until="domcontentloaded",
-
-                timeout=60000
-
-            )
-
-
-        except Exception as e:
-
-            print(
-                e
-            )
-
+        page.goto(
+            BASE_URL,
+            wait_until="domcontentloaded",
+            timeout=60000
+        )
 
 
         time.sleep(5)
@@ -519,12 +478,14 @@ def main():
 
 
         print(
-            f"🍪 Cookies: {len(context.cookies())}"
+            "🍪 Cookies:",
+            len(context.cookies())
         )
 
 
 
         for sku in skus:
+
 
 
             print("================")
@@ -535,33 +496,38 @@ def main():
 
 
 
-            product_id = find_product_id(
+            pid = find_product_id(
                 page,
                 sku
             )
 
 
 
-            if not product_id:
+            if not pid:
+
+
+                print(
+                    "❌ Няма Product ID"
+                )
 
 
                 save_not_found(
                     sku
                 )
 
+
                 continue
 
 
 
-
-            data = get_product_json(
+            data = get_product(
                 page,
-                product_id
+                pid
             )
 
 
 
-            price = extract_price(
+            price = get_price(
                 data
             )
 
@@ -600,7 +566,7 @@ def main():
 
 
             time.sleep(
-                WAIT_TIME
+                WAIT
             )
 
 
