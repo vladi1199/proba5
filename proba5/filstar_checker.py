@@ -9,9 +9,6 @@ import requests
 
 from urllib.parse import urljoin
 
-from playwright.sync_api import sync_playwright
-
-
 
 # ================= PATHS =================
 
@@ -50,7 +47,6 @@ os.makedirs(
 )
 
 
-
 # ================= SETTINGS =================
 
 BASE_URL = "https://filstar.com"
@@ -60,8 +56,34 @@ SEARCH_URL = (
 )
 
 
+PRODUCT_JSON_URL = (
+    "https://filstar.com/get-serialize-product/{}"
+)
+
+
 WAIT_TIME = 1
 
+
+
+# ================= SESSION =================
+
+session = requests.Session()
+
+
+session.headers.update(
+    {
+        "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 "
+            "Chrome/120 Safari/537.36",
+
+        "Accept":
+            "application/json, text/javascript, */*; q=0.01",
+
+        "X-Requested-With":
+            "XMLHttpRequest"
+    }
+)
 
 
 
@@ -98,7 +120,6 @@ def save_debug(filename, content):
 
 
 
-
 # ================= CSV =================
 
 
@@ -123,15 +144,11 @@ def read_skus():
 
 
             if not value:
-
                 continue
-
 
 
             if value.upper() == "SKU":
-
                 continue
-
 
 
             if value == "##":
@@ -141,24 +158,18 @@ def read_skus():
                 continue
 
 
-
             if comment_block:
-
                 continue
 
 
-
             skus.append(value)
-
 
 
     return skus
 
 
 
-
 def init_csv():
-
 
     with open(
         RESULT_CSV,
@@ -201,10 +212,7 @@ def init_csv():
 
 
 
-
-
 def save_result(row):
-
 
     with open(
         RESULT_CSV,
@@ -213,16 +221,11 @@ def save_result(row):
         encoding="utf-8"
     ) as file:
 
-
-        csv.writer(file).writerow(
-            row
-        )
-
+        csv.writer(file).writerow(row)
 
 
 
 def save_not_found(sku):
-
 
     with open(
         NOT_FOUND_CSV,
@@ -230,7 +233,6 @@ def save_not_found(sku):
         newline="",
         encoding="utf-8"
     ) as file:
-
 
         csv.writer(file).writerow(
             [
@@ -240,11 +242,10 @@ def save_not_found(sku):
 
 
 
+# ================= SEARCH PRODUCT =================
 
-# ================= SEARCH =================
 
-
-def find_product_link(sku):
+def find_product_id(sku):
 
 
     url = SEARCH_URL.format(
@@ -253,18 +254,26 @@ def find_product_link(sku):
 
 
     print(
-        f"🌐 {url}"
+        f"🌐 SEARCH: {url}"
     )
 
 
-    response = requests.get(
-        url,
-        headers={
-            "User-Agent":
-            "Mozilla/5.0"
-        },
-        timeout=30
-    )
+    try:
+
+        response = session.get(
+            url,
+            timeout=30
+        )
+
+
+    except Exception as e:
+
+        print(
+            f"❌ Search error: {e}"
+        )
+
+        return None
+
 
 
     print(
@@ -285,165 +294,210 @@ def find_product_link(sku):
 
 
 
+    text = response.text
+
+
+
+    # търсим product URL
+
     links = re.findall(
-        r'<a href="([^"]+)"\s+class="product-name"',
-        response.text
+        r'href="([^"]+)"',
+        text
     )
-
-
-
-    products = []
 
 
 
     for link in links:
 
 
-        full_url = urljoin(
-            BASE_URL,
+        if link.startswith("/"):
+
+            link = urljoin(
+                BASE_URL,
+                link
+            )
+
+
+        match = re.search(
+            r'-([0-9]+)$',
             link
         )
 
 
-        if full_url not in products:
+        if match:
 
-            products.append(full_url)
+            product_id = match.group(1)
 
+
+            print(
+                f"✅ Product ID: {product_id}"
+            )
+
+
+            return product_id
+
+
+
+    # резервен вариант
+    # ако API връща JSON
+
+    try:
+
+        data = response.json()
+
+
+        if isinstance(data, dict):
+
+            if "id" in data:
+
+                return str(
+                    data["id"]
+                )
+
+
+    except Exception:
+
+        pass
 
 
 
     print(
-        f"🔎 Намерени продукти: {len(products)}"
+        "❌ Product ID не е намерен"
+    )
+
+
+    return None
+
+
+
+# ================= PRODUCT JSON =================
+
+
+def get_product_data(product_id):
+
+
+    url = PRODUCT_JSON_URL.format(
+        product_id
+    )
+
+
+    print(
+        f"📦 JSON: {url}"
+    )
+
+
+    try:
+
+        response = session.get(
+            url,
+            timeout=30
+        )
+
+
+    except Exception as e:
+
+        print(
+            f"❌ JSON error: {e}"
+        )
+
+        return None
+
+
+
+    print(
+        f"JSON STATUS: {response.status_code}"
+    )
+
+
+    if response.status_code != 200:
+
+        return None
+
+
+
+    try:
+
+        return response.json()
+
+
+    except Exception:
+
+
+        save_debug(
+            f"json_error_{product_id}.html",
+            response.text
+        )
+
+
+        return None
+
+
+
+
+# ================= PRICE =================
+
+
+def extract_price(data):
+
+
+    if not data:
+
+        return None
+
+
+
+    # първо default variant
+
+    default = data.get(
+        "defaultVariant"
     )
 
 
 
-    if products:
+    if default:
 
-        return products[0]
+        price = default.get(
+            "price"
+        )
+
+
+        if price:
+
+            return str(
+                price
+            )
+
+
+
+    # ако има варианти
+
+    variants = data.get(
+        "variants",
+        []
+    )
+
+
+    for variant in variants:
+
+
+        price = variant.get(
+            "price"
+        )
+
+
+        if price:
+
+            return str(
+                price
+            )
 
 
 
     return None
-    # ================= PRODUCT PAGE =================
-
-
-def open_product(page, url):
-
-
-    print(
-        f"➡️ PRODUCT: {url}"
-    )
-
-
-    page.goto(
-        url,
-        wait_until="domcontentloaded",
-        timeout=30000
-    )
-
-
-    time.sleep(
-        WAIT_TIME
-    )
 
 
 
-
-
-# ================= EXTRACT PRODUCT =================
-
-
-def extract_product(page, sku):
-
-    html = page.content()
-
-
-    save_debug(
-        f"product_{sku}.html",
-        html
-    )
-
-
-    print(
-        "🔎 Проверявам HTML за цена..."
-    )
-
-
-    euro_prices = re.findall(
-        r"\d+[.,]?\d*\s*€",
-        html
-    )
-
-
-    leva_prices = re.findall(
-        r"\d+[.,]?\d*\s*лв",
-        html
-    )
-
-
-    print(
-        f"💶 Евро намерени: {euro_prices[:10]}"
-    )
-
-
-    print(
-        f"💰 Лева намерени: {leva_prices[:10]}"
-    )
-
-
-    price = None
-
-
-    if euro_prices:
-
-        price = (
-            re.search(
-                r"\d+[.,]?\d*",
-                euro_prices[0]
-            )
-            .group()
-            .replace(",", ".")
-        )
-
-
-    elif leva_prices:
-
-        price = (
-            re.search(
-                r"\d+[.,]?\d*",
-                leva_prices[0]
-            )
-            .group()
-            .replace(",", ".")
-        )
-
-
-
-    if price:
-
-        print(
-            f"✅ Намерена цена: {price}"
-        )
-
-        return (
-            "Наличен",
-            "-",
-            price
-        )
-
-
-    print(
-        "❌ Няма цена в HTML"
-    )
-
-
-    return (
-        "Неизвестно",
-        "-",
-        None
-    )
-    # ================= MAIN =================
+# ================= MAIN =================
 
 
 def main():
@@ -452,9 +506,7 @@ def main():
     init_csv()
 
 
-
     skus = read_skus()
-
 
 
     print(
@@ -463,150 +515,86 @@ def main():
 
 
 
-    with sync_playwright() as p:
+    for sku in skus:
 
 
+        print("================")
 
-        browser = p.chromium.launch(
-            headless=True
+        print(
+            f"➡️ SKU: {sku}"
+        )
+
+
+        product_id = find_product_id(
+            sku
         )
 
 
 
-        context = browser.new_context(
-            user_agent=
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 "
-            "Chrome/120 Safari/537.36"
+        if not product_id:
+
+
+            save_not_found(
+                sku
+            )
+
+            continue
+
+
+
+        data = get_product_data(
+            product_id
         )
 
 
 
-        page = context.new_page()
+        price = extract_price(
+            data
+        )
 
 
 
-        for sku in skus:
+        if price:
 
-
-
-            print("================")
 
             print(
-                f"➡️ SKU: {sku}"
+                f"✅ Цена: {price}"
             )
 
 
+            save_result(
+                [
+                    sku,
+                    "Наличен",
+                    "-",
+                    price
+                ]
+            )
 
-            product_url = find_product_link(
+
+        else:
+
+
+            print(
+                "❌ Няма цена"
+            )
+
+
+            save_not_found(
                 sku
             )
 
 
 
-            if not product_url:
-
-
-
-                print(
-                    "❌ Няма намерен продукт"
-                )
-
-
-                save_not_found(
-                    sku
-                )
-
-
-                continue
-
-
-
-            try:
-
-
-
-                open_product(
-                    page,
-                    product_url
-                )
-
-
-
-                status, qty, price = extract_product(
-                    page,
-                    sku
-                )
-
-
-
-                if price:
-
-
-
-                    print(
-                        f"✅ {price} | {status}"
-                    )
-
-
-
-                    save_result(
-                        [
-                            sku,
-                            status,
-                            qty,
-                            price
-                        ]
-                    )
-
-
-
-                else:
-
-
-
-                    print(
-                        "❌ Няма цена"
-                    )
-
-
-
-                    save_not_found(
-                        sku
-                    )
-
-
-
-            except Exception as e:
-
-
-
-                print(
-                    f"❌ Грешка при {sku}: {e}"
-                )
-
-
-                save_not_found(
-                    sku
-                )
-
-
-
-            time.sleep(
-                WAIT_TIME
-            )
-
-
-
-        browser.close()
+        time.sleep(
+            WAIT_TIME
+        )
 
 
 
     print(
         "✅ Готово"
     )
-
-
 
 
 
