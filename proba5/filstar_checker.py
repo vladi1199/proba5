@@ -4,28 +4,21 @@
 import csv
 import os
 import re
-import time
 import json
+import time
 
 from playwright.sync_api import sync_playwright
 
 
-# ================= PATHS =================
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 SKU_CSV = os.path.join(BASE_DIR, "sku_list_filstar.csv")
-
 RESULT_CSV = os.path.join(BASE_DIR, "results_filstar.csv")
-
 NOT_FOUND_CSV = os.path.join(BASE_DIR, "not_found_filstar.csv")
-
 DEBUG_DIR = os.path.join(BASE_DIR, "debug_html")
 
 os.makedirs(DEBUG_DIR, exist_ok=True)
 
-
-# ================= SETTINGS =================
 
 BASE_URL = "https://filstar.com"
 
@@ -33,28 +26,28 @@ WAIT = 2
 
 
 
-# ================= DEBUG =================
+def debug(name, data):
 
+    try:
+        with open(
+            os.path.join(DEBUG_DIR, name),
+            "w",
+            encoding="utf-8"
+        ) as f:
+            f.write(data)
 
-def save_debug(name, content):
+        print("🐞 Debug:", name)
 
-    path = os.path.join(DEBUG_DIR, name)
+    except:
+        pass
 
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(content)
-
-    print("🐞 Debug:", name)
-
-
-
-# ================= CSV =================
 
 
 def read_skus():
 
     result = []
 
-    comment = False
+    block = False
 
     with open(
         SKU_CSV,
@@ -63,30 +56,25 @@ def read_skus():
 
         for line in f:
 
-            line=line.strip()
+            line = line.strip()
 
             if not line:
                 continue
 
-            if line.upper()=="SKU":
+            if line.upper() == "SKU":
                 continue
 
-
-            if line=="##":
-
-                comment = not comment
+            if line == "##":
+                block = not block
                 continue
 
-
-            if comment:
+            if block:
                 continue
-
 
             result.append(line)
 
 
     return result
-
 
 
 
@@ -124,8 +112,6 @@ def init_csv():
 
 
 
-
-
 def save_result(row):
 
     with open(
@@ -139,8 +125,6 @@ def save_result(row):
 
 
 
-
-
 def save_not_found(sku):
 
     with open(
@@ -150,22 +134,14 @@ def save_not_found(sku):
         encoding="utf-8"
     ) as f:
 
-        csv.writer(f).writerow(
-            [sku]
-        )
+        csv.writer(f).writerow([sku])
 
-
-
-
-
-# ================= SEARCH =================
 
 
 def search_product(page, sku):
 
 
-    url=f"https://filstar.com/api/search?term={sku}"
-
+    url = f"{BASE_URL}/api/search?term={sku}"
 
     print(
         "🌐 SEARCH:",
@@ -173,27 +149,37 @@ def search_product(page, sku):
     )
 
 
-    html = page.evaluate(
-        """
-        async (url)=>{
+    try:
 
-            let r = await fetch(url,{
-                credentials:"include",
-                headers:{
-                    "X-Requested-With":"XMLHttpRequest"
-                }
-            });
+        html = page.evaluate(
+            """
+            async (url)=>{
 
-            return await r.text();
-        }
+                let r = await fetch(url,{
+                    headers:{
+                        "X-Requested-With":"XMLHttpRequest"
+                    }
+                });
 
-        """,
-        url
-    )
+                return await r.text();
+            }
+            """,
+            url
+        )
+
+
+    except Exception as e:
+
+        print(
+            "SEARCH ERROR:",
+            e
+        )
+
+        return None
 
 
 
-    save_debug(
+    debug(
         f"search_{sku}.html",
         html
     )
@@ -205,7 +191,16 @@ def search_product(page, sku):
     )
 
 
-    ids=list(dict.fromkeys(ids))
+    if not ids:
+
+        ids = re.findall(
+            r'product.?id.?[:="\']+(\d+)',
+            html,
+            re.I
+        )
+
+
+    ids = list(dict.fromkeys(ids))
 
 
     print(
@@ -223,14 +218,12 @@ def search_product(page, sku):
 
 
 
-
-# ================= JSON =================
-
-
 def get_product_json(page, product_id):
 
 
-    url=f"/get-serialize-product/{product_id}"
+    url = (
+        f"{BASE_URL}/get-serialize-product/{product_id}"
+    )
 
 
     print(
@@ -239,29 +232,41 @@ def get_product_json(page, product_id):
     )
 
 
-    data = page.evaluate(
-        """
-        async (url)=>{
+    try:
 
-            let r = await fetch(url,{
-                credentials:"include",
-                headers:{
-                    "X-Requested-With":"XMLHttpRequest",
-                    "Accept":"application/json"
+
+        data = page.evaluate(
+            """
+            async(url)=>{
+
+                let r = await fetch(url,{
+                    headers:{
+                        "X-Requested-With":"XMLHttpRequest",
+                        "Accept":"application/json,text/plain,*/*"
+                    }
+                });
+
+                return {
+                    status:r.status,
+                    text:await r.text()
                 }
-            });
+
+            }
+            """,
+            url
+        )
 
 
-            return {
-                status:r.status,
-                text:await r.text()
-            };
 
-        }
+    except Exception as e:
 
-        """,
-        url
-    )
+        print(
+            "JSON ERROR:",
+            e
+        )
+
+        return None
+
 
 
     print(
@@ -270,14 +275,13 @@ def get_product_json(page, product_id):
     )
 
 
-    save_debug(
+    debug(
         f"json_{product_id}.html",
         data["text"]
     )
 
 
-
-    if data["status"]!=200:
+    if data["status"] != 200:
 
         return None
 
@@ -290,84 +294,47 @@ def get_product_json(page, product_id):
         )
 
 
-    except Exception:
+    except:
 
         return None
 
 
 
 
-
-# ================= EXTRACT =================
-
-
-def extract_product(product, sku):
+def extract_price(product):
 
 
     try:
 
-        variant = product["defaultVariant"]
+        price = product["defaultVariant"]["price"]
+
+        return str(price)
 
 
-        price = variant.get(
-            "price"
-        )
+    except:
 
-
-        quantity = variant.get(
-            "quantity"
-        )
-
-
-        if quantity and quantity>0:
-
-            status="Наличен"
-
-        else:
-
-            status="Няма наличност"
+        pass
 
 
 
-        print(
-            "Цена:",
-            price,
-            "Количество:",
-            quantity
-        )
+    try:
+
+        return str(product["price"])
+
+    except:
+
+        return None
 
 
-        return (
-            status,
-            quantity,
-            price
-        )
-
-
-    except Exception as e:
-
-
-        print(
-            "EXTRACT ERROR:",
-            e
-        )
-
-
-        return None,None,None
-
-
-
-
-
-# ================= MAIN =================
 
 
 def main():
 
+
     init_csv()
 
 
-    skus=read_skus()
+    skus = read_skus()
 
 
     print(
@@ -376,23 +343,21 @@ def main():
     )
 
 
-
     with sync_playwright() as p:
 
 
-        browser=p.chromium.launch(
+        browser = p.chromium.launch(
             headless=True
         )
 
 
-        context=browser.new_context(
+        context = browser.new_context(
             user_agent=
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 Chrome/120 Safari/537.36"
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
         )
 
 
-        page=context.new_page()
+        page = context.new_page()
 
 
         print(
@@ -417,12 +382,9 @@ def main():
         time.sleep(5)
 
 
-
         print(
             "🍪 Cookies:",
-            len(
-                context.cookies()
-            )
+            len(context.cookies())
         )
 
 
@@ -438,86 +400,77 @@ def main():
             )
 
 
-            try:
+            product_id = search_product(
+                page,
+                sku
+            )
 
 
-                product_id=search_product(
-                    page,
-                    sku
-                )
-
-
-                if not product_id:
-
-                    print(
-                        "❌ Няма продукт"
-                    )
-
-                    save_not_found(sku)
-
-                    continue
-
+            if not product_id:
 
 
                 print(
-                    "✅ Product ID:",
-                    product_id
+                    "❌ Няма продукт"
                 )
 
+                save_not_found(sku)
 
-                product=get_product_json(
-                    page,
-                    product_id
-                )
-
-
-                if not product:
-
-
-                    print(
-                        "❌ Няма JSON"
-                    )
-
-                    save_not_found(sku)
-
-                    continue
+                continue
 
 
 
-                status,qty,price=extract_product(
-                    product,
-                    sku
-                )
+            print(
+                "✅ Product ID:",
+                product_id
+            )
 
 
-                if price:
+            product = get_product_json(
+                page,
+                product_id
+            )
 
 
-                    save_result(
-                        [
-                            sku,
-                            status,
-                            qty,
-                            price
-                        ]
-                    )
-
-                    print(
-                        "✅ записан"
-                    )
-
-
-                else:
-
-                    save_not_found(sku)
-
-
-            except Exception as e:
+            if not product:
 
 
                 print(
-                    "ERROR:",
-                    e
+                    "❌ Няма JSON"
+                )
+
+                save_not_found(sku)
+
+                continue
+
+
+
+            price = extract_price(
+                product
+            )
+
+
+            if price:
+
+
+                print(
+                    "✅ Цена:",
+                    price
+                )
+
+
+                save_result(
+                    [
+                        sku,
+                        "Наличен",
+                        "-",
+                        price
+                    ]
+                )
+
+            else:
+
+                print(
+                    "❌ Няма цена"
                 )
 
                 save_not_found(sku)
@@ -539,6 +492,6 @@ def main():
 
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
 
     main()
