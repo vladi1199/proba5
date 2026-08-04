@@ -6,7 +6,6 @@ import os
 import re
 import time
 import json
-import requests
 
 from urllib.parse import urljoin
 
@@ -57,22 +56,7 @@ PRODUCT_JSON_URL = (
     "https://filstar.com/get-serialize-product/{}"
 )
 
-WAIT_TIME = 1
-
-
-# ================= SESSION =================
-
-session = requests.Session()
-
-
-session.headers.update(
-    {
-        "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 "
-        "Chrome/120 Safari/537.36"
-    }
-)
+WAIT_TIME = 2
 
 
 
@@ -100,14 +84,13 @@ def save_debug(filename, content):
             f"🐞 Debug: {path}"
         )
 
-    except:
 
+    except Exception:
         pass
 
 
 
 # ================= CSV =================
-
 
 def read_skus():
 
@@ -163,7 +146,11 @@ def init_csv():
         encoding="utf-8"
     ) as file:
 
-        csv.writer(file).writerow(
+
+        writer = csv.writer(file)
+
+
+        writer.writerow(
             [
                 "SKU",
                 "Наличност",
@@ -180,7 +167,11 @@ def init_csv():
         encoding="utf-8"
     ) as file:
 
-        csv.writer(file).writerow(
+
+        writer = csv.writer(file)
+
+
+        writer.writerow(
             [
                 "SKU"
             ]
@@ -218,71 +209,10 @@ def save_not_found(sku):
 
 
 
-# ================= BROWSER COOKIES =================
-
-
-def load_browser_cookies():
-
-    print(
-        "🌐 Зареждам Filstar през браузър..."
-    )
-
-
-    with sync_playwright() as p:
-
-
-        browser = p.chromium.launch(
-            headless=True
-        )
-
-
-        context = browser.new_context(
-            user_agent=
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 "
-            "Chrome/120 Safari/537.36"
-        )
-
-
-        page = context.new_page()
-
-
-        page.goto(
-            BASE_URL,
-            wait_until="domcontentloaded",
-            timeout=30000
-        )
-
-
-        time.sleep(3)
-
-
-        cookies = context.cookies()
-
-
-        browser.close()
-
-
-
-    for c in cookies:
-
-        session.cookies.set(
-            c["name"],
-            c["value"],
-            domain=c["domain"]
-        )
-
-
-    print(
-        f"🍪 Заредени cookies: {len(cookies)}"
-    )
-
-
-
 # ================= SEARCH =================
 
 
-def find_product_id(sku):
+def find_product_id(page, sku):
 
 
     url = SEARCH_URL.format(
@@ -295,76 +225,139 @@ def find_product_id(sku):
     )
 
 
-    session.headers.update(
-        {
-            "Referer": BASE_URL + "/",
-            "Accept":
-            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
-        }
-    )
+    try:
+
+        html = page.evaluate(
+            """
+            async (url) => {
+
+                const response = await fetch(
+                    url,
+                    {
+                        headers:{
+                            "X-Requested-With":"XMLHttpRequest"
+                        }
+                    }
+                );
+
+                return await response.text();
+            }
+            """,
+            url
+        )
 
 
-    response = session.get(
-        url,
-        timeout=30
-    )
+    except Exception as e:
 
-
-    print(
-        f"STATUS: {response.status_code} SIZE: {len(response.text)}"
-    )
-
-
-    save_debug(
-        f"search_{sku}.html",
-        response.text
-    )
-
-
-    if response.status_code != 200:
+        print(
+            f"SEARCH ERROR: {e}"
+        )
 
         return None
 
 
 
-    patterns = [
-
-        r'/get-serialize-product/(\d+)',
-
-        r'data-product-id="(\d+)"',
-
-        r'product-id="(\d+)"'
-
-    ]
-
-
-    for pattern in patterns:
-
-
-        match = re.search(
-            pattern,
-            response.text
-        )
-
-
-        if match:
-
-
-            product_id = match.group(1)
-
-
-            print(
-                f"✅ Product ID: {product_id}"
-            )
-
-
-            return product_id
-
+    save_debug(
+        f"search_{sku}.html",
+        html
+    )
 
 
     print(
-        "❌ Няма Product ID"
+        f"STATUS: 200 SIZE: {len(html)}"
     )
+
+
+
+    # намиране на product URL
+
+    urls = re.findall(
+        r'href="([^"]+)"',
+        html
+    )
+
+
+    product_urls = []
+
+
+    for u in urls:
+
+        if (
+            "filstar.com/" in u
+            and "api" not in u
+        ):
+
+            full = urljoin(
+                BASE_URL,
+                u
+            )
+
+            if full not in product_urls:
+
+                product_urls.append(full)
+
+
+
+    if not product_urls:
+
+        print(
+            "❌ Няма продукт"
+        )
+
+        return None
+
+
+
+    product_url = product_urls[0]
+
+
+    print(
+        f"➡️ PRODUCT PAGE: {product_url}"
+    )
+
+
+    # взимаме ID от страницата
+
+    page.goto(
+        product_url,
+        wait_until="domcontentloaded",
+        timeout=60000
+    )
+
+
+    time.sleep(2)
+
+
+
+    html = page.content()
+
+
+
+    match = re.search(
+        r'product(?:-|_)?id["\']?\s*[:=]\s*["\']?(\d+)',
+        html,
+        re.I
+    )
+
+
+    if match:
+
+        return match.group(1)
+
+
+
+    # fallback от URL scripts
+
+    match = re.search(
+        r'get-serialize-product/(\d+)',
+        html
+    )
+
+
+    if match:
+
+        return match.group(1)
+
 
 
     return None
@@ -374,7 +367,7 @@ def find_product_id(sku):
 # ================= JSON =================
 
 
-def get_product_json(product_id):
+def get_product_json(page, product_id):
 
 
     url = PRODUCT_JSON_URL.format(
@@ -387,68 +380,72 @@ def get_product_json(product_id):
     )
 
 
-    session.headers.update(
-        {
-            "Referer":
-            BASE_URL + "/",
-
-            "Accept":
-            "application/json, text/javascript, */*; q=0.01",
-
-            "X-Requested-With":
-            "XMLHttpRequest"
-        }
-    )
-
-
-    response = session.get(
-        url,
-        timeout=30
-    )
-
-
-    print(
-        f"JSON STATUS: {response.status_code}"
-    )
-
-
-    save_debug(
-        f"json_{product_id}.html",
-        response.text
-    )
-
-
-    if response.status_code != 200:
-
-        return None
-
-
-
     try:
 
-        return response.json()
+
+        result = page.evaluate(
+            """
+            async (url)=>{
+
+                const response = await fetch(
+                    url,
+                    {
+                        method:"GET",
+                        headers:{
+                            "X-Requested-With":"XMLHttpRequest",
+                            "Accept":"application/json"
+                        }
+                    }
+                );
 
 
-    except:
+                return await response.text();
+
+            }
+            """,
+            url
+        )
+
+
+
+        save_debug(
+            f"json_{product_id}.html",
+            result
+        )
+
+
+
+        return json.loads(
+            result
+        )
+
+
+
+    except Exception as e:
+
+
+        print(
+            f"JSON ERROR: {e}"
+        )
+
 
         return None
 
 
 
-# ================= EXTRACT =================
+
+# ================= PRICE =================
 
 
 def extract_price(data):
 
 
     if not data:
-
         return None
 
 
 
     try:
-
 
         price = data.get(
             "price"
@@ -461,31 +458,27 @@ def extract_price(data):
 
 
 
-        default = data.get(
+        variant = data.get(
             "defaultVariant"
         )
 
 
-        if default:
+        if variant:
 
-            price = default.get(
-                "price"
+            return str(
+                variant.get("price")
             )
 
 
-            if price:
 
-                return str(price)
-
-
-
-    except:
+    except Exception:
 
         pass
 
 
 
     return None
+
 
 
 
@@ -502,84 +495,148 @@ def main():
 
 
     print(
-        f"🧾 Общо SKU: {len(skus)}"
+        f"Общо SKU: {len(skus)}"
     )
 
 
-    load_browser_cookies()
+
+    with sync_playwright() as p:
 
 
+        browser = p.chromium.launch(
+            headless=True
+        )
 
-    for sku in skus:
+
+        context = browser.new_context(
+            user_agent=
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 Chrome/120 Safari/537.36"
+        )
 
 
-        print("================")
+        page = context.new_page()
+
+
 
         print(
-            f"➡️ SKU: {sku}"
+            "🌐 Зареждам Filstar през браузър..."
         )
 
 
-        product_id = find_product_id(
-            sku
+        page.goto(
+            BASE_URL,
+            wait_until="networkidle",
+            timeout=60000
         )
 
 
-        if not product_id:
-
-
-            save_not_found(
-                sku
-            )
-
-            continue
+        time.sleep(5)
 
 
 
-        data = get_product_json(
-            product_id
+        cookies = context.cookies()
+
+
+        print(
+            f"🍪 Заредени cookies: {len(cookies)}"
         )
 
 
-        price = extract_price(
-            data
-        )
+
+        for sku in skus:
 
 
-        if price:
+            print("================")
 
 
             print(
-                f"✅ Цена: {price}"
+                f"➡️ SKU: {sku}"
             )
 
 
-            save_result(
-                [
-                    sku,
-                    "Наличен",
-                    "-",
-                    price
-                ]
-            )
 
-
-        else:
-
-
-            print(
-                "❌ Няма цена"
-            )
-
-
-            save_not_found(
+            product_id = find_product_id(
+                page,
                 sku
             )
 
 
-        time.sleep(
-            WAIT_TIME
-        )
+
+            if not product_id:
+
+
+                print(
+                    "❌ Няма Product ID"
+                )
+
+
+                save_not_found(
+                    sku
+                )
+
+                continue
+
+
+
+            print(
+                f"✅ Product ID: {product_id}"
+            )
+
+
+
+            data = get_product_json(
+                page,
+                product_id
+            )
+
+
+
+            price = extract_price(
+                data
+            )
+
+
+
+            if price:
+
+
+                print(
+                    f"✅ Цена: {price}"
+                )
+
+
+                save_result(
+                    [
+                        sku,
+                        "Наличен",
+                        "-",
+                        price
+                    ]
+                )
+
+
+            else:
+
+
+                print(
+                    "❌ Няма цена"
+                )
+
+
+                save_not_found(
+                    sku
+                )
+
+
+
+            time.sleep(
+                WAIT_TIME
+            )
+
+
+
+        browser.close()
 
 
 
