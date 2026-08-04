@@ -42,7 +42,6 @@ os.makedirs(
 )
 
 
-
 # ================= SETTINGS =================
 
 BASE_URL = "https://filstar.com"
@@ -51,7 +50,7 @@ SEARCH_URL = (
     "https://filstar.com/api/search?term={}"
 )
 
-WAIT_TIME = 3
+WAIT_TIME = 2
 
 
 
@@ -75,8 +74,7 @@ def save_debug(filename, content):
             f"🐞 Debug: {filename}"
         )
 
-
-    except:
+    except Exception:
         pass
 
 
@@ -87,9 +85,9 @@ def save_debug(filename, content):
 
 def read_skus():
 
-    result = []
+    skus = []
 
-    block = False
+    comment_block = False
 
 
     with open(
@@ -100,6 +98,7 @@ def read_skus():
 
 
         for line in f:
+
 
             value = line.strip()
 
@@ -114,18 +113,19 @@ def read_skus():
 
             if value == "##":
 
-                block = not block
+                comment_block = not comment_block
                 continue
 
 
-            if block:
+            if comment_block:
                 continue
 
 
-            result.append(value)
+            skus.append(value)
 
 
-    return result
+
+    return skus
 
 
 
@@ -149,6 +149,7 @@ def init_csv():
         )
 
 
+
     with open(
         NOT_FOUND_CSV,
         "w",
@@ -165,6 +166,7 @@ def init_csv():
 
 
 
+
 def save_result(row):
 
     with open(
@@ -175,6 +177,8 @@ def save_result(row):
     ) as f:
 
         csv.writer(f).writerow(row)
+
+
 
 
 
@@ -196,57 +200,11 @@ def save_not_found(sku):
 
 
 
-# ================= RESPONSE LISTENER =================
-
-
-captured_json = {}
-
-
-
-def handle_response(response):
-
-    global captured_json
-
-
-    url = response.url
-
-
-    if "/get-serialize-product/" in url:
-
-
-        print(
-            f"📦 Хванат JSON: {url}"
-        )
-
-
-        try:
-
-            body = response.text()
-
-
-            save_debug(
-                "captured_json.html",
-                body
-            )
-
-
-            captured_json[url] = body
-
-
-        except Exception as e:
-
-            print(
-                e
-            )
-
-
-
-
 
 # ================= SEARCH =================
 
 
-def search_product(page, sku):
+def find_product_id(page, sku):
 
 
     url = SEARCH_URL.format(
@@ -259,32 +217,46 @@ def search_product(page, sku):
     )
 
 
-    captured_json.clear()
-
-
 
     try:
 
-        page.goto(
+
+        response = page.request.get(
             url,
-            wait_until="domcontentloaded",
-            timeout=60000
+            headers={
+
+                "User-Agent":
+                "Mozilla/5.0",
+
+                "X-Requested-With":
+                "XMLHttpRequest",
+
+                "Accept":
+                "text/html"
+            }
         )
+
+
+
+        html = response.text()
+
 
 
     except Exception as e:
 
+
         print(
-            f"SEARCH PAGE ERROR: {e}"
+            f"SEARCH ERROR: {e}"
         )
 
+        return None
 
 
-    time.sleep(3)
 
 
-
-    html = page.content()
+    print(
+        f"STATUS: {response.status} SIZE: {len(html)}"
+    )
 
 
 
@@ -295,6 +267,26 @@ def search_product(page, sku):
 
 
 
+    # директно търсим serialize endpoint
+
+    ids = re.findall(
+        r'get-serialize-product[\/\\](\d+)',
+        html
+    )
+
+
+    if ids:
+
+        print(
+            f"✅ Product ID: {ids[0]}"
+        )
+
+        return ids[0]
+
+
+
+    # JSON структура
+
     ids = re.findall(
         r'"id"\s*:\s*(\d+)',
         html
@@ -302,16 +294,24 @@ def search_product(page, sku):
 
 
 
-    if ids:
+    for pid in ids:
 
 
-        print(
-            f"✅ Product ID: {ids[0]}"
-        )
+        if int(pid) > 100:
 
 
-        return ids[0]
+            print(
+                f"✅ Product ID: {pid}"
+            )
 
+
+            return pid
+
+
+
+    print(
+        "❌ Product ID не е намерен"
+    )
 
 
     return None
@@ -320,67 +320,81 @@ def search_product(page, sku):
 
 
 
-# ================= PRODUCT =================
+# ================= PRODUCT JSON =================
 
 
-def load_product(page, product_id):
+def get_product_json(page, product_id):
 
 
     url = (
-        f"https://filstar.com/get-serialize-product/{product_id}"
+        f"{BASE_URL}/get-serialize-product/{product_id}"
     )
 
 
     print(
-        f"📦 Зареждам JSON: {url}"
+        f"📦 JSON: {url}"
     )
-
-
-    captured_json.clear()
 
 
 
     try:
 
-        page.goto(
+
+        response = page.request.get(
             url,
-            wait_until="domcontentloaded",
-            timeout=60000
+            headers={
+
+                "User-Agent":
+                "Mozilla/5.0",
+
+                "X-Requested-With":
+                "XMLHttpRequest",
+
+                "Accept":
+                "*/*",
+
+                "Referer":
+                BASE_URL
+            }
         )
+
+
+
+        print(
+            f"JSON STATUS: {response.status}"
+        )
+
+
+
+        text = response.text()
+
+
+
+        save_debug(
+            f"json_{product_id}.html",
+            text
+        )
+
+
+
+        if response.status == 200:
+
+
+            return json.loads(text)
+
 
 
     except Exception as e:
 
+
         print(
-            e
+            f"JSON ERROR: {e}"
         )
 
 
 
-    time.sleep(2)
-
-
-
-    if captured_json:
-
-
-        body = list(
-            captured_json.values()
-        )[0]
-
-
-        try:
-
-            return json.loads(body)
-
-
-        except:
-
-            pass
-
-
-
     return None
+
 
 
 
@@ -397,19 +411,33 @@ def extract_price(data):
 
 
 
-    if data.get("price"):
+    try:
 
-        return str(
-            data["price"]
+
+        if data.get("price"):
+
+            return str(
+                data["price"]
+            )
+
+
+
+        variant = data.get(
+            "defaultVariant"
         )
 
 
+        if variant and variant.get("price"):
 
-    if data.get("defaultVariant"):
 
-        return str(
-            data["defaultVariant"]["price"]
-        )
+            return str(
+                variant["price"]
+            )
+
+
+    except:
+
+        pass
 
 
 
@@ -447,8 +475,10 @@ def main():
 
 
         context = browser.new_context(
+
             user_agent=
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+
         )
 
 
@@ -457,25 +487,24 @@ def main():
 
 
 
-        page.on(
-            "response",
-            handle_response
-        )
-
-
-
         print(
-            "🌐 Отварям Filstar..."
+            "🌐 Зареждам Filstar..."
         )
 
 
         try:
 
+
             page.goto(
+
                 "https://filstar.com/jo-jo-klips-rapala",
+
                 wait_until="domcontentloaded",
+
                 timeout=60000
+
             )
+
 
         except Exception as e:
 
@@ -500,14 +529,13 @@ def main():
 
             print("================")
 
-
             print(
                 f"➡️ SKU: {sku}"
             )
 
 
 
-            product_id = search_product(
+            product_id = find_product_id(
                 page,
                 sku
             )
@@ -515,11 +543,6 @@ def main():
 
 
             if not product_id:
-
-
-                print(
-                    "❌ Няма продукт"
-                )
 
 
                 save_not_found(
@@ -530,7 +553,8 @@ def main():
 
 
 
-            data = load_product(
+
+            data = get_product_json(
                 page,
                 product_id
             )
