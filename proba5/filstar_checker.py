@@ -231,7 +231,7 @@ def get_product_page(page, product_id):
 
     page.goto(
         url,
-        wait_until="domcontentloaded",
+        wait_until="networkidle",
         timeout=60000
     )
 
