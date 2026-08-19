@@ -229,11 +229,19 @@ def get_product_page(page, product_id):
     )
 
 
-    page.goto(
-        url,
-        wait_until="networkidle",
-        timeout=60000
-    )
+    try:
+        page.goto(
+            url,
+            wait_until="domcontentloaded",
+            timeout=60000
+        )
+
+    except Exception as e:
+        print(
+            "⚠️ Timeout при зареждане на продукт:",
+            e
+        )
+        return None
 
 
     time.sleep(3)
