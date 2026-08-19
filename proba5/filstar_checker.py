@@ -348,7 +348,7 @@ def main():
         )
 
 
-                 try:
+        try:
             page.goto(
                 BASE_URL,
                 wait_until="domcontentloaded",
