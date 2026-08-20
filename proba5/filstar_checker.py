@@ -5,6 +5,7 @@ import csv
 import os
 import re
 import time
+import json
 import requests
 
 
@@ -29,24 +30,18 @@ HEADERS = {
 
     "User-Agent":
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/128.0.0.0 Safari/537.36",
+    "AppleWebKit/537.36 Chrome/128 Safari/537.36",
 
     "Accept":
-    "text/html,application/xhtml+xml,application/xml;q=0.9,"
-    "image/avif,image/webp,image/apng,*/*;q=0.8",
+    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 
     "Accept-Language":
-    "bg-BG,bg;q=0.9,en;q=0.8",
-
-    "Connection":
-    "keep-alive"
+    "bg-BG,bg;q=0.9,en;q=0.8"
 
 }
 
 
 session = requests.Session()
-
 session.headers.update(HEADERS)
 
 
@@ -189,7 +184,7 @@ def search_filstar(sku):
     except Exception as e:
 
         print(
-            "SEARCH ERROR:",
+            "❌ SEARCH ERROR:",
             e
         )
 
@@ -201,280 +196,247 @@ def search_filstar(sku):
         html
     )
 
+    if r.status_code != 200:
+
+        return None
+
     return html
 
 
-def extract_price(html):
+def extract_price_from_variant(variant):
 
-    patterns = [
-
-        # 43.30 € 
-        r'/\s*(\d+\.\d+)\s*€',
-
-        # 43,30 €
-        r'/\s*(\d+,\d+)\s*€',
-
-        # fallback: директно число пред €
-        r'(\d+\.\d+)\s*€',
-
-        r'(\d+,\d+)\s*€'
-
+    price_fields = [
+        "discountedPrice",
+        "discountedRetailPrice",
+        "price"
     ]
 
-    for pattern in patterns:
+    for field in price_fields:
 
-        m = re.search(
-            pattern,
-            html,
-            re.I
-        )
+        value = variant.get(field)
 
-        if m:
-
-            price = m.group(1)
-
-            return price.replace(
-                ",",
-                "."
-            )
-
-    return None
-
-
-def extract_product_id(html):
-
-    ids = re.findall(
-        r'/get-serialize-product/(\d+)',
-        html
-    )
-
-    if not ids:
-
-        ids = re.findall(
-            r'product.?id.?[:="\']+(\d+)',
-            html,
-            re.I
-        )
-
-    ids = list(
-        dict.fromkeys(ids)
-    )
-
-    print(
-        "ID кандидати:",
-        ids
-    )
-
-    if ids:
-
-        return ids[0]
-
-    return None
-
-
-def get_product_data(product_id):
-
-    url = f"{BASE_URL}/get-serialize-product/{product_id}"
-
-    print(
-        "📦 PRODUCT:",
-        url
-    )
-
-    product_headers = {
-
-        "Accept":
-        "application/json, text/plain, */*",
-
-        "Accept-Language":
-        "bg-BG,bg;q=0.9,en;q=0.8",
-
-        "Referer":
-        f"{BASE_URL}/",
-
-        "X-Requested-With":
-        "XMLHttpRequest",
-
-        "Sec-Fetch-Dest":
-        "empty",
-
-        "Sec-Fetch-Mode":
-        "cors",
-
-        "Sec-Fetch-Site":
-        "same-origin"
-
-    }
-
-    try:
-
-        r = session.get(
-            url,
-            headers=product_headers,
-            timeout=30
-        )
-
-        print(
-            "📡 Product HTTP:",
-            r.status_code
-        )
-
-        if r.status_code != 200:
-
-            print(
-                "❌ Product HTTP:",
-                r.status_code
-            )
-
-            debug(
-                f"product_{product_id}_error.html",
-                r.text
-            )
-
-            return None
-
-        debug(
-            f"product_{product_id}.json",
-            r.text
-        )
-
-        try:
-
-            return r.json()
-
-        except Exception as e:
-
-            print(
-                "❌ JSON ERROR:",
-                e
-            )
-
-            return None
-
-    except Exception as e:
-
-        print(
-            "PRODUCT ERROR:",
-            e
-        )
-
-        return None
-
-
-def extract_total_quantity(product_data, sku):
-
-    variants = product_data.get(
-        "variants",
-        []
-    )
-
-    if not variants:
-
-        print(
-            "⚠️ Няма variants"
-        )
-
-        return None
-
-
-    total_quantity = 0
-
-    found_sku = False
-
-
-    for variant in variants:
-
-        variant_sku = str(
-            variant.get(
-                "sku",
-                ""
-            )
-        )
-
-        if variant_sku == str(sku):
-
-            found_sku = True
-
-            quantity = variant.get(
-                "quantity"
-            )
-
-            if quantity is not None:
-
-                try:
-
-                    total_quantity += int(
-                        quantity
-                    )
-
-                except (ValueError, TypeError):
-
-                    pass
-
-
-    if found_sku:
-
-        return total_quantity
-
-
-    # Ако SKU не е намерено директно,
-    # използваме всички варианти на продукта.
-
-    total_quantity = 0
-
-    for variant in variants:
-
-        quantity = variant.get(
-            "quantity"
-        )
-
-        if quantity is not None:
+        if value is not None:
 
             try:
 
-                total_quantity += int(
-                    quantity
-                )
+                return f"{float(value):.2f}"
+
+            except Exception:
+                pass
+
+    return None
+
+
+def calculate_total_quantity(variant):
+
+    """
+    Връща общото количество от всички складове.
+
+    Например:
+
+    stores:
+        Пловдив = 1
+        София = 0
+
+    Резултат:
+        1
+    """
+
+    stores = variant.get("stores")
+
+    if isinstance(stores, list):
+
+        total = 0
+
+        found = False
+
+        for store in stores:
+
+            if not isinstance(store, dict):
+                continue
+
+            quantity = store.get("quantity")
+
+            if quantity is None:
+                continue
+
+            try:
+
+                total += int(quantity)
+
+                found = True
 
             except (ValueError, TypeError):
 
-                pass
+                continue
+
+        if found:
+            return total
 
 
-    return total_quantity
+    # fallback
+    quantity = variant.get("quantity")
+
+    if quantity is not None:
+
+        try:
+            return int(quantity)
+
+        except (ValueError, TypeError):
+            pass
 
 
-def extract_price_from_product(product_data, sku):
+    return None
 
-    variants = product_data.get(
-        "variants",
-        []
-    )
 
-    for variant in variants:
+def find_variant_by_sku(data, sku):
 
-        if str(
-            variant.get("sku", "")
-        ) == str(sku):
+    """
+    Търси рекурсивно variant със съответния SKU
+    в JSON структурата на search резултата.
+    """
 
-            price = variant.get(
-                "price"
+    if isinstance(data, dict):
+
+        # Проверяваме директно този обект
+        current_sku = data.get("sku")
+
+        if current_sku is not None:
+
+            if str(current_sku).strip() == str(sku).strip():
+
+                # Проверяваме дали това действително е variant
+                if (
+                    "price" in data
+                    or "quantity" in data
+                    or "stores" in data
+                ):
+
+                    return data
+
+
+        # Продължаваме рекурсивно
+        for value in data.values():
+
+            result = find_variant_by_sku(
+                value,
+                sku
             )
 
-            if price is not None:
+            if result is not None:
+                return result
 
-                return str(
-                    price
-                )
 
-    price = product_data.get(
-        "price"
+    elif isinstance(data, list):
+
+        for item in data:
+
+            result = find_variant_by_sku(
+                item,
+                sku
+            )
+
+            if result is not None:
+                return result
+
+
+    return None
+
+
+def extract_json_objects(html):
+
+    """
+    Търси JSON обекти, които са вградени
+    в HTML / JavaScript кода.
+
+    Не разчитаме на конкретно име
+    на JavaScript variable.
+    """
+
+    objects = []
+
+    decoder = json.JSONDecoder()
+
+    length = len(html)
+
+    position = 0
+
+    while position < length:
+
+        start = html.find("{", position)
+
+        if start == -1:
+            break
+
+        try:
+
+            obj, end = decoder.raw_decode(
+                html[start:]
+            )
+
+            objects.append(obj)
+
+            position = start + end
+
+        except (json.JSONDecodeError, ValueError):
+
+            position = start + 1
+
+    return objects
+
+
+def extract_variant_from_search(html, sku):
+
+    """
+    Опитва няколко начина да намери
+    variant-а за конкретния SKU.
+    """
+
+    # -------------------------------------------------
+    # 1. Търсим JSON обекти
+    # -------------------------------------------------
+
+    objects = extract_json_objects(html)
+
+    print(
+        "🔍 JSON обекти:",
+        len(objects)
     )
 
-    if price is not None:
+    for obj in objects:
 
-        return str(
-            price
+        variant = find_variant_by_sku(
+            obj,
+            sku
+        )
+
+        if variant is not None:
+
+            return variant
+
+
+    # -------------------------------------------------
+    # 2. Fallback - директно търсене в HTML
+    # -------------------------------------------------
+
+    escaped_sku = re.escape(str(sku))
+
+    pattern = (
+        r'"sku"\s*:\s*"'
+        + escaped_sku
+        + r'"'
+    )
+
+    match = re.search(
+        pattern,
+        html,
+        re.I
+    )
+
+    if match:
+
+        print(
+            "⚠️ SKU намерено директно в HTML"
         )
 
     return None
@@ -502,6 +464,10 @@ def main():
         )
 
 
+        # -------------------------------------------------
+        # SEARCH
+        # -------------------------------------------------
+
         html = search_filstar(
             sku
         )
@@ -510,66 +476,85 @@ def main():
         if not html:
 
             print(
-                "❌ Няма резултат"
+                "❌ Няма search резултат"
             )
 
             save_not_found(
                 sku
             )
 
+            time.sleep(WAIT)
+
             continue
 
 
-        product_id = extract_product_id(
-            html
+        # -------------------------------------------------
+        # VARIANT
+        # -------------------------------------------------
+
+        variant = extract_variant_from_search(
+            html,
+            sku
         )
 
 
-        if product_id:
+        if not variant:
 
             print(
-                "✅ Product ID:",
-                product_id
+                "❌ Няма variant за SKU:",
+                sku
+            )
+
+            save_not_found(
+                sku
+            )
+
+            time.sleep(WAIT)
+
+            continue
+
+
+        print(
+            "✅ Variant намерен:",
+            variant.get("id")
+        )
+
+
+        print(
+            "🏷️ SKU:",
+            variant.get("sku")
+        )
+
+
+        # -------------------------------------------------
+        # PRICE
+        # -------------------------------------------------
+
+        price = extract_price_from_variant(
+            variant
+        )
+
+
+        if price:
+
+            print(
+                "💶 Цена EUR:",
+                price
             )
 
         else:
 
             print(
-                "❌ Няма Product ID"
+                "❌ Няма цена"
             )
 
-            save_not_found(
-                sku
-            )
 
-            time.sleep(WAIT)
+        # -------------------------------------------------
+        # QUANTITY
+        # -------------------------------------------------
 
-            continue
-
-
-        product_data = get_product_data(
-            product_id
-        )
-
-
-        if not product_data:
-
-            print(
-                "❌ Няма product data"
-            )
-
-            save_not_found(
-                sku
-            )
-
-            time.sleep(WAIT)
-
-            continue
-
-
-        quantity = extract_total_quantity(
-            product_data,
-            sku
+        quantity = calculate_total_quantity(
+            variant
         )
 
 
@@ -587,42 +572,36 @@ def main():
             )
 
 
-        price = extract_price_from_product(
-            product_data,
-            sku
-        )
+        # -------------------------------------------------
+        # AVAILABILITY
+        # -------------------------------------------------
 
+        if quantity is not None:
 
-        if price:
+            if quantity > 0:
 
-            print(
-                "💶 Цена EUR:",
-                price
-            )
-
-        else:
-
-            print(
-                "⚠️ Няма цена"
-            )
-
-
-        if price:
-
-            if quantity is not None:
-
-                if quantity > 0:
-
-                    availability = "Наличен"
-
-                else:
-
-                    availability = "Неналичен"
+                availability = "Наличен"
 
             else:
 
-                availability = "Неизвестна"
+                availability = "Неналичен"
 
+        else:
+
+            availability = "Неизвестна"
+
+
+        print(
+            "📊 Наличност:",
+            availability
+        )
+
+
+        # -------------------------------------------------
+        # SAVE
+        # -------------------------------------------------
+
+        if price:
 
             save_result(
                 [
