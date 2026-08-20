@@ -5,6 +5,7 @@ import csv
 import os
 import re
 import time
+import json
 import requests
 
 
@@ -40,10 +41,8 @@ HEADERS = {
 }
 
 
-
 session = requests.Session()
 session.headers.update(HEADERS)
-
 
 
 def debug(name, data):
@@ -64,54 +63,41 @@ def debug(name, data):
         pass
 
 
-
-
 def read_skus():
 
     result = []
 
     block = False
 
-
     with open(
         SKU_CSV,
         encoding="utf-8-sig"
     ) as f:
 
-
         for line in f:
 
             line = line.strip()
 
-
             if not line:
                 continue
 
-
             if line.upper() == "SKU":
                 continue
-
 
             if line == "##":
 
                 block = not block
                 continue
 
-
             if block:
                 continue
 
-
             result.append(line)
-
 
     return result
 
 
-
-
 def init_csv():
-
 
     with open(
         RESULT_CSV,
@@ -129,8 +115,6 @@ def init_csv():
             ]
         )
 
-
-
     with open(
         NOT_FOUND_CSV,
         "w",
@@ -145,8 +129,6 @@ def init_csv():
         )
 
 
-
-
 def save_result(row):
 
     with open(
@@ -157,9 +139,6 @@ def save_result(row):
     ) as f:
 
         csv.writer(f).writerow(row)
-
-
-
 
 
 def save_not_found(sku):
@@ -178,19 +157,14 @@ def save_not_found(sku):
         )
 
 
-
-
 def search_filstar(sku):
 
-
     url = f"{BASE_URL}/api/search?term={sku}"
-
 
     print(
         "🌐 SEARCH:",
         url
     )
-
 
     try:
 
@@ -199,12 +173,11 @@ def search_filstar(sku):
             timeout=30
         )
 
+        r.raise_for_status()
 
         html = r.text
 
-
     except Exception as e:
-
 
         print(
             "SEARCH ERROR:",
@@ -213,42 +186,66 @@ def search_filstar(sku):
 
         return None
 
-
-
-
     debug(
         f"search_{sku}.html",
         html
     )
 
-
-
     return html
 
 
+def extract_variant_data(html, sku):
 
+    try:
+
+        data = json.loads(html)
+
+    except Exception:
+
+        return None, None
+
+    variants = data.get(
+        "variants",
+        []
+    )
+
+    for variant in variants:
+
+        variant_sku = str(
+            variant.get(
+                "sku",
+                ""
+            )
+        ).strip()
+
+        if variant_sku == str(sku).strip():
+
+            price = variant.get(
+                "price"
+            )
+
+            quantity = variant.get(
+                "quantity"
+            )
+
+            return price, quantity
+
+    return None, None
 
 
 def extract_price(html):
 
-
     patterns = [
-
 
         # 43.30 лв
         r'(\d+\.\d+)\s*лв',
 
-
         # 43,30 лв
         r'(\d+,\d+)\s*лв'
 
-
     ]
 
-
-
     for pattern in patterns:
-
 
         m = re.search(
             pattern,
@@ -256,9 +253,7 @@ def extract_price(html):
             re.I
         )
 
-
         if m:
-
 
             price = m.group(1)
 
@@ -267,16 +262,10 @@ def extract_price(html):
                 "."
             )
 
-
-
     return None
 
 
-
-
-
 def extract_product_id(html):
-
 
     ids = re.findall(
 
@@ -286,9 +275,7 @@ def extract_product_id(html):
 
     )
 
-
     if not ids:
-
 
         ids = re.findall(
 
@@ -300,84 +287,61 @@ def extract_product_id(html):
 
         )
 
-
-
-    ids = list(dict.fromkeys(ids))
-
+    ids = list(
+        dict.fromkeys(ids)
+    )
 
     print(
         "ID кандидати:",
         ids
     )
 
-
     if ids:
 
         return ids[0]
 
-
     return None
-
-
-
 
 
 def main():
 
-
     init_csv()
 
-
     skus = read_skus()
-
-
 
     print(
         "Общо SKU:",
         len(skus)
     )
 
-
-
-
     for sku in skus:
 
-
         print("================")
-
 
         print(
             "➡️ SKU:",
             sku
         )
 
-
-
         html = search_filstar(
             sku
         )
 
-
-
         if not html:
-
 
             print(
                 "❌ Няма резултат"
             )
 
-            save_not_found(sku)
+            save_not_found(
+                sku
+            )
 
             continue
-
-
-
 
         product_id = extract_product_id(
             html
         )
-
-
 
         if product_id:
 
@@ -386,60 +350,127 @@ def main():
                 product_id
             )
 
+        # -------------------------------------------------
+        # Опитваме първо да вземем price + quantity
+        # директно от JSON
+        # -------------------------------------------------
 
-
-        price = extract_price(
-            html
+        json_price, quantity = extract_variant_data(
+            html,
+            sku
         )
 
+        if quantity is not None:
 
+            print(
+                "📦 Бройки:",
+                quantity
+            )
 
-        if price:
+            if quantity > 0:
 
+                availability = "Наличен"
+
+            else:
+
+                availability = "Изчерпан"
+
+            print(
+                "📦 Наличност:",
+                availability
+            )
+
+        else:
+
+            availability = None
+
+            print(
+                "⚠️ Quantity не е намерено"
+            )
+
+        # -------------------------------------------------
+        # Цена
+        # -------------------------------------------------
+
+        if json_price is not None:
+
+            price = str(
+                json_price
+            ).replace(
+                ",",
+                "."
+            )
 
             print(
                 "✅ Цена:",
                 price
             )
 
+        else:
+
+            price = extract_price(
+                html
+            )
+
+            if price:
+
+                print(
+                    "✅ Цена:",
+                    price
+                )
+
+            else:
+
+                print(
+                    "❌ Няма цена"
+                )
+
+        # -------------------------------------------------
+        # Запис
+        # -------------------------------------------------
+
+        if price:
+
+            # Ако имаме quantity, използваме реалната
+            # наличност от API.
+            #
+            # Ако нямаме quantity, запазваме старото
+            # поведение, за да не губим резултати.
+
+            if availability is None:
+
+                availability = "Наличен"
+
+                quantity_value = "-"
+
+            else:
+
+                quantity_value = quantity
 
             save_result(
 
                 [
                     sku,
-                    "Наличен",
-                    "-",
+                    availability,
+                    quantity_value,
                     price
                 ]
 
             )
 
-
         else:
-
-
-            print(
-                "❌ Няма цена"
-            )
-
 
             save_not_found(
                 sku
             )
 
-
-
-        time.sleep(WAIT)
-
-
-
+        time.sleep(
+            WAIT
+        )
 
     print(
         "✅ Готово"
     )
-
-
-
 
 
 if __name__ == "__main__":
