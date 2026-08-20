@@ -40,10 +40,8 @@ HEADERS = {
 }
 
 
-
 session = requests.Session()
 session.headers.update(HEADERS)
-
 
 
 def debug(name, data):
@@ -64,54 +62,41 @@ def debug(name, data):
         pass
 
 
-
-
 def read_skus():
 
     result = []
 
     block = False
 
-
     with open(
         SKU_CSV,
         encoding="utf-8-sig"
     ) as f:
 
-
         for line in f:
 
             line = line.strip()
 
-
             if not line:
                 continue
 
-
             if line.upper() == "SKU":
                 continue
-
 
             if line == "##":
 
                 block = not block
                 continue
 
-
             if block:
                 continue
 
-
             result.append(line)
-
 
     return result
 
 
-
-
 def init_csv():
-
 
     with open(
         RESULT_CSV,
@@ -130,7 +115,6 @@ def init_csv():
         )
 
 
-
     with open(
         NOT_FOUND_CSV,
         "w",
@@ -145,8 +129,6 @@ def init_csv():
         )
 
 
-
-
 def save_result(row):
 
     with open(
@@ -157,9 +139,6 @@ def save_result(row):
     ) as f:
 
         csv.writer(f).writerow(row)
-
-
-
 
 
 def save_not_found(sku):
@@ -178,19 +157,14 @@ def save_not_found(sku):
         )
 
 
-
-
 def search_filstar(sku):
 
-
     url = f"{BASE_URL}/api/search?term={sku}"
-
 
     print(
         "🌐 SEARCH:",
         url
     )
-
 
     try:
 
@@ -199,12 +173,9 @@ def search_filstar(sku):
             timeout=30
         )
 
-
         html = r.text
 
-
     except Exception as e:
-
 
         print(
             "SEARCH ERROR:",
@@ -214,41 +185,32 @@ def search_filstar(sku):
         return None
 
 
-
-
     debug(
         f"search_{sku}.html",
         html
     )
 
-
-
     return html
-
-
-
 
 
 def extract_price(html):
 
-
     patterns = [
 
+        # 43.30 лв. / 22.14 €
+        r'/\s*(\d+\.\d+)\s*€',
 
-        # 43.30 лв
-        r'(\d+\.\d+)\s*лв',
+        # 43,30 лв. / 22,14 €
+        r'/\s*(\d+,\d+)\s*€',
 
+        # fallback: директно число пред €
+        r'(\d+\.\d+)\s*€',
 
-        # 43,30 лв
-        r'(\d+,\d+)\s*лв'
-
+        r'(\d+,\d+)\s*€'
 
     ]
 
-
-
     for pattern in patterns:
-
 
         m = re.search(
             pattern,
@@ -256,9 +218,7 @@ def extract_price(html):
             re.I
         )
 
-
         if m:
-
 
             price = m.group(1)
 
@@ -267,70 +227,70 @@ def extract_price(html):
                 "."
             )
 
-
-
     return None
-
-
-
 
 
 def extract_product_id(html):
 
-
     ids = re.findall(
-
         r'/get-serialize-product/(\d+)',
-
         html
-
     )
-
 
     if not ids:
 
-
         ids = re.findall(
-
             r'product.?id.?[:="\']+(\d+)',
-
             html,
-
             re.I
-
         )
 
-
-
     ids = list(dict.fromkeys(ids))
-
 
     print(
         "ID кандидати:",
         ids
     )
 
-
     if ids:
 
         return ids[0]
 
+    return None
+
+
+def extract_quantity(html, sku):
+
+    patterns = [
+
+        # "quantity":3,"sku":"950594"
+        r'"quantity"\s*:\s*(\d+).*?"sku"\s*:\s*"' + re.escape(sku) + r'"',
+
+        # "sku":"950594"... "quantity":3
+        r'"sku"\s*:\s*"' + re.escape(sku) + r'".*?"quantity"\s*:\s*(\d+)',
+
+    ]
+
+    for pattern in patterns:
+
+        m = re.search(
+            pattern,
+            html,
+            re.I | re.S
+        )
+
+        if m:
+
+            return int(m.group(1))
 
     return None
 
 
-
-
-
 def main():
-
 
     init_csv()
 
-
     skus = read_skus()
-
-
 
     print(
         "Общо SKU:",
@@ -338,13 +298,9 @@ def main():
     )
 
 
-
-
     for sku in skus:
 
-
         print("================")
-
 
         print(
             "➡️ SKU:",
@@ -352,31 +308,27 @@ def main():
         )
 
 
-
         html = search_filstar(
             sku
         )
 
 
-
         if not html:
-
 
             print(
                 "❌ Няма резултат"
             )
 
-            save_not_found(sku)
+            save_not_found(
+                sku
+            )
 
             continue
-
-
 
 
         product_id = extract_product_id(
             html
         )
-
 
 
         if product_id:
@@ -386,6 +338,39 @@ def main():
                 product_id
             )
 
+        else:
+
+            print(
+                "❌ Няма Product ID"
+            )
+
+            save_not_found(
+                sku
+            )
+
+            time.sleep(WAIT)
+
+            continue
+
+
+        quantity = extract_quantity(
+            html,
+            sku
+        )
+
+
+        if quantity is not None:
+
+            print(
+                "✅ Quantity:",
+                quantity
+            )
+
+        else:
+
+            print(
+                "⚠️ Quantity не е намерено"
+            )
 
 
         price = extract_price(
@@ -393,53 +378,57 @@ def main():
         )
 
 
-
         if price:
 
-
             print(
-                "✅ Цена:",
+                "✅ Цена EUR:",
                 price
             )
 
-
-            save_result(
-
-                [
-                    sku,
-                    "Наличен",
-                    "-",
-                    price
-                ]
-
-            )
-
-
         else:
 
-
             print(
-                "❌ Няма цена"
+                "❌ Няма EUR цена"
             )
 
+
+        if price:
+
+            if quantity is not None and quantity > 0:
+
+                availability = "Наличен"
+
+            elif quantity is not None and quantity <= 0:
+
+                availability = "Неналичен"
+
+            else:
+
+                availability = "Неизвестна"
+
+
+            save_result(
+                [
+                    sku,
+                    availability,
+                    quantity if quantity is not None else "-",
+                    price
+                ]
+            )
+
+        else:
 
             save_not_found(
                 sku
             )
 
 
-
         time.sleep(WAIT)
-
-
 
 
     print(
         "✅ Готово"
     )
-
-
-
 
 
 if __name__ == "__main__":
