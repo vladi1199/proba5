@@ -1,10 +1,11 @@
 import csv
 import json
+import os
 import re
 import time
-from pathlib import Path
 
-from playwright.sync_api import sync_playwright
+import requests
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
 
 # ============================================================
@@ -13,413 +14,238 @@ from playwright.sync_api import sync_playwright
 
 BASE_URL = "https://filstar.com"
 
-CSV_FILE = "sku_list_filstar.csv"
+SEARCH_URL = BASE_URL + "/api/search?term={}"
+PRODUCT_URL = BASE_URL + "/get-serialize-product/{}"
 
-RESULTS_FILE = "results_filstar.csv"
-NOT_FOUND_FILE = "not_found_filstar.csv"
+INPUT_CSV = "sku_list_filstar.csv"
+RESULTS_CSV = "results_filstar.csv"
+NOT_FOUND_CSV = "not_found_filstar.csv"
 
-DEBUG_DIR = Path("debug_html")
-DEBUG_DIR.mkdir(exist_ok=True)
+DEBUG_DIR = "debug_html"
 
-# Пауза между заявките
-REQUEST_DELAY = 2
+# Пауза между продуктите
+WAIT = 2
 
-# Максимално чакане при Cloudflare
-CLOUDFLARE_TIMEOUT = 30
+# Колко време да чакаме Cloudflare да приключи
+CLOUDFLARE_WAIT = 30
+
+
+# ============================================================
+# ПОДГОТОВКА
+# ============================================================
+
+os.makedirs(DEBUG_DIR, exist_ok=True)
+
+
+# ============================================================
+# REQUESTS SESSION
+# Използва се само за SEARCH API
+# ============================================================
+
+session = requests.Session()
+
+session.headers.update({
+    "User-Agent": (
+        "Mozilla/5.0 (X11; Linux x86_64) "
+        "AppleWebKit/537.36 "
+        "(KHTML, like Gecko) "
+        "Chrome/131.0.0.0 Safari/537.36"
+    ),
+    "Accept": (
+        "application/json,text/html,application/xhtml+xml,"
+        "application/xml;q=0.9,*/*;q=0.8"
+    ),
+    "Accept-Language": "bg-BG,bg;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Referer": BASE_URL + "/",
+})
+
+
+# ============================================================
+# CLOUDFLARE ПРОВЕРКА
+# ============================================================
+
+def is_cloudflare_page(text):
+    """
+    Проверява дали отговорът е Cloudflare challenge.
+    """
+
+    if not text:
+        return False
+
+    indicators = [
+        "Just a moment...",
+        "Enable JavaScript and cookies to continue",
+        "challenge-platform",
+        "cdn-cgi/challenge-platform",
+        "cf_chl_opt",
+        "cf_chl_",
+        "Cloudflare",
+    ]
+
+    text_lower = text.lower()
+
+    for indicator in indicators:
+        if indicator.lower() in text_lower:
+            return True
+
+    return False
 
 
 # ============================================================
 # ЧЕТЕНЕ НА SKU CSV
 # ============================================================
 
-def load_skus():
-    """
-    Зарежда SKU от CSV.
-
-    Игнорира:
-    - празни редове
-    - редове, започващи с #
-    - всичко между ## и ##
-
-    Пример:
-
-    932562
-    950594
-
-    ##
-    този ред се игнорира
-    360468
-    този също
-    ##
-
-    949513
-
-    Резултат:
-    932562
-    950594
-    949513
-    """
+def read_skus():
 
     skus = []
 
-    inside_comment = False
+    if not os.path.exists(INPUT_CSV):
 
-    with open(CSV_FILE, "r", encoding="utf-8-sig", newline="") as f:
+        print(
+            f"❌ Липсва файл: {INPUT_CSV}"
+        )
 
-        reader = csv.reader(f)
+        return skus
+
+    with open(
+        INPUT_CSV,
+        "r",
+        encoding="utf-8-sig",
+        newline=""
+    ) as f:
+
+        reader = csv.DictReader(f)
 
         for row in reader:
 
-            if not row:
-                continue
+            sku = str(
+                row.get("SKU", "")
+            ).strip()
 
-            # Събираме целия ред
-            line = ",".join(row).strip()
+            if sku:
+                skus.append(sku)
 
-            if not line:
-                continue
-
-            # ------------------------------------------------
-            # COMMENT BLOCK ##
-            # ------------------------------------------------
-
-            if line.startswith("##"):
-                inside_comment = not inside_comment
-                continue
-
-            if inside_comment:
-                continue
-
-            # ------------------------------------------------
-            # Обикновен коментар
-            # ------------------------------------------------
-
-            if line.startswith("#"):
-                continue
-
-            # ------------------------------------------------
-            # Ако CSV има header
-            # ------------------------------------------------
-
-            if line.lower() in (
-                "sku",
-                "код",
-                "product sku",
-                "sku,наличност",
-                "sku,цена",
-            ):
-                continue
-
-            # ------------------------------------------------
-            # Вземаме първата стойност
-            # ------------------------------------------------
-
-            sku = row[0].strip()
-
-            if not sku:
-                continue
-
-            # Премахваме кавички
-            sku = sku.strip('"').strip("'")
-
-            # Само цифри
-            if not re.fullmatch(r"\d+", sku):
-                continue
-
-            skus.append(sku)
-
-    # Премахване на дублирани SKU, като запазваме реда
-    unique_skus = list(dict.fromkeys(skus))
-
-    return unique_skus
+    return skus
 
 
 # ============================================================
-# DEBUG SAVE
+# НАМИРАНЕ НА PRODUCT ID ОТ SEARCH
 # ============================================================
 
-def save_debug(filename, content):
-
-    path = DEBUG_DIR / filename
-
-    try:
-        path.write_text(content, encoding="utf-8")
-    except Exception as e:
-        print(f"⚠️ Debug save error: {e}")
-
-
-# ============================================================
-# CLOUDflare DETECTION
-# ============================================================
-
-def is_cloudflare(page):
-
-    try:
-
-        title = page.title().lower()
-
-        content = page.content().lower()
-
-        indicators = [
-            "just a moment",
-            "checking your browser",
-            "enable javascript and cookies",
-            "cf-chl",
-            "challenge-platform",
-            "cloudflare",
-        ]
-
-        for indicator in indicators:
-
-            if indicator in title:
-                return True
-
-            if indicator in content:
-                return True
-
-        return False
-
-    except Exception:
-        return False
-
-
-# ============================================================
-# WAIT FOR CLOUDFLARE
-# ============================================================
-
-def wait_for_cloudflare(page):
-
-    print("⏳ Проверка за Cloudflare...")
-
-    start = time.time()
-
-    while time.time() - start < CLOUDFLARE_TIMEOUT:
-
-        if not is_cloudflare(page):
-
-            print("✅ Cloudflare Challenge преминат")
-
-            return True
-
-        print("🛡️ Cloudflare Challenge...")
-
-        time.sleep(3)
-
-        try:
-            page.reload(
-                wait_until="domcontentloaded",
-                timeout=30000
-            )
-        except Exception:
-            pass
-
-    print("❌ Cloudflare Challenge не беше преминат")
-
-    return False
-
-
-# ============================================================
-# EXTRACT JSON OBJECTS
-# ============================================================
-
-def extract_json_objects(text):
-
-    objects = []
-
-    decoder = json.JSONDecoder()
-
-    # Търсим всички места, от които може да започва JSON object
-    for match in re.finditer(r"\{", text):
-
-        start = match.start()
-
-        try:
-
-            obj, end = decoder.raw_decode(text[start:])
-
-            if isinstance(obj, dict):
-
-                objects.append(obj)
-
-        except Exception:
-            continue
-
-    return objects
-
-
-# ============================================================
-# SEARCH -> PRODUCT ID
-# ============================================================
-
-def find_product_id(page, sku):
-
-    search_url = f"{BASE_URL}/api/search?term={sku}"
-
-    print(f"🌐 SEARCH: {search_url}")
-
-    try:
-
-        response = page.goto(
-            search_url,
-            wait_until="domcontentloaded",
-            timeout=30000
-        )
-
-    except Exception as e:
-
-        print(f"❌ Search error: {e}")
-
-        return None
-
-    if response is None:
-
-        print("❌ Search няма response")
-
-        return None
-
-    status = response.status
-
-    print(f"🔎 Search HTTP: {status}")
-
-    try:
-        content = page.content()
-    except Exception:
-        content = ""
-
-    save_debug(
-        f"search_{sku}.html",
-        content
-    )
-
-    if status != 200:
-
-        print(f"❌ Search HTTP: {status}")
-
-        return None
-
-    # --------------------------------------------------------
-    # Първо опитваме JSON
-    # --------------------------------------------------------
-
-    try:
-
-        body_text = page.locator("body").inner_text()
-
-    except Exception:
-
-        body_text = content
-
-    json_objects = extract_json_objects(body_text)
-
-    # --------------------------------------------------------
-    # Търсим Product ID
-    # --------------------------------------------------------
+def find_product_id_from_search(html, sku):
 
     candidates = []
 
-    def recursive_find(obj):
+    # --------------------------------------------------------
+    # 1. Опит като JSON
+    # --------------------------------------------------------
 
-        if isinstance(obj, dict):
+    try:
 
-            # Чести имена за ID
-            for key in (
-                "id",
-                "productId",
-                "product_id",
-            ):
+        data = json.loads(html)
 
-                if key in obj:
+        json_objects = []
 
-                    value = obj[key]
+        if isinstance(data, list):
 
-                    if isinstance(value, (int, str)):
+            json_objects = data
 
-                        value_str = str(value)
+        elif isinstance(data, dict):
 
-                        if value_str.isdigit():
-                            candidates.append(value_str)
+            # Проверяваме най-често срещаните структури
+            for key in [
+                "products",
+                "items",
+                "results",
+                "data",
+            ]:
 
-            for value in obj.values():
-                recursive_find(value)
+                value = data.get(key)
 
-        elif isinstance(obj, list):
+                if isinstance(value, list):
 
-            for item in obj:
-                recursive_find(item)
+                    json_objects.extend(value)
 
-    for obj in json_objects:
+                elif isinstance(value, dict):
 
-        recursive_find(obj)
+                    json_objects.append(value)
 
-    # Премахваме дублирани ID
-    candidates = list(dict.fromkeys(candidates))
+        print(
+            f"🔍 JSON обекти: {len(json_objects)}"
+        )
+
+        for item in json_objects:
+
+            if not isinstance(item, dict):
+                continue
+
+            # ------------------------------------------------
+            # Търсим SKU вътре в обекта
+            # ------------------------------------------------
+
+            item_text = json.dumps(
+                item,
+                ensure_ascii=False
+            )
+
+            if str(sku) not in item_text:
+                continue
+
+            product_id = (
+                item.get("id")
+                or item.get("productId")
+                or item.get("product_id")
+            )
+
+            if product_id:
+
+                product_id = str(product_id)
+
+                if product_id not in candidates:
+
+                    candidates.append(
+                        product_id
+                    )
+
+    except Exception:
+
+        pass
+
 
     # --------------------------------------------------------
-    # Ако JSON не е намерен, търсим в HTML
+    # 2. HTML / REGEX FALLBACK
     # --------------------------------------------------------
 
     if not candidates:
 
         patterns = [
 
-            # data-product-id="2967"
-            r'data-product-id=["\'](\d+)["\']',
+            r'data-product-id=["\'](\d+)',
 
-            # product-id="2967"
-            r'product-id=["\'](\d+)["\']',
+            r'"productId"\s*:\s*["\']?(\d+)',
 
-            # /get-serialize-product/2967
-            r'/get-serialize-product/(\d+)',
+            r'"product_id"\s*:\s*["\']?(\d+)',
 
-            # productId: 2967
-            r'productId["\']?\s*[:=]\s*["\']?(\d+)',
-
-            # "id":2967
-            r'["\']id["\']\s*:\s*["\']?(\d+)',
         ]
 
         for pattern in patterns:
 
             found = re.findall(
                 pattern,
-                content,
-                flags=re.IGNORECASE
+                html,
+                flags=re.I
             )
 
             for value in found:
 
                 if value not in candidates:
+
                     candidates.append(value)
 
-    print(f"ID кандидати: {candidates}")
 
-    # --------------------------------------------------------
-    # ВАЖНО:
-    # Search може да съдържа други ID-та.
-    #
-    # Затова проверяваме дали има URL към
-    # get-serialize-product.
-    # --------------------------------------------------------
-
-    product_urls = re.findall(
-        r'/get-serialize-product/(\d+)',
-        content
+    print(
+        f"ID кандидати: {candidates}"
     )
-
-    product_urls = list(dict.fromkeys(product_urls))
-
-    if product_urls:
-
-        print(f"🔗 Product IDs от serialize URL: {product_urls}")
-
-        # Ако има директен serialize ID,
-        # използваме първия.
-        return product_urls[0]
-
-    # --------------------------------------------------------
-    # Ако няма serialize URL,
-    # използваме първия намерен ID
-    # --------------------------------------------------------
 
     if candidates:
 
@@ -429,222 +255,612 @@ def find_product_id(page, sku):
 
 
 # ============================================================
-# PRODUCT DATA
+# ПРОВЕРКА НА PRODUCT JSON
 # ============================================================
 
-def get_product(page, product_id):
+def looks_like_product_json(data):
 
-    product_url = (
-        f"{BASE_URL}/get-serialize-product/{product_id}"
-    )
+    if not isinstance(data, dict):
+        return False
 
-    print(f"📦 PRODUCT: {product_url}")
+    # Реалният product response има variants
+    if isinstance(
+        data.get("variants"),
+        list
+    ):
+
+        return True
+
+    # Допълнителен fallback
+    if (
+        "id" in data
+        and "name" in data
+    ):
+
+        return True
+
+    return False
+
+
+# ============================================================
+# ИЗВЛИЧАНЕ НА JSON ОТ PAGE
+# ============================================================
+
+def extract_product_json(page):
+
+    # --------------------------------------------------------
+    # Вариант 1:
+    # body text
+    # --------------------------------------------------------
 
     try:
+
+        body_text = page.locator(
+            "body"
+        ).inner_text(
+            timeout=5000
+        ).strip()
+
+        if body_text:
+
+            try:
+
+                data = json.loads(
+                    body_text
+                )
+
+                if looks_like_product_json(data):
+
+                    return data
+
+            except Exception:
+
+                pass
+
+    except Exception:
+
+        pass
+
+
+    # --------------------------------------------------------
+    # Вариант 2:
+    # page content
+    # --------------------------------------------------------
+
+    try:
+
+        html = page.content()
+
+        # Ако е JSON директно
+        try:
+
+            data = json.loads(
+                html
+            )
+
+            if looks_like_product_json(data):
+
+                return data
+
+        except Exception:
+
+            pass
+
+    except Exception:
+
+        pass
+
+
+    # --------------------------------------------------------
+    # Вариант 3:
+    # Търсим JSON в body
+    # --------------------------------------------------------
+
+    try:
+
+        html = page.content()
+
+        match = re.search(
+            r"<body[^>]*>(.*?)</body>",
+            html,
+            flags=re.I | re.S
+        )
+
+        if match:
+
+            body = match.group(1)
+
+            # Премахваме HTML
+            from bs4 import BeautifulSoup
+
+            text = BeautifulSoup(
+                body,
+                "html.parser"
+            ).get_text(
+                "\n"
+            ).strip()
+
+            if text:
+
+                try:
+
+                    data = json.loads(text)
+
+                    if looks_like_product_json(data):
+
+                        return data
+
+                except Exception:
+
+                    pass
+
+    except Exception:
+
+        pass
+
+
+    return None
+
+
+# ============================================================
+# ИЗЧАКВАНЕ НА CLOUDFLARE
+# ============================================================
+
+def wait_for_cloudflare(page, product_id):
+
+    print(
+        "⏳ Проверка за Cloudflare..."
+    )
+
+    start_time = time.time()
+
+    last_status = None
+
+    while True:
+
+        elapsed = time.time() - start_time
+
+        if elapsed >= CLOUDFLARE_WAIT:
+
+            break
+
+        try:
+
+            html = page.content()
+
+        except Exception:
+
+            html = ""
+
+        cloudflare = is_cloudflare_page(
+            html
+        )
+
+        if cloudflare:
+
+            if last_status != "cloudflare":
+
+                print(
+                    "🛡️ Cloudflare Challenge..."
+                )
+
+                last_status = "cloudflare"
+
+            time.sleep(2)
+
+            continue
+
+
+        # ----------------------------------------------------
+        # Проверяваме дали вече имаме JSON
+        # ----------------------------------------------------
+
+        data = extract_product_json(
+            page
+        )
+
+        if data:
+
+            print(
+                "✅ Product JSON получен"
+            )
+
+            return data
+
+
+        if last_status != "waiting":
+
+            print(
+                "⏳ Чакаме product JSON..."
+            )
+
+            last_status = "waiting"
+
+        time.sleep(1)
+
+
+    # --------------------------------------------------------
+    # Последен опит
+    # --------------------------------------------------------
+
+    data = extract_product_json(
+        page
+    )
+
+    if data:
+
+        print(
+            "✅ Product JSON получен"
+        )
+
+        return data
+
+
+    # --------------------------------------------------------
+    # DEBUG
+    # --------------------------------------------------------
+
+    try:
+
+        html = page.content()
+
+        debug_file = os.path.join(
+            DEBUG_DIR,
+            f"product_{product_id}_error.html"
+        )
+
+        with open(
+            debug_file,
+            "w",
+            encoding="utf-8"
+        ) as f:
+
+            f.write(html)
+
+        print(
+            f"🐞 Debug: product_{product_id}_error.html"
+        )
+
+    except Exception:
+
+        pass
+
+
+    return None
+
+
+# ============================================================
+# ВЗИМАНЕ НА PRODUCT DATA
+# ============================================================
+
+def get_product_data(page, product_id):
+
+    product_url = PRODUCT_URL.format(
+        product_id
+    )
+
+    print(
+        f"📦 PRODUCT: {product_url}"
+    )
+
+    try:
+
+        # ----------------------------------------------------
+        # Отваряме product endpoint
+        # ----------------------------------------------------
 
         response = page.goto(
             product_url,
             wait_until="domcontentloaded",
-            timeout=30000
+            timeout=60000
         )
 
-    except Exception as e:
+        if response:
 
-        print(f"❌ Product navigation error: {e}")
+            print(
+                f"📡 Product HTTP: "
+                f"{response.status}"
+            )
 
-        save_debug(
-            f"product_{product_id}_error.html",
-            page.content()
+        else:
+
+            print(
+                "📡 Product HTTP: unknown"
+            )
+
+
+        # ----------------------------------------------------
+        # Изчакваме Cloudflare / JSON
+        # ----------------------------------------------------
+
+        data = wait_for_cloudflare(
+            page,
+            product_id
         )
 
-        return None
+        return data
 
-    if response is None:
 
-        print("❌ Product няма response")
+    except PlaywrightTimeoutError:
 
-        return None
-
-    status = response.status
-
-    print(f"📡 Product HTTP: {status}")
-
-    # --------------------------------------------------------
-    # Ако е Cloudflare
-    # --------------------------------------------------------
-
-    if status == 403 or is_cloudflare(page):
-
-        if not wait_for_cloudflare(page):
-
-            save_debug(
-                f"product_{product_id}_error.html",
-                page.content()
-            )
-
-            return None
-
-        # След преминаване на Cloudflare
-        try:
-
-            response = page.goto(
-                product_url,
-                wait_until="domcontentloaded",
-                timeout=30000
-            )
-
-            status = response.status if response else 0
-
-        except Exception as e:
-
-            print(f"❌ Product retry error: {e}")
-
-            return None
-
-        print(f"📡 Product retry HTTP: {status}")
-
-    # --------------------------------------------------------
-    # Ако все още е 403
-    # --------------------------------------------------------
-
-    if status == 403:
-
-        print("❌ Product HTTP: 403")
+        print(
+            "⚠️ Page timeout"
+        )
 
         try:
-            save_debug(
-                f"product_{product_id}_error.html",
-                page.content()
+
+            html = page.content()
+
+            debug_file = os.path.join(
+                DEBUG_DIR,
+                f"product_{product_id}_timeout.html"
             )
+
+            with open(
+                debug_file,
+                "w",
+                encoding="utf-8"
+            ) as f:
+
+                f.write(html)
+
+            print(
+                f"🐞 Debug: product_{product_id}_timeout.html"
+            )
+
         except Exception:
+
             pass
 
         return None
 
-    # --------------------------------------------------------
-    # Вземаме текста
-    # --------------------------------------------------------
 
-    try:
+    except Exception as e:
 
-        text = page.locator("body").inner_text()
+        print(
+            f"❌ Product Playwright Error: {e}"
+        )
 
-    except Exception:
+        return None
 
-        text = page.content()
 
-    save_debug(
-        f"product_{product_id}.html",
-        text
+# ============================================================
+# НАМИРАНЕ НА VARIANT ПО SKU
+# ============================================================
+
+def find_variant(product_data, sku):
+
+    if not isinstance(
+        product_data,
+        dict
+    ):
+
+        return None
+
+
+    variants = product_data.get(
+        "variants",
+        []
     )
 
-    # --------------------------------------------------------
-    # Парсваме JSON
-    # --------------------------------------------------------
+    if not isinstance(
+        variants,
+        list
+    ):
 
-    try:
-
-        data = json.loads(text)
-
-        if isinstance(data, dict):
-
-            return data
-
-    except Exception:
-        pass
-
-    # --------------------------------------------------------
-    # Понякога JSON е embedded в HTML
-    # --------------------------------------------------------
-
-    json_objects = extract_json_objects(text)
-
-    for obj in json_objects:
-
-        if (
-            isinstance(obj, dict)
-            and (
-                "variants" in obj
-                or "stores" in obj
-                or "name" in obj
-            )
-        ):
-
-            return obj
-
-    print("❌ Product data не е валиден JSON")
-
-    return None
-
-
-# ============================================================
-# FIND VARIANT
-# ============================================================
-
-def find_variant(product, sku):
-
-    variants = product.get("variants", [])
-
-    if not isinstance(variants, list):
         return None
+
 
     for variant in variants:
 
-        if not isinstance(variant, dict):
+        if not isinstance(
+            variant,
+            dict
+        ):
+
             continue
 
+
         variant_sku = str(
-            variant.get("sku", "")
+            variant.get(
+                "sku",
+                ""
+            )
         ).strip()
 
-        if variant_sku == str(sku):
+
+        if variant_sku == str(
+            sku
+        ).strip():
 
             return variant
+
 
     return None
 
 
 # ============================================================
-# TOTAL QUANTITY
+# ОБЩО КОЛИЧЕСТВО
 # ============================================================
 
 def get_total_quantity(variant):
 
-    """
-    Връща общото количество от всички складове.
+    # --------------------------------------------------------
+    # При Filstar имаме:
+    #
+    # "stores": [
+    #     {"quantity": 1},
+    #     {"quantity": 0}
+    # ]
+    #
+    # Искаме:
+    #
+    # 1 + 0 = 1
+    # --------------------------------------------------------
 
-    Например:
+    stores = variant.get(
+        "stores"
+    )
 
-    Пловдив = 1
-    София   = 0
 
-    Общо = 1
+    if isinstance(
+        stores,
+        list
+    ):
 
-    НЕ връщаме складовете поотделно.
-    """
-
-    stores = variant.get("stores")
-
-    if not stores:
-        return 0
-
-    total = 0
-
-    if isinstance(stores, list):
+        total = 0
 
         for store in stores:
 
-            if not isinstance(store, dict):
+            if not isinstance(
+                store,
+                dict
+            ):
+
                 continue
 
-            quantity = store.get("quantity", 0)
+            quantity = store.get(
+                "quantity",
+                0
+            )
 
             try:
-                total += int(quantity)
-            except (ValueError, TypeError):
+
+                total += int(
+                    quantity or 0
+                )
+
+            except (
+                ValueError,
+                TypeError
+            ):
+
                 pass
 
-    return total
+
+        return total
+
+
+    # --------------------------------------------------------
+    # Fallback:
+    # Ако няма stores, използваме variant.quantity
+    # --------------------------------------------------------
+
+    quantity = variant.get(
+        "quantity",
+        0
+    )
+
+    try:
+
+        return int(
+            quantity or 0
+        )
+
+    except (
+        ValueError,
+        TypeError
+    ):
+
+        return 0
+
+
+# ============================================================
+# ЦЕНА
+# ============================================================
+
+def get_price(variant):
+
+    # Приоритет:
+    #
+    # discountedRetailPrice
+    # discountedPrice
+    # price
+    #
+    # За да получим реалната продажна цена.
+
+    price = (
+        variant.get(
+            "discountedRetailPrice"
+        )
+        or variant.get(
+            "discountedPrice"
+        )
+        or variant.get(
+            "price"
+        )
+        or 0
+    )
+
+    try:
+
+        return round(
+            float(price),
+            2
+        )
+
+    except (
+        ValueError,
+        TypeError
+    ):
+
+        return 0
+
+
+# ============================================================
+# ЗАПИС RESULTS CSV
+# ============================================================
+
+def save_results(results):
+
+    with open(
+        RESULTS_CSV,
+        "w",
+        encoding="utf-8-sig",
+        newline=""
+    ) as f:
+
+        writer = csv.writer(f)
+
+        writer.writerow([
+            "SKU",
+            "Наличност",
+            "Цена"
+        ])
+
+        for row in results:
+
+            writer.writerow([
+                row["SKU"],
+                row["Наличност"],
+                row["Цена"]
+            ])
+
+
+# ============================================================
+# ЗАПИС NOT FOUND CSV
+# ============================================================
+
+def save_not_found(not_found):
+
+    with open(
+        NOT_FOUND_CSV,
+        "w",
+        encoding="utf-8-sig",
+        newline=""
+    ) as f:
+
+        writer = csv.writer(f)
+
+        writer.writerow([
+            "SKU"
+        ])
+
+        for sku in not_found:
+
+            writer.writerow([
+                sku
+            ])
 
 
 # ============================================================
@@ -653,69 +869,164 @@ def get_total_quantity(variant):
 
 def main():
 
-    skus = load_skus()
+    skus = read_skus()
 
-    print(f"Общо SKU: {len(skus)}")
+    print(
+        f"Общо SKU: {len(skus)}"
+    )
+
+
+    if not skus:
+
+        print(
+            "❌ Няма SKU за обработка."
+        )
+
+        return
+
 
     results = []
+
     not_found = []
+
+
+    # ========================================================
+    # PLAYWRIGHT
+    # ========================================================
 
     with sync_playwright() as p:
 
-        browser = p.chromium.launch(
-            headless=True
+        print(
+            "\n🌐 Стартиране на Chromium..."
         )
 
+        browser = p.chromium.launch(
+            headless=True,
+            args=[
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+            ]
+        )
+
+
         context = browser.new_context(
-            locale="bg-BG",
-            timezone_id="Europe/Sofia",
-            viewport={
-                "width": 1366,
-                "height": 768
-            },
+
             user_agent=(
                 "Mozilla/5.0 (X11; Linux x86_64) "
                 "AppleWebKit/537.36 "
                 "(KHTML, like Gecko) "
-                "Chrome/131.0.0.0 "
-                "Safari/537.36"
-            )
+                "Chrome/131.0.0.0 Safari/537.36"
+            ),
+
+            viewport={
+                "width": 1920,
+                "height": 1080
+            },
+
+            locale="bg-BG",
+
+            timezone_id="Europe/Sofia",
+
+            java_script_enabled=True,
+
+            ignore_https_errors=False,
         )
+
 
         page = context.new_page()
 
-        # ----------------------------------------------------
-        # Основни headers
-        # ----------------------------------------------------
 
-        page.set_extra_http_headers({
-            "Accept-Language": "bg-BG,bg;q=0.9,en-US;q=0.8,en;q=0.7",
-            "Accept": (
-                "text/html,application/xhtml+xml,"
-                "application/xml;q=0.9,"
-                "image/avif,image/webp,*/*;q=0.8"
-            ),
-        })
-
-        # ----------------------------------------------------
-        # Обработка на SKU
-        # ----------------------------------------------------
+        # ====================================================
+        # SKU LOOP
+        # ====================================================
 
         for sku in skus:
 
-            print()
-            print("================")
-            print()
-            print(f"➡️ SKU: {sku}")
+            print(
+                "\n================"
+            )
 
-            # ------------------------------------------------
-            # SEARCH
-            # ------------------------------------------------
+            print(
+                f"➡️ SKU: {sku}"
+            )
 
-            product_id = find_product_id(
-                page,
+
+            # =================================================
+            # SEARCH API
+            # =================================================
+
+            search_url = SEARCH_URL.format(
                 sku
             )
+
+            print(
+                f"🌐 SEARCH: {search_url}"
+            )
+
+
+            try:
+
+                response = session.get(
+                    search_url,
+                    timeout=30
+                )
+
+                print(
+                    f"🔎 Search HTTP: "
+                    f"{response.status_code}"
+                )
+
+                search_html = response.text
+
+
+            except Exception as e:
+
+                print(
+                    f"❌ Search Error: {e}"
+                )
+
+                not_found.append(
+                    sku
+                )
+
+                continue
+
+
+            # ------------------------------------------------
+            # DEBUG SEARCH
+            # ------------------------------------------------
+
+            search_debug = os.path.join(
+                DEBUG_DIR,
+                f"search_{sku}.html"
+            )
+
+            with open(
+                search_debug,
+                "w",
+                encoding="utf-8"
+            ) as f:
+
+                f.write(
+                    search_html
+                )
+
+
+            print(
+                f"🐞 Debug: search_{sku}.html"
+            )
+
+
+            # =================================================
+            # PRODUCT ID
+            # =================================================
+
+            product_id = find_product_id_from_search(
+                search_html,
+                sku
+            )
+
 
             if not product_id:
 
@@ -723,50 +1034,50 @@ def main():
                     f"❌ Няма Product ID за SKU: {sku}"
                 )
 
-                not_found.append({
-                    "SKU": sku,
-                    "Причина": "Няма Product ID"
-                })
-
-                time.sleep(REQUEST_DELAY)
+                not_found.append(
+                    sku
+                )
 
                 continue
+
 
             print(
                 f"✅ Product ID: {product_id}"
             )
 
-            # ------------------------------------------------
-            # PRODUCT
-            # ------------------------------------------------
 
-            product = get_product(
+            # =================================================
+            # PRODUCT JSON
+            # =================================================
+
+            product_data = get_product_data(
                 page,
                 product_id
             )
 
-            if not product:
 
-                print("❌ Няма product data")
+            if not product_data:
 
-                not_found.append({
-                    "SKU": sku,
-                    "Product ID": product_id,
-                    "Причина": "Няма product data"
-                })
+                print(
+                    "❌ Няма product data"
+                )
 
-                time.sleep(REQUEST_DELAY)
+                not_found.append(
+                    sku
+                )
 
                 continue
 
-            # ------------------------------------------------
+
+            # =================================================
             # VARIANT
-            # ------------------------------------------------
+            # =================================================
 
             variant = find_variant(
-                product,
+                product_data,
                 sku
             )
+
 
             if not variant:
 
@@ -774,113 +1085,109 @@ def main():
                     f"❌ Няма variant за SKU: {sku}"
                 )
 
-                not_found.append({
-                    "SKU": sku,
-                    "Product ID": product_id,
-                    "Причина": "Няма variant"
-                })
-
-                time.sleep(REQUEST_DELAY)
+                not_found.append(
+                    sku
+                )
 
                 continue
 
-            # ------------------------------------------------
-            # PRODUCT DATA
-            # ------------------------------------------------
 
-            quantity = get_total_quantity(
+            # =================================================
+            # КОЛИЧЕСТВО
+            # =================================================
+
+            total_quantity = get_total_quantity(
                 variant
             )
 
-            price = variant.get(
-                "discountedPrice"
+
+            # =================================================
+            # ЦЕНА
+            # =================================================
+
+            price = get_price(
+                variant
             )
 
-            if price is None:
 
-                price = variant.get(
-                    "price"
-                )
-
-            # ------------------------------------------------
+            # =================================================
             # РЕЗУЛТАТ
-            # ------------------------------------------------
+            # =================================================
 
-            print(f"📦 SKU: {sku}")
-            print(f"📊 Общо количество: {quantity}")
-            print(f"💰 Цена: {price}")
+            print(
+                f"📦 Общо количество: "
+                f"{total_quantity}"
+            )
+
+            print(
+                f"💰 Цена: "
+                f"{price:.2f} €"
+            )
+
 
             results.append({
+
                 "SKU": sku,
-                "Product ID": product_id,
-                "Наличност": quantity,
+
+                "Наличност": total_quantity,
+
                 "Цена": price
+
             })
 
-            time.sleep(REQUEST_DELAY)
+
+            # ------------------------------------------------
+            # Пауза
+            # ------------------------------------------------
+
+            time.sleep(
+                WAIT
+            )
+
+
+        # ====================================================
+        # ЗАТВАРЯНЕ
+        # ====================================================
+
+        context.close()
 
         browser.close()
 
+
     # ========================================================
-    # SAVE RESULTS
+    # SAVE
     # ========================================================
 
-    with open(
-        RESULTS_FILE,
-        "w",
-        encoding="utf-8-sig",
-        newline=""
-    ) as f:
-
-        writer = csv.DictWriter(
-            f,
-            fieldnames=[
-                "SKU",
-                "Product ID",
-                "Наличност",
-                "Цена"
-            ]
-        )
-
-        writer.writeheader()
-
-        writer.writerows(results)
-
-    print()
-    print(
-        f"💾 Записани резултати: {RESULTS_FILE}"
+    save_results(
+        results
     )
 
-    # ========================================================
-    # SAVE NOT FOUND
-    # ========================================================
-
-    with open(
-        NOT_FOUND_FILE,
-        "w",
-        encoding="utf-8-sig",
-        newline=""
-    ) as f:
-
-        writer = csv.DictWriter(
-            f,
-            fieldnames=[
-                "SKU",
-                "Product ID",
-                "Причина"
-            ]
-        )
-
-        writer.writeheader()
-
-        writer.writerows(not_found)
-
-    print(
-        f"💾 Not found: {NOT_FOUND_FILE}"
+    save_not_found(
+        not_found
     )
 
-    print()
-    print("✅ Готово")
+
+    # ========================================================
+    # SUMMARY
+    # ========================================================
+
+    print(
+        "\n================"
+    )
+
+    print(
+        f"✅ Обработени продукти: "
+        f"{len(results)}"
+    )
+
+    print(
+        f"❌ Ненамерени: "
+        f"{len(not_found)}"
+    )
+
+    print(
+        "✅ Готово"
+    )
 
 
 # ============================================================
