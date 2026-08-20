@@ -56,8 +56,6 @@ def debug(name, data):
 
             f.write(data)
 
-        print("🐞 Debug:", name)
-
     except Exception:
         pass
 
@@ -83,6 +81,7 @@ def read_skus():
             if line.upper() == "SKU":
                 continue
 
+            # Всичко между ## и ## се игнорира
             if line == "##":
 
                 block = not block
@@ -173,12 +172,17 @@ def search_filstar(sku):
             timeout=30
         )
 
+        print(
+            "🔎 Search HTTP:",
+            r.status_code
+        )
+
         html = r.text
 
     except Exception as e:
 
         print(
-            "SEARCH ERROR:",
+            "❌ SEARCH ERROR:",
             e
         )
 
@@ -191,6 +195,76 @@ def search_filstar(sku):
     )
 
     return html
+
+
+def get_product_data(product_id):
+
+    url = f"{BASE_URL}/get-serialize-product/{product_id}"
+
+    print(
+        "📦 PRODUCT:",
+        url
+    )
+
+    try:
+
+        r = session.get(
+            url,
+            timeout=30
+        )
+
+        print(
+            "📡 Product HTTP:",
+            r.status_code
+        )
+
+    except Exception as e:
+
+        print(
+            "❌ PRODUCT ERROR:",
+            e
+        )
+
+        return None
+
+
+    # ВАЖНО:
+    # При 403 не правим retry и не стартираме Cloudflare/Playwright.
+    if r.status_code == 403:
+
+        print(
+            "🛡️ Product endpoint е блокиран с HTTP 403"
+        )
+
+        debug(
+            f"product_{product_id}_403.html",
+            r.text
+        )
+
+        return None
+
+
+    if r.status_code != 200:
+
+        print(
+            "❌ Product HTTP:",
+            r.status_code
+        )
+
+        debug(
+            f"product_{product_id}_error.html",
+            r.text
+        )
+
+        return None
+
+
+    debug(
+        f"product_{product_id}.html",
+        r.text
+    )
+
+    return r.text
 
 
 def extract_price(html):
@@ -264,10 +338,24 @@ def extract_quantity(html, sku):
     patterns = [
 
         # "quantity":3,"sku":"950594"
-        r'"quantity"\s*:\s*(\d+).*?"sku"\s*:\s*"' + re.escape(sku) + r'"',
+        r'"quantity"\s*:\s*(\d+).*?"sku"\s*:\s*"'
+        + re.escape(sku)
+        + r'"',
 
         # "sku":"950594"... "quantity":3
-        r'"sku"\s*:\s*"' + re.escape(sku) + r'".*?"quantity"\s*:\s*(\d+)',
+        r'"sku"\s*:\s*"'
+        + re.escape(sku)
+        + r'".*?"quantity"\s*:\s*(\d+)',
+
+        # quantity преди sku, с единични кавички
+        r"'quantity'\s*:\s*(\d+).*?'sku'\s*:\s*'"
+        + re.escape(sku)
+        + r"'",
+
+        # sku преди quantity, с единични кавички
+        r"'sku'\s*:\s*'"
+        + re.escape(sku)
+        + r"'.*?'quantity'\s*:\s*(\d+)",
 
     ]
 
@@ -308,6 +396,10 @@ def main():
         )
 
 
+        # --------------------------------------------------
+        # 1. SEARCH
+        # --------------------------------------------------
+
         html = search_filstar(
             sku
         )
@@ -323,8 +415,14 @@ def main():
                 sku
             )
 
+            time.sleep(WAIT)
+
             continue
 
+
+        # --------------------------------------------------
+        # 2. PRODUCT ID
+        # --------------------------------------------------
 
         product_id = extract_product_id(
             html
@@ -341,7 +439,8 @@ def main():
         else:
 
             print(
-                "❌ Няма Product ID"
+                "❌ Няма Product ID за SKU:",
+                sku
             )
 
             save_not_found(
@@ -353,25 +452,12 @@ def main():
             continue
 
 
-        quantity = extract_quantity(
-            html,
-            sku
-        )
-
-
-        if quantity is not None:
-
-            print(
-                "✅ Quantity:",
-                quantity
-            )
-
-        else:
-
-            print(
-                "⚠️ Quantity не е намерено"
-            )
-
+        # --------------------------------------------------
+        # 3. PRICE
+        #
+        # Цената продължава да се взема от SEARCH,
+        # защото това вече работи.
+        # --------------------------------------------------
 
         price = extract_price(
             html
@@ -391,6 +477,53 @@ def main():
                 "❌ Няма EUR цена"
             )
 
+
+        # --------------------------------------------------
+        # 4. PRODUCT DATA
+        #
+        # Само ЕДНА заявка.
+        # При 403 НЕ правим retry.
+        # --------------------------------------------------
+
+        product_html = get_product_data(
+            product_id
+        )
+
+
+        quantity = None
+
+
+        if product_html:
+
+            quantity = extract_quantity(
+                product_html,
+                sku
+            )
+
+
+            if quantity is not None:
+
+                print(
+                    "✅ Quantity:",
+                    quantity
+                )
+
+            else:
+
+                print(
+                    "⚠️ Quantity не е намерено"
+                )
+
+        else:
+
+            print(
+                "⚠️ Няма product data"
+            )
+
+
+        # --------------------------------------------------
+        # 5. SAVE RESULT
+        # --------------------------------------------------
 
         if price:
 
@@ -423,8 +556,22 @@ def main():
             )
 
 
+        # --------------------------------------------------
+        # 6. WAIT
+        # --------------------------------------------------
+
         time.sleep(WAIT)
 
+
+    print(
+        "💾 Записани резултати:",
+        RESULT_CSV
+    )
+
+    print(
+        "💾 Not found:",
+        NOT_FOUND_CSV
+    )
 
     print(
         "✅ Готово"
