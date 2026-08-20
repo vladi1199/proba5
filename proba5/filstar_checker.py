@@ -56,6 +56,8 @@ def debug(name, data):
 
             f.write(data)
 
+        print("🐞 Debug:", name)
+
     except Exception:
         pass
 
@@ -182,7 +184,7 @@ def search_filstar(sku):
     except Exception as e:
 
         print(
-            "❌ SEARCH ERROR:",
+            "SEARCH ERROR:",
             e
         )
 
@@ -195,113 +197,6 @@ def search_filstar(sku):
     )
 
     return html
-
-
-def get_product_data(product_id):
-
-    url = f"{BASE_URL}/get-serialize-product/{product_id}"
-
-    print(
-        "📦 PRODUCT:",
-        url
-    )
-
-    try:
-
-        r = session.get(
-            url,
-            timeout=30
-        )
-
-        print(
-            "📡 Product HTTP:",
-            r.status_code
-        )
-
-    except Exception as e:
-
-        print(
-            "❌ PRODUCT ERROR:",
-            e
-        )
-
-        return None
-
-
-    # ВАЖНО:
-    # При 403 не правим retry и не стартираме Cloudflare/Playwright.
-    if r.status_code == 403:
-
-        print(
-            "🛡️ Product endpoint е блокиран с HTTP 403"
-        )
-
-        debug(
-            f"product_{product_id}_403.html",
-            r.text
-        )
-
-        return None
-
-
-    if r.status_code != 200:
-
-        print(
-            "❌ Product HTTP:",
-            r.status_code
-        )
-
-        debug(
-            f"product_{product_id}_error.html",
-            r.text
-        )
-
-        return None
-
-
-    debug(
-        f"product_{product_id}.html",
-        r.text
-    )
-
-    return r.text
-
-
-def extract_price(html):
-
-    patterns = [
-
-        # 43.30 лв. / 22.14 €
-        r'/\s*(\d+\.\d+)\s*€',
-
-        # 43,30 лв. / 22,14 €
-        r'/\s*(\d+,\d+)\s*€',
-
-        # fallback: директно число пред €
-        r'(\d+\.\d+)\s*€',
-
-        r'(\d+,\d+)\s*€'
-
-    ]
-
-    for pattern in patterns:
-
-        m = re.search(
-            pattern,
-            html,
-            re.I
-        )
-
-        if m:
-
-            price = m.group(1)
-
-            return price.replace(
-                ",",
-                "."
-            )
-
-    return None
 
 
 def extract_product_id(html):
@@ -333,6 +228,43 @@ def extract_product_id(html):
     return None
 
 
+def extract_price(html):
+
+    patterns = [
+
+        # 43.30 € 
+        r'/\s*(\d+\.\d+)\s*€',
+
+        # 43,30 €
+        r'/\s*(\d+,\d+)\s*€',
+
+        # fallback: директно число пред €
+        r'(\d+\.\d+)\s*€',
+
+        r'(\d+,\d+)\s*€'
+
+    ]
+
+    for pattern in patterns:
+
+        m = re.search(
+            pattern,
+            html,
+            re.I
+        )
+
+        if m:
+
+            price = m.group(1)
+
+            return price.replace(
+                ",",
+                "."
+            )
+
+    return None
+
+
 def extract_quantity(html, sku):
 
     patterns = [
@@ -347,15 +279,8 @@ def extract_quantity(html, sku):
         + re.escape(sku)
         + r'".*?"quantity"\s*:\s*(\d+)',
 
-        # quantity преди sku, с единични кавички
-        r"'quantity'\s*:\s*(\d+).*?'sku'\s*:\s*'"
-        + re.escape(sku)
-        + r"'",
-
-        # sku преди quantity, с единични кавички
-        r"'sku'\s*:\s*'"
-        + re.escape(sku)
-        + r"'.*?'quantity'\s*:\s*(\d+)",
+        # quantity: 3
+        r'quantity\s*[:=]\s*["\']?(\d+)["\']?'
 
     ]
 
@@ -369,8 +294,78 @@ def extract_quantity(html, sku):
 
         if m:
 
-            return int(m.group(1))
+            try:
+                return int(m.group(1))
+            except Exception:
+                pass
 
+    return None
+
+
+def extract_availability(html, sku):
+
+    # Намираме конкретния продукт по SKU,
+    # за да не вземем out-of-stock от друг продукт
+    # в search резултатите.
+
+    sku_pos = html.find(str(sku))
+
+    if sku_pos == -1:
+
+        print(
+            "⚠️ SKU не е намерено в search HTML"
+        )
+
+        return None
+
+    # Вземаме достатъчно голям участък около SKU,
+    # в който обикновено се намира product card.
+    start = max(
+        0,
+        sku_pos - 3000
+    )
+
+    end = min(
+        len(html),
+        sku_pos + 5000
+    )
+
+    product_html = html[start:end]
+
+    # Filstar използва class="out-of-stock"
+    if re.search(
+        r'\bout-of-stock\b',
+        product_html,
+        re.I
+    ):
+
+        return "Неналичен"
+
+    # Проверка за изрично наличен продукт
+    if re.search(
+        r'\bin-stock\b',
+        product_html,
+        re.I
+    ):
+
+        return "Наличен"
+
+    # Ако quantity е намерено
+    quantity = extract_quantity(
+        product_html,
+        sku
+    )
+
+    if quantity is not None:
+
+        if quantity > 0:
+            return "Наличен"
+
+        return "Неналичен"
+
+    # Ако няма out-of-stock,
+    # но няма и достатъчно информация,
+    # не гадаем.
     return None
 
 
@@ -396,10 +391,6 @@ def main():
         )
 
 
-        # --------------------------------------------------
-        # 1. SEARCH
-        # --------------------------------------------------
-
         html = search_filstar(
             sku
         )
@@ -415,14 +406,8 @@ def main():
                 sku
             )
 
-            time.sleep(WAIT)
-
             continue
 
-
-        # --------------------------------------------------
-        # 2. PRODUCT ID
-        # --------------------------------------------------
 
         product_id = extract_product_id(
             html
@@ -452,12 +437,57 @@ def main():
             continue
 
 
-        # --------------------------------------------------
-        # 3. PRICE
-        #
-        # Цената продължава да се взема от SEARCH,
-        # защото това вече работи.
-        # --------------------------------------------------
+        # -----------------------------------------
+        # НАЛИЧНОСТ ОТ SEARCH HTML
+        # -----------------------------------------
+
+        availability = extract_availability(
+            html,
+            sku
+        )
+
+
+        if availability:
+
+            print(
+                "📦 Наличност:",
+                availability
+            )
+
+        else:
+
+            print(
+                "⚠️ Наличността не е намерена"
+            )
+
+
+        # -----------------------------------------
+        # КОЛИЧЕСТВО ОТ SEARCH HTML
+        # -----------------------------------------
+
+        quantity = extract_quantity(
+            html,
+            sku
+        )
+
+
+        if quantity is not None:
+
+            print(
+                "✅ Quantity:",
+                quantity
+            )
+
+        else:
+
+            print(
+                "⚠️ Quantity не е намерено"
+            )
+
+
+        # -----------------------------------------
+        # ЦЕНА ОТ SEARCH HTML
+        # -----------------------------------------
 
         price = extract_price(
             html
@@ -478,66 +508,27 @@ def main():
             )
 
 
-        # --------------------------------------------------
-        # 4. PRODUCT DATA
-        #
-        # Само ЕДНА заявка.
-        # При 403 НЕ правим retry.
-        # --------------------------------------------------
-
-        product_html = get_product_data(
-            product_id
-        )
-
-
-        quantity = None
-
-
-        if product_html:
-
-            quantity = extract_quantity(
-                product_html,
-                sku
-            )
-
-
-            if quantity is not None:
-
-                print(
-                    "✅ Quantity:",
-                    quantity
-                )
-
-            else:
-
-                print(
-                    "⚠️ Quantity не е намерено"
-                )
-
-        else:
-
-            print(
-                "⚠️ Няма product data"
-            )
-
-
-        # --------------------------------------------------
-        # 5. SAVE RESULT
-        # --------------------------------------------------
+        # -----------------------------------------
+        # АКО ИМАМЕ ЦЕНА → ЗАПИСВАМЕ ПРОДУКТА
+        # -----------------------------------------
 
         if price:
 
-            if quantity is not None and quantity > 0:
+            # Ако нямаме директна наличност,
+            # но имаме quantity, определяме по quantity.
+            if not availability:
 
-                availability = "Наличен"
+                if quantity is not None:
 
-            elif quantity is not None and quantity <= 0:
+                    if quantity > 0:
+                        availability = "Наличен"
 
-                availability = "Неналичен"
+                    else:
+                        availability = "Неналичен"
 
-            else:
+                else:
 
-                availability = "Неизвестна"
+                    availability = "Неизвестна"
 
 
             save_result(
@@ -555,10 +546,6 @@ def main():
                 sku
             )
 
-
-        # --------------------------------------------------
-        # 6. WAIT
-        # --------------------------------------------------
 
         time.sleep(WAIT)
 
