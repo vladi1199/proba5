@@ -6,7 +6,6 @@ import os
 import re
 import time
 import requests
-import json
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -198,10 +197,10 @@ def extract_price(html):
 
     patterns = [
 
-        # 43.30 € 
+        # 43.30 лв. / 22.14 €
         r'/\s*(\d+\.\d+)\s*€',
 
-        # 43,30 €
+        # 43,30 лв. / 22,14 €
         r'/\s*(\d+,\d+)\s*€',
 
         # fallback: директно число пред €
@@ -260,207 +259,31 @@ def extract_product_id(html):
     return None
 
 
-def get_product_data(product_id):
+def extract_quantity(html, sku):
 
-    url = f"{BASE_URL}/get-serialize-product/{product_id}"
+    patterns = [
 
-    print(
-        "📦 PRODUCT:",
-        url
-    )
+        # "quantity":3,"sku":"950594"
+        r'"quantity"\s*:\s*(\d+).*?"sku"\s*:\s*"' + re.escape(sku) + r'"',
 
-    try:
+        # "sku":"950594"... "quantity":3
+        r'"sku"\s*:\s*"' + re.escape(sku) + r'".*?"quantity"\s*:\s*(\d+)',
 
-        r = session.get(
-            url,
-            timeout=30
+    ]
+
+    for pattern in patterns:
+
+        m = re.search(
+            pattern,
+            html,
+            re.I | re.S
         )
 
-        if r.status_code != 200:
+        if m:
 
-            print(
-                "❌ Product HTTP:",
-                r.status_code
-            )
+            return int(m.group(1))
 
-            return None
-
-        data = r.json()
-
-    except Exception as e:
-
-        print(
-            "PRODUCT ERROR:",
-            e
-        )
-
-        return None
-
-
-    try:
-
-        debug(
-            f"product_{product_id}.json",
-            json.dumps(
-                data,
-                ensure_ascii=False,
-                indent=2
-            )
-        )
-
-    except Exception:
-        pass
-
-
-    return data
-
-
-def extract_quantity_from_product(product_data, sku):
-
-    if not product_data:
-
-        return None
-
-
-    variants = product_data.get(
-        "variants",
-        []
-    )
-
-
-    if not variants:
-
-        print(
-            "⚠️ Няма variants"
-        )
-
-        return None
-
-
-    print(
-        "🔎 Общо variants:",
-        len(variants)
-    )
-
-
-    target_variant = None
-
-
-    for variant in variants:
-
-        variant_sku = str(
-            variant.get(
-                "sku",
-                ""
-            )
-        ).strip()
-
-
-        if variant_sku == str(sku).strip():
-
-            target_variant = variant
-
-            break
-
-
-    if not target_variant:
-
-        print(
-            "❌ Не е намерен variant за SKU:",
-            sku
-        )
-
-        return None
-
-
-    print(
-        "✅ Намерен variant:",
-        target_variant.get("id"),
-        "| SKU:",
-        target_variant.get("sku")
-    )
-
-
-    stores = target_variant.get(
-        "stores",
-        []
-    )
-
-
-    if not stores:
-
-        print(
-            "⚠️ Няма stores в variant"
-        )
-
-        # fallback към quantity
-        quantity = target_variant.get(
-            "quantity"
-        )
-
-        if quantity is not None:
-
-            try:
-
-                return int(quantity)
-
-            except (ValueError, TypeError):
-
-                return None
-
-        return None
-
-
-    total_quantity = 0
-
-
-    print(
-        "🏪 Складове:"
-    )
-
-
-    for store in stores:
-
-        store_name = store.get(
-            "name",
-            "Unknown"
-        )
-
-        store_quantity = store.get(
-            "quantity",
-            0
-        )
-
-
-        try:
-
-            store_quantity = int(
-                store_quantity
-            )
-
-        except (ValueError, TypeError):
-
-            store_quantity = 0
-
-
-        print(
-            "   ",
-            store_name,
-            ":",
-            store_quantity
-        )
-
-
-        total_quantity += store_quantity
-
-
-    print(
-        "📦 ОБЩО КОЛИЧЕСТВО:",
-        total_quantity
-    )
-
-
-    return total_quantity
+    return None
 
 
 def main():
@@ -485,10 +308,6 @@ def main():
         )
 
 
-        # -------------------------------------------------
-        # 1. Търсим продукта
-        # -------------------------------------------------
-
         html = search_filstar(
             sku
         )
@@ -506,10 +325,6 @@ def main():
 
             continue
 
-
-        # -------------------------------------------------
-        # 2. Намираме Product ID
-        # -------------------------------------------------
 
         product_id = extract_product_id(
             html
@@ -538,36 +353,8 @@ def main():
             continue
 
 
-        # -------------------------------------------------
-        # 3. Взимаме serialize JSON
-        # -------------------------------------------------
-
-        product_data = get_product_data(
-            product_id
-        )
-
-
-        if not product_data:
-
-            print(
-                "❌ Няма product data"
-            )
-
-            save_not_found(
-                sku
-            )
-
-            time.sleep(WAIT)
-
-            continue
-
-
-        # -------------------------------------------------
-        # 4. Намираме общото количество
-        # -------------------------------------------------
-
-        quantity = extract_quantity_from_product(
-            product_data,
+        quantity = extract_quantity(
+            html,
             sku
         )
 
@@ -575,20 +362,16 @@ def main():
         if quantity is not None:
 
             print(
-                "✅ Общо количество:",
+                "✅ Quantity:",
                 quantity
             )
 
         else:
 
             print(
-                "⚠️ Количеството не е намерено"
+                "⚠️ Quantity не е намерено"
             )
 
-
-        # -------------------------------------------------
-        # 5. Вземаме цената EUR
-        # -------------------------------------------------
 
         price = extract_price(
             html
@@ -609,30 +392,20 @@ def main():
             )
 
 
-        # -------------------------------------------------
-        # 6. Определяме наличност
-        # -------------------------------------------------
+        if price:
 
-        if quantity is not None:
-
-            if quantity > 0:
+            if quantity is not None and quantity > 0:
 
                 availability = "Наличен"
 
-            else:
+            elif quantity is not None and quantity <= 0:
 
                 availability = "Неналичен"
 
-        else:
+            else:
 
-            availability = "Неизвестна"
+                availability = "Неизвестна"
 
-
-        # -------------------------------------------------
-        # 7. Записваме резултата
-        # -------------------------------------------------
-
-        if price:
 
             save_result(
                 [
