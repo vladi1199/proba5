@@ -30,6 +30,7 @@ DEBUG_DIR = os.path.join(
     "debug_html"
 )
 
+
 os.makedirs(
     DEBUG_DIR,
     exist_ok=True
@@ -88,6 +89,7 @@ def debug(name, data):
         )
 
     except Exception:
+
         pass
 
 
@@ -113,28 +115,24 @@ def read_skus():
             if not line:
                 continue
 
-
             if line.upper() == "SKU":
-
                 continue
 
+            # -------------------------------------------------
+            # Игнориране на кодовете между ## и ##
+            # -------------------------------------------------
 
-            # Всичко между ## и ## се игнорира
             if line == "##":
 
                 block = not block
 
                 continue
 
-
             if block:
 
                 continue
 
-
-            result.append(
-                line
-            )
+            result.append(line)
 
     return result
 
@@ -229,7 +227,6 @@ def search_filstar(sku):
         url
     )
 
-
     try:
 
         r = session.get(
@@ -243,7 +240,6 @@ def search_filstar(sku):
         )
 
         html = r.text
-
 
     except Exception as e:
 
@@ -260,50 +256,7 @@ def search_filstar(sku):
         html
     )
 
-
     return html
-
-
-# =========================================================
-# EXTRACT PRODUCT ID
-# =========================================================
-
-def extract_product_id(html):
-
-    ids = re.findall(
-        r'/get-serialize-product/(\d+)',
-        html
-    )
-
-
-    if not ids:
-
-        ids = re.findall(
-            r'product.?id.?[:="\']+(\d+)',
-            html,
-            re.I
-        )
-
-
-    ids = list(
-        dict.fromkeys(
-            ids
-        )
-    )
-
-
-    print(
-        "ID кандидати:",
-        ids
-    )
-
-
-    if ids:
-
-        return ids[0]
-
-
-    return None
 
 
 # =========================================================
@@ -336,7 +289,6 @@ def extract_price(html):
             re.I
         )
 
-
         if m:
 
             price = m.group(1)
@@ -345,6 +297,46 @@ def extract_price(html):
                 ",",
                 "."
             )
+
+
+    return None
+
+
+# =========================================================
+# EXTRACT PRODUCT ID
+# =========================================================
+
+def extract_product_id(html):
+
+    ids = re.findall(
+        r'/get-serialize-product/(\d+)',
+        html
+    )
+
+
+    if not ids:
+
+        ids = re.findall(
+            r'product.?id.?[:="\']+(\d+)',
+            html,
+            re.I
+        )
+
+
+    ids = list(
+        dict.fromkeys(ids)
+    )
+
+
+    print(
+        "ID кандидати:",
+        ids
+    )
+
+
+    if ids:
+
+        return ids[0]
 
 
     return None
@@ -360,68 +352,42 @@ def extract_availability(
 ):
 
     """
-    Намира конкретния product-item-wapper блок
-    по data-product-id.
+    Проверява наличността само по началния HTML tag
+    на конкретния product-item-wapper.
 
     ВАЖНО:
-    Не използваме фиксиран брой символи след Product ID,
-    защото така може да попаднем в следващ продукт.
 
-    Всеки product-item-wapper се разглежда отделно.
+    Не разглежда съдържанието на блока.
+
+    Не гледа product-list-view.
+
+    Не гледа следващи продукти.
+
+    Не позволява вторият изглед на продукта
+    да промени резултата на първия.
     """
 
-    product_blocks = list(
-        re.finditer(
-            r'<div[^>]*class=["\'][^"\']*product-item-wapper[^"\']*["\'][^>]*>',
-            html,
-            re.I
-        )
+    pattern = (
+        r'<div\b[^>]*'
+        r'class=["\'][^"\']*product-item-wapper[^"\']*["\']'
+        r'[^>]*>'
     )
 
 
-    # Ако няма намерени продуктови блокове
-    if not product_blocks:
-
-        print(
-            "⚠️ Product блокове не са намерени"
-        )
-
-        return "Неизвестна"
+    matches = re.finditer(
+        pattern,
+        html,
+        re.I
+    )
 
 
-    # Обхождаме всеки продуктов блок
-    for i, match in enumerate(
-        product_blocks
-    ):
+    for match in matches:
 
-        start = match.start()
-
-
-        # Край на текущия блок =
-        # начало на следващия блок
-        if i + 1 < len(
-            product_blocks
-        ):
-
-            end = product_blocks[
-                i + 1
-            ].start()
-
-
-            block = html[
-                start:end
-            ]
-
-
-        else:
-
-            block = html[
-                start:
-            ]
+        opening_tag = match.group(0)
 
 
         # -------------------------------------------------
-        # Проверяваме дали това е нашият Product ID
+        # Проверяваме Product ID
         # -------------------------------------------------
 
         id_match = re.search(
@@ -430,7 +396,7 @@ def extract_availability(
                 str(product_id)
             )
             + r'["\']',
-            block,
+            opening_tag,
             re.I
         )
 
@@ -441,52 +407,63 @@ def extract_availability(
 
 
         # -------------------------------------------------
-        # Намерихме точния продукт
+        # Това е точният product-item-wapper
         # -------------------------------------------------
 
-        block_lower = block.lower()
+        print(
+            "🔎 Product tag:",
+            opening_tag.strip()
+        )
+
+
+        classes_match = re.search(
+            r'class=["\']([^"\']*)["\']',
+            opening_tag,
+            re.I
+        )
+
+
+        if not classes_match:
+
+            print(
+                "⚠️ Class атрибутът не е намерен"
+            )
+
+            return "Неизвестна"
+
+
+        classes = classes_match.group(1).lower()
+
+
+        print(
+            "🔎 Product classes:",
+            classes
+        )
 
 
         # -------------------------------------------------
         # НЕНАЛИЧЕН
         # -------------------------------------------------
 
-        if re.search(
-            r'\bout-of-stock\b',
-            block_lower,
-            re.I
-        ):
+        if "out-of-stock" in classes:
 
             return "Неналичен"
 
 
-        if re.search(
-            r'\bproduct-not-available\b',
-            block_lower,
-            re.I
-        ):
-
-            return "Неналичен"
-
-
-        if re.search(
-            r'\btag-not-available\b',
-            block_lower,
-            re.I
-        ):
+        if "product-not-available" in classes:
 
             return "Неналичен"
 
 
         # -------------------------------------------------
-        # Няма маркер за неналичност
+        # НАЛИЧЕН
         # -------------------------------------------------
 
         return "Наличен"
 
 
     print(
-        "⚠️ Product блокът не е намерен за ID:",
+        "⚠️ Product item блокът не е намерен за ID:",
         product_id
     )
 
@@ -547,16 +524,8 @@ def extract_quantity(
 
 def main():
 
-    # -----------------------------------------------------
-    # CSV initialization
-    # -----------------------------------------------------
-
     init_csv()
 
-
-    # -----------------------------------------------------
-    # Read SKU list
-    # -----------------------------------------------------
 
     skus = read_skus()
 
@@ -566,10 +535,6 @@ def main():
         len(skus)
     )
 
-
-    # -----------------------------------------------------
-    # Process each SKU
-    # -----------------------------------------------------
 
     for sku in skus:
 
@@ -599,11 +564,9 @@ def main():
                 "❌ Няма резултат"
             )
 
-
             save_not_found(
                 sku
             )
-
 
             continue
 
@@ -624,23 +587,19 @@ def main():
                 product_id
             )
 
-
         else:
 
             print(
                 "❌ Няма Product ID"
             )
 
-
             save_not_found(
                 sku
             )
 
-
             time.sleep(
                 WAIT
             )
-
 
             continue
 
@@ -655,19 +614,12 @@ def main():
         )
 
 
-        if availability == "Наличен":
+        if availability != "Неизвестна":
 
             print(
-                "✅ Наличност: Наличен"
+                "✅ Наличност:",
+                availability
             )
-
-
-        elif availability == "Неналичен":
-
-            print(
-                "✅ Наличност: Неналичен"
-            )
-
 
         else:
 
@@ -693,7 +645,6 @@ def main():
                 quantity
             )
 
-
         else:
 
             print(
@@ -716,7 +667,6 @@ def main():
                 "✅ Цена EUR:",
                 price
             )
-
 
         else:
 
@@ -742,7 +692,6 @@ def main():
                 ]
             )
 
-
         else:
 
             save_not_found(
@@ -758,10 +707,6 @@ def main():
             WAIT
         )
 
-
-    # -----------------------------------------------------
-    # DONE
-    # -----------------------------------------------------
 
     print(
         "💾 Записани резултати:",
@@ -781,7 +726,7 @@ def main():
 
 
 # =========================================================
-# ENTRY POINT
+# RUN
 # =========================================================
 
 if __name__ == "__main__":
