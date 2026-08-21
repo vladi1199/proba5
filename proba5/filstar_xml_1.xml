@@ -1,2 +1,2 @@
 <?xml version='1.0' encoding='utf-8'?>
-<products><item><sku>932562</sku><price>38.86</price><quantity /><availability>out_of_stock</availability></item><item><sku>950594</sku><price>22.14</price><quantity /><availability>out_of_stock</availability></item><item><sku>360468</sku><price>3.58</price><quantity /><availability>in_stock</availability></item></products>
+<products><item><sku>932562</sku><price>38.86</price><quantity /><availability>out_of_stock</availability></item><item><sku>950594</sku><price>22.14</price><quantity /><availability>in_stock</availability></item><item><sku>360468</sku><price>3.58</price><quantity /><availability>in_stock</availability></item></products>
