@@ -10,14 +10,30 @@ import requests
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-SKU_CSV = os.path.join(BASE_DIR, "sku_list_filstar.csv")
+SKU_CSV = os.path.join(
+    BASE_DIR,
+    "sku_list_filstar.csv"
+)
 
-RESULT_CSV = os.path.join(BASE_DIR, "results_filstar.csv")
-NOT_FOUND_CSV = os.path.join(BASE_DIR, "not_found_filstar.csv")
+RESULT_CSV = os.path.join(
+    BASE_DIR,
+    "results_filstar.csv"
+)
 
-DEBUG_DIR = os.path.join(BASE_DIR, "debug_html")
+NOT_FOUND_CSV = os.path.join(
+    BASE_DIR,
+    "not_found_filstar.csv"
+)
 
-os.makedirs(DEBUG_DIR, exist_ok=True)
+DEBUG_DIR = os.path.join(
+    BASE_DIR,
+    "debug_html"
+)
+
+os.makedirs(
+    DEBUG_DIR,
+    exist_ok=True
+)
 
 
 BASE_URL = "https://filstar.com"
@@ -41,26 +57,43 @@ HEADERS = {
 
 
 session = requests.Session()
-session.headers.update(HEADERS)
 
+session.headers.update(
+    HEADERS
+)
+
+
+# =========================================================
+# DEBUG
+# =========================================================
 
 def debug(name, data):
 
     try:
 
         with open(
-            os.path.join(DEBUG_DIR, name),
+            os.path.join(
+                DEBUG_DIR,
+                name
+            ),
             "w",
             encoding="utf-8"
         ) as f:
 
             f.write(data)
 
-        print("🐞 Debug:", name)
+        print(
+            "🐞 Debug:",
+            name
+        )
 
     except Exception:
         pass
 
+
+# =========================================================
+# READ SKU
+# =========================================================
 
 def read_skus():
 
@@ -80,21 +113,35 @@ def read_skus():
             if not line:
                 continue
 
+
             if line.upper() == "SKU":
+
                 continue
 
+
+            # Всичко между ## и ## се игнорира
             if line == "##":
 
                 block = not block
+
                 continue
+
 
             if block:
+
                 continue
 
-            result.append(line)
+
+            result.append(
+                line
+            )
 
     return result
 
+
+# =========================================================
+# INIT CSV
+# =========================================================
 
 def init_csv():
 
@@ -129,6 +176,10 @@ def init_csv():
         )
 
 
+# =========================================================
+# SAVE RESULT
+# =========================================================
+
 def save_result(row):
 
     with open(
@@ -138,8 +189,14 @@ def save_result(row):
         encoding="utf-8"
     ) as f:
 
-        csv.writer(f).writerow(row)
+        csv.writer(f).writerow(
+            row
+        )
 
+
+# =========================================================
+# SAVE NOT FOUND
+# =========================================================
 
 def save_not_found(sku):
 
@@ -157,14 +214,21 @@ def save_not_found(sku):
         )
 
 
+# =========================================================
+# SEARCH FILSTAR
+# =========================================================
+
 def search_filstar(sku):
 
-    url = f"{BASE_URL}/api/search?term={sku}"
+    url = (
+        f"{BASE_URL}/api/search?term={sku}"
+    )
 
     print(
         "🌐 SEARCH:",
         url
     )
+
 
     try:
 
@@ -179,6 +243,7 @@ def search_filstar(sku):
         )
 
         html = r.text
+
 
     except Exception as e:
 
@@ -195,8 +260,13 @@ def search_filstar(sku):
         html
     )
 
+
     return html
 
+
+# =========================================================
+# EXTRACT PRODUCT ID
+# =========================================================
 
 def extract_product_id(html):
 
@@ -204,6 +274,7 @@ def extract_product_id(html):
         r'/get-serialize-product/(\d+)',
         html
     )
+
 
     if not ids:
 
@@ -213,113 +284,40 @@ def extract_product_id(html):
             re.I
         )
 
-    ids = list(dict.fromkeys(ids))
+
+    ids = list(
+        dict.fromkeys(
+            ids
+        )
+    )
+
 
     print(
         "ID кандидати:",
         ids
     )
 
+
     if ids:
 
         return ids[0]
 
+
     return None
 
 
-def extract_availability(html, product_id):
-
-    """
-    Проверява наличността само в HTML блока
-    на конкретния Product ID.
-
-    НЕ проверяваме целия search HTML,
-    защото той може да съдържа други продукти
-    или варианти със статус out-of-stock.
-    """
-
-    pattern = (
-        r'<[^>]*data-product-id=["\']'
-        + re.escape(str(product_id))
-        + r'["\'][^>]*>'
-    )
-
-    match = re.search(
-        pattern,
-        html,
-        re.I
-    )
-
-    if not match:
-
-        print(
-            "⚠️ Product блокът не е намерен за ID:",
-            product_id
-        )
-
-        return "Неизвестна"
-
-
-    start = match.start()
-
-
-    # Вземаме само блока около конкретния Product ID.
-    # Не гледаме целия HTML.
-    block = html[
-        start:start + 12000
-    ]
-
-
-    block_lower = block.lower()
-
-
-    # -----------------------------------------------------
-    # НЕНАЛИЧЕН
-    # -----------------------------------------------------
-
-    if re.search(
-        r'\bout-of-stock\b',
-        block_lower,
-        re.I
-    ):
-
-        return "Неналичен"
-
-
-    if re.search(
-        r'\bproduct-not-available\b',
-        block_lower,
-        re.I
-    ):
-
-        return "Неналичен"
-
-
-    if re.search(
-        r'\btag-not-available\b',
-        block_lower,
-        re.I
-    ):
-
-        return "Неналичен"
-
-
-    # -----------------------------------------------------
-    # Ако конкретният Product ID няма маркер
-    # за неналичност -> наличен.
-    # -----------------------------------------------------
-
-    return "Наличен"
-
+# =========================================================
+# EXTRACT PRICE
+# =========================================================
 
 def extract_price(html):
 
     patterns = [
 
-        # 43.30 лв. / 22.14 €
+        # 43.30 €
         r'/\s*(\d+\.\d+)\s*€',
 
-        # 43,30 лв. / 22,14 €
+        # 43,30 €
         r'/\s*(\d+,\d+)\s*€',
 
         # fallback: директно число пред €
@@ -329,6 +327,7 @@ def extract_price(html):
 
     ]
 
+
     for pattern in patterns:
 
         m = re.search(
@@ -336,6 +335,7 @@ def extract_price(html):
             html,
             re.I
         )
+
 
         if m:
 
@@ -346,24 +346,181 @@ def extract_price(html):
                 "."
             )
 
+
     return None
 
 
-def extract_quantity(html, sku):
+# =========================================================
+# EXTRACT AVAILABILITY
+# =========================================================
+
+def extract_availability(
+    html,
+    product_id
+):
+
+    """
+    Намира конкретния product-item-wapper блок
+    по data-product-id.
+
+    ВАЖНО:
+    Не използваме фиксиран брой символи след Product ID,
+    защото така може да попаднем в следващ продукт.
+
+    Всеки product-item-wapper се разглежда отделно.
+    """
+
+    product_blocks = list(
+        re.finditer(
+            r'<div[^>]*class=["\'][^"\']*product-item-wapper[^"\']*["\'][^>]*>',
+            html,
+            re.I
+        )
+    )
+
+
+    # Ако няма намерени продуктови блокове
+    if not product_blocks:
+
+        print(
+            "⚠️ Product блокове не са намерени"
+        )
+
+        return "Неизвестна"
+
+
+    # Обхождаме всеки продуктов блок
+    for i, match in enumerate(
+        product_blocks
+    ):
+
+        start = match.start()
+
+
+        # Край на текущия блок =
+        # начало на следващия блок
+        if i + 1 < len(
+            product_blocks
+        ):
+
+            end = product_blocks[
+                i + 1
+            ].start()
+
+
+            block = html[
+                start:end
+            ]
+
+
+        else:
+
+            block = html[
+                start:
+            ]
+
+
+        # -------------------------------------------------
+        # Проверяваме дали това е нашият Product ID
+        # -------------------------------------------------
+
+        id_match = re.search(
+            r'data-product-id=["\']'
+            + re.escape(
+                str(product_id)
+            )
+            + r'["\']',
+            block,
+            re.I
+        )
+
+
+        if not id_match:
+
+            continue
+
+
+        # -------------------------------------------------
+        # Намерихме точния продукт
+        # -------------------------------------------------
+
+        block_lower = block.lower()
+
+
+        # -------------------------------------------------
+        # НЕНАЛИЧЕН
+        # -------------------------------------------------
+
+        if re.search(
+            r'\bout-of-stock\b',
+            block_lower,
+            re.I
+        ):
+
+            return "Неналичен"
+
+
+        if re.search(
+            r'\bproduct-not-available\b',
+            block_lower,
+            re.I
+        ):
+
+            return "Неналичен"
+
+
+        if re.search(
+            r'\btag-not-available\b',
+            block_lower,
+            re.I
+        ):
+
+            return "Неналичен"
+
+
+        # -------------------------------------------------
+        # Няма маркер за неналичност
+        # -------------------------------------------------
+
+        return "Наличен"
+
+
+    print(
+        "⚠️ Product блокът не е намерен за ID:",
+        product_id
+    )
+
+
+    return "Неизвестна"
+
+
+# =========================================================
+# EXTRACT QUANTITY
+# =========================================================
+
+def extract_quantity(
+    html,
+    sku
+):
 
     patterns = [
 
         # "quantity":3,"sku":"950594"
-        r'"quantity"\s*:\s*(\d+).*?"sku"\s*:\s*"'
+        r'"quantity"\s*:\s*(\d+)'
+        r'.*?'
+        r'"sku"\s*:\s*"'
         + re.escape(sku)
         + r'"',
 
         # "sku":"950594"... "quantity":3
         r'"sku"\s*:\s*"'
         + re.escape(sku)
-        + r'".*?"quantity"\s*:\s*(\d+)',
+        + r'"'
+        r'.*?'
+        r'"quantity"\s*:\s*(\d+)'
 
     ]
+
 
     for pattern in patterns:
 
@@ -373,20 +530,36 @@ def extract_quantity(html, sku):
             re.I | re.S
         )
 
+
         if m:
 
             return int(
                 m.group(1)
             )
 
+
     return None
 
 
+# =========================================================
+# MAIN
+# =========================================================
+
 def main():
+
+    # -----------------------------------------------------
+    # CSV initialization
+    # -----------------------------------------------------
 
     init_csv()
 
+
+    # -----------------------------------------------------
+    # Read SKU list
+    # -----------------------------------------------------
+
     skus = read_skus()
+
 
     print(
         "Общо SKU:",
@@ -394,11 +567,16 @@ def main():
     )
 
 
+    # -----------------------------------------------------
+    # Process each SKU
+    # -----------------------------------------------------
+
     for sku in skus:
 
         print(
             "================"
         )
+
 
         print(
             "➡️ SKU:",
@@ -421,9 +599,11 @@ def main():
                 "❌ Няма резултат"
             )
 
+
             save_not_found(
                 sku
             )
+
 
             continue
 
@@ -444,19 +624,23 @@ def main():
                 product_id
             )
 
+
         else:
 
             print(
                 "❌ Няма Product ID"
             )
 
+
             save_not_found(
                 sku
             )
 
+
             time.sleep(
                 WAIT
             )
+
 
             continue
 
@@ -477,11 +661,13 @@ def main():
                 "✅ Наличност: Наличен"
             )
 
+
         elif availability == "Неналичен":
 
             print(
                 "✅ Наличност: Неналичен"
             )
+
 
         else:
 
@@ -507,6 +693,7 @@ def main():
                 quantity
             )
 
+
         else:
 
             print(
@@ -530,6 +717,7 @@ def main():
                 price
             )
 
+
         else:
 
             print(
@@ -547,10 +735,13 @@ def main():
                 [
                     sku,
                     availability,
-                    quantity if quantity is not None else "-",
+                    quantity
+                    if quantity is not None
+                    else "-",
                     price
                 ]
             )
+
 
         else:
 
@@ -559,25 +750,39 @@ def main():
             )
 
 
+        # -------------------------------------------------
+        # WAIT
+        # -------------------------------------------------
+
         time.sleep(
             WAIT
         )
 
+
+    # -----------------------------------------------------
+    # DONE
+    # -----------------------------------------------------
 
     print(
         "💾 Записани резултати:",
         RESULT_CSV
     )
 
+
     print(
         "💾 Not found:",
         NOT_FOUND_CSV
     )
 
+
     print(
         "✅ Готово"
     )
 
+
+# =========================================================
+# ENTRY POINT
+# =========================================================
 
 if __name__ == "__main__":
 
