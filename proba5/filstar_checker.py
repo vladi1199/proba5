@@ -1,997 +1,412 @@
 import os
 import re
-import json
-import hashlib
-import html
 import requests
 from bs4 import BeautifulSoup
 
-
-# ============================================================
-# CONFIG
-# ============================================================
-
 BASE_URL = "https://filstar.com"
+WAIT = 2
 
 DEBUG_DIR = "debug_html"
-
-WAIT = 2
+os.makedirs(DEBUG_DIR, exist_ok=True)
 
 HEADERS = {
     "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/131.0.0.0 Safari/537.36"
+        "Chrome/139.0.0.0 Safari/537.36"
     ),
-    "Accept": (
-        "text/html,application/xhtml+xml,application/xml;"
-        "q=0.9,image/avif,image/webp,*/*;q=0.8"
-    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "bg-BG,bg;q=0.9,en-US;q=0.8,en;q=0.7",
-    "Connection": "keep-alive",
 }
 
 
-TESTS = [
-    ("946537", "sku_946537"),
-    ("946534", "sku_946534"),
-    ("946535", "sku_946535"),
-    ("2557", "product_2557"),
-    (
-        "Комплект мухи за булдо FilStar тип C",
-        "product_name"
-    ),
-]
-
-
-# ============================================================
-# HELPERS
-# ============================================================
-
-def save_file(filename, content):
-
-    os.makedirs(DEBUG_DIR, exist_ok=True)
-
-    path = os.path.join(
-        DEBUG_DIR,
-        filename
-    )
-
-    with open(
-        path,
-        "w",
-        encoding="utf-8"
-    ) as f:
-
-        f.write(content)
-
-    return path
-
-
-def sha256_text(text):
-
-    return hashlib.sha256(
-        text.encode("utf-8")
-    ).hexdigest()
-
-
-def normalize_html(source):
-
-    """
-    Премахва динамични неща, които могат да пречат
-    на сравнението между две заявки.
-    """
-
-    normalized = source
-
-    # Премахваме търсените термини от URL/meta местата.
-    normalized = re.sub(
-        r'term=[^"&<> ]+',
-        'term=REMOVED',
-        normalized,
-        flags=re.I
-    )
-
-    # Премахваме nonce стойности.
-    normalized = re.sub(
-        r'nonce=["\'][^"\']+["\']',
-        'nonce="REMOVED"',
-        normalized,
-        flags=re.I
-    )
-
-    # Премахваме whitespace.
-    normalized = re.sub(
-        r'\s+',
-        ' ',
-        normalized
-    )
-
-    return normalized.strip()
-
-
-# ============================================================
-# API SEARCH
-# ============================================================
-
-def api_search(
-    session,
-    term,
-    label
-):
-
+def print_separator(title):
     print()
     print("=" * 80)
-    print(f"REQUEST: {label}")
+    print(title)
     print("=" * 80)
 
-    url = f"{BASE_URL}/api/search"
+
+def get_html(url):
+    print(f"\nGET: {url}")
 
     try:
-
-        response = session.get(
+        response = requests.get(
             url,
-            params={
-                "term": term
-            },
             headers=HEADERS,
             timeout=30
         )
 
+        print(f"HTTP STATUS: {response.status_code}")
+        print(f"CONTENT-TYPE: {response.headers.get('Content-Type')}")
+        print(f"SIZE: {len(response.text):,} bytes")
+
+        return response
+
     except Exception as e:
-
-        print(
-            f"❌ Request error: {e}"
-        )
-
+        print(f"REQUEST ERROR: {e}")
         return None
 
-    print(
-        f"URL: {response.url}"
+
+def find_product_containers(soup):
+    """
+    Намира всички елементи, които изглеждат като product-item-wapper.
+    """
+
+    containers = []
+
+    # Основният вариант
+    containers.extend(
+        soup.select(".product-item-wapper")
     )
 
-    print(
-        f"HTTP: {response.status_code}"
+    # Допълнителна проверка за евентуални изписвания
+    if not containers:
+        for tag in soup.find_all(True):
+            classes = tag.get("class", [])
+
+            if any(
+                "product-item" in str(c).lower()
+                for c in classes
+            ):
+                containers.append(tag)
+
+    # Премахване на дубликати
+    unique = []
+
+    for item in containers:
+        if item not in unique:
+            unique.append(item)
+
+    return unique
+
+
+def analyze_container(container, index):
+    print_separator(f"PRODUCT CONTAINER #{index}")
+
+    html = str(container)
+
+    print(f"CONTAINER SIZE: {len(html):,} bytes")
+
+    print("\n--- TAG ---")
+    print(container.name)
+
+    print("\n--- ALL ATTRIBUTES ---")
+
+    if container.attrs:
+        for key, value in container.attrs.items():
+            print(f"{key} = {value}")
+    else:
+        print("NO ATTRIBUTES")
+
+    print("\n--- CLASS ---")
+    print(container.get("class"))
+
+    print("\n--- DATA ATTRIBUTES ---")
+
+    found_data = False
+
+    for key, value in container.attrs.items():
+        if str(key).lower().startswith("data-"):
+            print(f"{key} = {value}")
+            found_data = True
+
+    if not found_data:
+        print("NO DATA-* ATTRIBUTES ON CONTAINER")
+
+    print("\n--- LINKS ---")
+
+    links = []
+
+    for a in container.find_all("a", href=True):
+        href = a.get("href")
+        text = " ".join(a.get_text(" ", strip=True).split())
+
+        links.append((href, text))
+
+    if links:
+        for href, text in links:
+            print(f"HREF: {href}")
+            print(f"TEXT: {text[:300]}")
+            print("---")
+    else:
+        print("NO LINKS")
+
+    print("\n--- IMAGES ---")
+
+    images = container.find_all("img")
+
+    if images:
+        for img in images:
+            print(f"SRC: {img.get('src')}")
+            print(f"ALT: {img.get('alt')}")
+            print("---")
+    else:
+        print("NO IMAGES")
+
+    print("\n--- TEXT CONTENT ---")
+
+    text = container.get_text(
+        "\n",
+        strip=True
     )
 
-    print(
-        f"Content-Type: "
-        f"{response.headers.get('Content-Type', '')}"
-    )
+    print(text[:10000])
 
-    print(
-        f"Size: "
-        f"{len(response.content):,} bytes"
-    )
+    print("\n--- IMPORTANT TERMS INSIDE CONTAINER ---")
 
-    raw_hash = sha256_text(
-        response.text
-    )
+    terms = [
+        "946537",
+        "946534",
+        "946535",
+        "2557",
+        "variant",
+        "variants",
+        "variantId",
+        "productId",
+        "sku",
+        "barcode",
+        "quantity",
+        "price",
+        "discountedPrice",
+        "originalPrice",
+        "discount",
+        "stock",
+        "availability",
+        "stores",
+        "store",
+        "plovdiv",
+        "sofia",
+        "Filstar",
+    ]
 
-    normalized_hash = sha256_text(
-        normalize_html(
-            response.text
+    lower_html = html.lower()
+
+    for term in terms:
+        count = lower_html.count(term.lower())
+
+        if count:
+            print(f"{term}: {count}")
+
+    print("\n--- HTML INSIDE CONTAINER ---")
+
+    print(html[:30000])
+
+    if len(html) > 30000:
+        print()
+        print(
+            f"[HTML TRUNCATED: total {len(html):,} bytes]"
         )
+
+    return html
+
+
+def find_json_like_content(container):
+    """
+    Търси потенциални JSON / Vue атрибути вътре в product container.
+    """
+
+    print_separator("JSON / VUE ATTRIBUTE ANALYSIS")
+
+    found = False
+
+    for tag in container.find_all(True):
+
+        for key, value in tag.attrs.items():
+
+            key_lower = str(key).lower()
+
+            if (
+                "json" in key_lower
+                or "product" in key_lower
+                or "variant" in key_lower
+                or "sku" in key_lower
+                or "data-" in key_lower
+            ):
+
+                print(f"TAG: <{tag.name}>")
+                print(f"ATTRIBUTE: {key}")
+                print(f"VALUE: {value}")
+                print("---")
+
+                found = True
+
+    if not found:
+        print("NO RELEVANT JSON/VUE/DATA ATTRIBUTES FOUND")
+
+
+def search_global_scripts(soup):
+    print_separator("SCRIPT ANALYSIS")
+
+    scripts = soup.find_all("script")
+
+    print(f"TOTAL SCRIPT TAGS: {len(scripts)}")
+
+    terms = [
+        "946537",
+        "946534",
+        "946535",
+        "2557",
+        "variant",
+        "variants",
+        "quantity",
+        "price",
+        "product",
+        "sku",
+        "barcode",
+        "stores",
+    ]
+
+    for index, script in enumerate(scripts, start=1):
+
+        content = script.string
+
+        if not content:
+            content = script.get_text()
+
+        if not content:
+            continue
+
+        matches = []
+
+        for term in terms:
+            if term.lower() in content.lower():
+                matches.append(term)
+
+        if matches:
+
+            print()
+            print(f"SCRIPT #{index}")
+            print(f"SIZE: {len(content):,}")
+            print(f"MATCHES: {matches}")
+
+            # Показваме само ако изглежда като inline script,
+            # а не огромен външен JS файл.
+            if len(content) <= 20000:
+                print("--- SCRIPT CONTENT ---")
+                print(content[:20000])
+            else:
+                print("--- FIRST 5000 CHARACTERS ---")
+                print(content[:5000])
+
+
+def save_debug_file(response, filename):
+    path = os.path.join(DEBUG_DIR, filename)
+
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(response.text)
+
+    print()
+    print(f"DEBUG FILE SAVED: {path}")
+
+
+def test_api_search():
+
+    sku = "946537"
+
+    url = f"{BASE_URL}/api/search?term={sku}"
+
+    print_separator("TEST /api/search")
+
+    response = get_html(url)
+
+    if response is None:
+        return
+
+    if response.status_code != 200:
+        print("\nREQUEST FAILED")
+        return
+
+    filename = f"next_test_{sku}.html"
+
+    save_debug_file(
+        response,
+        filename
     )
-
-    print(
-        f"SHA256 raw: "
-        f"{raw_hash}"
-    )
-
-    print(
-        f"SHA256 normalized: "
-        f"{normalized_hash}"
-    )
-
-    save_file(
-        f"{label}.html",
-        response.text
-    )
-
-    return {
-        "term": term,
-        "label": label,
-        "status": response.status_code,
-        "content_type": response.headers.get(
-            "Content-Type",
-            ""
-        ),
-        "size": len(response.content),
-        "raw_hash": raw_hash,
-        "normalized_hash": normalized_hash,
-        "source": response.text,
-    }
-
-
-# ============================================================
-# PRODUCT CONTAINERS
-# ============================================================
-
-def get_product_containers(source):
 
     soup = BeautifulSoup(
-        source,
+        response.text,
         "html.parser"
     )
 
-    containers = soup.select(
-        ".product-item-wapper"
-    )
+    print_separator("GLOBAL PRODUCT CONTAINERS")
 
-    return containers
-
-
-# ============================================================
-# CONTAINER ANALYSIS
-# ============================================================
-
-def analyze_container(container):
-
-    result = {}
-
-    for attribute in [
-        "data-product-id",
-        "data-product-name",
-        "data-product-variant",
-        "data-product-brand",
-        "data-product-category",
-    ]:
-
-        result[attribute] = (
-            container.get(attribute)
-        )
-
-    result["hrefs"] = []
-
-    for a in container.find_all(
-        "a",
-        href=True
-    ):
-
-        href = a.get(
-            "href"
-        )
-
-        if href not in result["hrefs"]:
-
-            result["hrefs"].append(
-                href
-            )
-
-    result["images"] = []
-
-    for img in container.find_all(
-        "img"
-    ):
-
-        for attribute in [
-            "src",
-            "data-src",
-            "data-original",
-        ]:
-
-            value = img.get(
-                attribute
-            )
-
-            if value and value not in result["images"]:
-
-                result["images"].append(
-                    value
-                )
-
-    result["text"] = " ".join(
-        container.stripped_strings
-    )
-
-    return result
-
-
-# ============================================================
-# PRODUCT ANALYSIS
-# ============================================================
-
-def analyze_products(result):
-
-    source = result["source"]
-
-    containers = get_product_containers(
-        source
-    )
-
-    print()
-    print(
-        f"Product containers: "
-        f"{len(containers)}"
-    )
-
-    products = []
-
-    for index, container in enumerate(
-        containers,
-        start=1
-    ):
-
-        data = analyze_container(
-            container
-        )
-
-        products.append(
-            data
-        )
-
-        print()
-        print(
-            f"--- Container #{index} ---"
-        )
-
-        print(
-            f"Product ID: "
-            f"{data.get('data-product-id')}"
-        )
-
-        print(
-            f"Product name: "
-            f"{data.get('data-product-name')}"
-        )
-
-        print(
-            f"Variant: "
-            f"{data.get('data-product-variant')}"
-        )
-
-        print(
-            f"Brand: "
-            f"{data.get('data-product-brand')}"
-        )
-
-        print(
-            f"Category: "
-            f"{data.get('data-product-category')}"
-        )
-
-        print(
-            f"HREFs: "
-            f"{data['hrefs'][:10]}"
-        )
-
-        print(
-            f"Images: "
-            f"{data['images'][:5]}"
-        )
-
-        print(
-            f"Text: "
-            f"{data['text'][:500]}"
-        )
-
-        save_file(
-            (
-                f"{result['label']}"
-                f"_container_{index}.html"
-            ),
-            str(container)
-        )
-
-    result["products"] = products
-
-    return result
-
-
-# ============================================================
-# FIND ALL QUANTITY BLOCKS
-# ============================================================
-
-def analyze_quantity(source, label):
-
-    print()
-    print("=" * 80)
-    print(f"QUANTITY ANALYSIS: {label}")
-    print("=" * 80)
-
-    matches = list(
-        re.finditer(
-            r"quantity",
-            source,
-            flags=re.I
-        )
-    )
+    containers = find_product_containers(soup)
 
     print(
-        f"Total 'quantity' occurrences: "
-        f"{len(matches)}"
+        f"PRODUCT CONTAINERS FOUND: {len(containers)}"
     )
 
-    contexts = []
+    if not containers:
+        print("NO PRODUCT CONTAINERS FOUND")
+        return
 
-    for index, match in enumerate(
-        matches,
-        start=1
-    ):
+    target_container = None
 
-        start = max(
-            0,
-            match.start() - 700
-        )
+    for index, container in enumerate(containers, start=1):
 
-        end = min(
-            len(source),
-            match.end() + 1200
-        )
+        html = str(container)
 
-        context = source[
-            start:end
-        ]
-
-        contexts.append({
-            "number": index,
-            "position": match.start(),
-            "context": context
-        })
-
-        print()
-        print(
-            f"--- quantity #{index} "
-            f"at {match.start()} ---"
-        )
-
-        print(
-            context[:1900]
-        )
-
-    save_file(
-        f"{label}_quantity_contexts.txt",
-        "\n\n".join(
-            item["context"]
-            for item in contexts
-        )
-    )
-
-
-# ============================================================
-# FIND PRICE BLOCKS
-# ============================================================
-
-def analyze_price(source, label):
-
-    print()
-    print("=" * 80)
-    print(f"PRICE ANALYSIS: {label}")
-    print("=" * 80)
-
-    matches = list(
-        re.finditer(
-            r"price",
-            source,
-            flags=re.I
-        )
-    )
-
-    print(
-        f"Total 'price' occurrences: "
-        f"{len(matches)}"
-    )
-
-    contexts = []
-
-    for index, match in enumerate(
-        matches,
-        start=1
-    ):
-
-        start = max(
-            0,
-            match.start() - 500
-        )
-
-        end = min(
-            len(source),
-            match.end() + 900
-        )
-
-        context = source[
-            start:end
-        ]
-
-        contexts.append({
-            "number": index,
-            "position": match.start(),
-            "context": context
-        })
-
-        print()
-        print(
-            f"--- price #{index} "
-            f"at {match.start()} ---"
-        )
-
-        print(
-            context[:1400]
-        )
-
-    save_file(
-        f"{label}_price_contexts.txt",
-        "\n\n".join(
-            item["context"]
-            for item in contexts
-        )
-    )
-
-
-# ============================================================
-# FIND STORES
-# ============================================================
-
-def analyze_stores(source, label):
-
-    print()
-    print("=" * 80)
-    print(f"STORES ANALYSIS: {label}")
-    print("=" * 80)
-
-    matches = list(
-        re.finditer(
-            r"stores",
-            source,
-            flags=re.I
-        )
-    )
-
-    print(
-        f"Total 'stores' occurrences: "
-        f"{len(matches)}"
-    )
-
-    contexts = []
-
-    for index, match in enumerate(
-        matches,
-        start=1
-    ):
-
-        start = max(
-            0,
-            match.start() - 800
-        )
-
-        end = min(
-            len(source),
-            match.end() + 1800
-        )
-
-        context = source[
-            start:end
-        ]
-
-        contexts.append({
-            "number": index,
-            "position": match.start(),
-            "context": context
-        })
-
-        print()
-        print(
-            f"--- stores #{index} "
-            f"at {match.start()} ---"
-        )
-
-        print(
-            context[:2500]
-        )
-
-    save_file(
-        f"{label}_stores_contexts.txt",
-        "\n\n".join(
-            item["context"]
-            for item in contexts
-        )
-    )
-
-
-# ============================================================
-# SKU CONTEXT
-# ============================================================
-
-def analyze_sku_context(
-    source,
-    term,
-    label
-):
-
-    print()
-    print("=" * 80)
-    print(
-        f"TERM CONTEXT: {label}"
-    )
-    print("=" * 80)
-
-    positions = []
-
-    start = 0
-
-    while True:
-
-        position = source.find(
-            term,
-            start
-        )
-
-        if position == -1:
+        if (
+            "946537" in html
+            or "2557" in html
+            or "Комплект мухи за булдо FilStar тип C" in html
+        ):
+            target_container = container
+            target_index = index
             break
 
-        positions.append(
-            position
-        )
-
-        start = position + len(term)
-
-    print(
-        f"Occurrences of "
-        f"'{term}': "
-        f"{len(positions)}"
-    )
-
-    contexts = []
-
-    for index, position in enumerate(
-        positions,
-        start=1
-    ):
-
-        left = max(
-            0,
-            position - 1000
-        )
-
-        right = min(
-            len(source),
-            position + len(term) + 1500
-        )
-
-        context = source[
-            left:right
-        ]
-
-        contexts.append(
-            context
-        )
-
-        print()
+    if target_container is None:
         print(
-            f"--- occurrence #{index} "
-            f"at {position} ---"
+            "\nCould not identify target container."
         )
 
-        print(
-            context
-        )
-
-    save_file(
-        f"{label}_term_contexts.txt",
-        "\n\n".join(
-            contexts
-        )
-    )
-
-
-# ============================================================
-# COMPARE RESULTS
-# ============================================================
-
-def compare_results(results):
-
-    print()
-    print("=" * 80)
-    print("RESPONSE COMPARISON")
-    print("=" * 80)
-
-    for i in range(
-        len(results)
-    ):
-
-        for j in range(
-            i + 1,
-            len(results)
-        ):
-
-            a = results[i]
-            b = results[j]
-
-            print()
-            print(
-                f"{a['label']} "
-                f"VS "
-                f"{b['label']}"
-            )
-
-            print(
-                f"Raw SHA256 equal: "
-                f"{a['raw_hash'] == b['raw_hash']}"
-            )
-
-            print(
-                f"Normalized SHA256 equal: "
-                f"{a['normalized_hash'] == b['normalized_hash']}"
-            )
-
-            print(
-                f"Size difference: "
-                f"{a['size'] - b['size']}"
-            )
-
-
-# ============================================================
-# PRODUCT ID SUMMARY
-# ============================================================
-
-def product_id_summary(results):
-
-    print()
-    print("=" * 80)
-    print("PRODUCT ID SUMMARY")
-    print("=" * 80)
-
-    summary = {}
-
-    for result in results:
-
-        ids = []
-
-        for product in result.get(
-            "products",
-            []
-        ):
-
-            product_id = product.get(
-                "data-product-id"
-            )
-
-            if product_id:
-                ids.append(
-                    product_id
-                )
-
-        summary[
-            result["label"]
-        ] = ids
-
-        print(
-            f"{result['label']}: "
-            f"{ids}"
-        )
-
-    save_file(
-        "comparison_product_ids.json",
-        json.dumps(
-            summary,
-            ensure_ascii=False,
-            indent=2
-        )
-    )
-
-
-# ============================================================
-# MAIN
-# ============================================================
-
-def main():
-
-    os.makedirs(
-        DEBUG_DIR,
-        exist_ok=True
-    )
+        # Ако няма директно съвпадение,
+        # анализираме първия.
+        target_container = containers[0]
+        target_index = 1
 
     print(
-        "=" * 80
+        f"\nTARGET CONTAINER: #{target_index}"
     )
+
+    analyze_container(
+        target_container,
+        target_index
+    )
+
+    find_json_like_content(
+        target_container
+    )
+
+    search_global_scripts(
+        soup
+    )
+
+    print_separator("END OF TEST")
 
     print(
-        "FILSTAR /api/search DEEP DIAGNOSTIC"
-    )
+        """
+Следващата информация, която ни интересува, е:
 
-    print(
-        "=" * 80
-    )
+1. ALL ATTRIBUTES на product container
+2. DATA ATTRIBUTES
+3. HTML INSIDE CONTAINER
+4. JSON / VUE ATTRIBUTE ANALYSIS
+5. SCRIPT ANALYSIS
 
-    print()
-    print(
-        "Използва се САМО /api/search."
-    )
-
-    print()
-    print(
-        "Не се използват:"
-    )
-
-    print(
-        "  - /search"
-    )
-
-    print(
-        "  - /get-serialize-product/"
-    )
-
-    print(
-        "  - /search-json-typesense"
-    )
-
-    print(
-        "  - product page"
-    )
-
-    print(
-        "  - Selenium"
-    )
-
-    print(
-        "  - Playwright"
-    )
-
-    print(
-        "  - Cloudflare bypass"
-    )
-
-    session = requests.Session()
-
-    session.headers.update(
-        HEADERS
-    )
-
-    results = []
-
-    # ========================================================
-    # RUN TESTS
-    # ========================================================
-
-    for term, label in TESTS:
-
-        result = api_search(
-            session,
-            term,
-            label
-        )
-
-        if not result:
-            continue
-
-        analyze_products(
-            result
-        )
-
-        analyze_quantity(
-            result["source"],
-            label
-        )
-
-        analyze_price(
-            result["source"],
-            label
-        )
-
-        analyze_stores(
-            result["source"],
-            label
-        )
-
-        analyze_sku_context(
-            result["source"],
-            term,
-            label
-        )
-
-        results.append(
-            result
-        )
-
-    # ========================================================
-    # COMPARE
-    # ========================================================
-
-    compare_results(
-        results
-    )
-
-    product_id_summary(
-        results
-    )
-
-    # ========================================================
-    # FINAL JSON
-    # ========================================================
-
-    final_summary = []
-
-    for result in results:
-
-        final_summary.append({
-            "term": result["term"],
-            "label": result["label"],
-            "status": result["status"],
-            "size": result["size"],
-            "raw_hash": result["raw_hash"],
-            "normalized_hash": result[
-                "normalized_hash"
-            ],
-            "product_ids": [
-                p.get(
-                    "data-product-id"
-                )
-                for p in result.get(
-                    "products",
-                    []
-                )
-                if p.get(
-                    "data-product-id"
-                )
-            ],
-        })
-
-    save_file(
-        "FINAL_COMPARISON.json",
-        json.dumps(
-            final_summary,
-            ensure_ascii=False,
-            indent=2
-        )
-    )
-
-    print()
-    print(
-        "=" * 80
-    )
-
-    print(
-        "DIAGNOSTIC FINISHED"
-    )
-
-    print(
-        "=" * 80
-    )
-
-    print()
-    print(
-        f"Всички debug файлове са в: "
-        f"{DEBUG_DIR}/"
-    )
-
-    print()
-    print(
-        "Най-важните файлове са:"
-    )
-
-    print(
-        "  FINAL_COMPARISON.json"
-    )
-
-    print(
-        "  comparison_product_ids.json"
-    )
-
-    print(
-        "  sku_946537_quantity_contexts.txt"
-    )
-
-    print(
-        "  sku_946534_quantity_contexts.txt"
-    )
-
-    print(
-        "  sku_946535_quantity_contexts.txt"
-    )
-
-    print(
-        "  sku_946537_price_contexts.txt"
-    )
-
-    print(
-        "  sku_946534_price_contexts.txt"
-    )
-
-    print(
-        "  sku_946535_price_contexts.txt"
+Особено търсим:
+- variant ID
+- SKU
+- barcode
+- quantity
+- price
+- discountedPrice
+- productId
+- stores
+"""
     )
 
 
 if __name__ == "__main__":
-    main()
+    test_api_search()
