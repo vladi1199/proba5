@@ -347,9 +347,37 @@ def fetch_product_page(url):
 def extract_variant_price(html, sku):
 
     # -------------------------------------------------
-    # Намираме ВСИЧКИ таблици в страницата и избираме
-    # тази, чието заглавие съдържа "ЦЕНА НА ДРЕБНО"
-    # (по-надеждно от фиксиран ID, който сайтът е сменил)
+    # DIAGNOSTIC: търсим SKU кода директно в суровия HTML,
+    # за да разберем къде и как се пази цената по вариант
+    # -------------------------------------------------
+
+    idx = html.find(str(sku))
+
+    if idx == -1:
+
+        print(
+            f"🔬 DEBUG: SKU {sku} НЕ се среща никъде "
+            f"в суровия HTML на продуктовата страница"
+        )
+
+    else:
+
+        snippet_start = max(0, idx - 300)
+
+        snippet_end = min(len(html), idx + 300)
+
+        snippet = html[snippet_start:snippet_end]
+
+        print(f"🔬 DEBUG: намерен SKU {sku} в HTML, контекст:")
+
+        print(snippet)
+
+    sku_json_count = html.count('"sku"')
+
+    print(f'🔬 DEBUG: брой срещания на "sku" JSON ключ в HTML: {sku_json_count}')
+
+    # -------------------------------------------------
+    # Опит по таблица (ако все пак съществува)
     # -------------------------------------------------
 
     tables = re.findall(
@@ -362,7 +390,7 @@ def extract_variant_price(html, sku):
 
     for t in tables:
 
-        if "ЦЕНА НА ДРЕБНО" in t.upper() or "ДРЕБНО" in t.upper():
+        if "ДРЕБНО" in t.upper():
 
             variants_table = t
 
@@ -384,8 +412,6 @@ def extract_variant_price(html, sku):
 
     for row in rows:
 
-        # SKU може да е в произволна клетка на реда —
-        # проверяваме целия ред за точно съвпадение по цифри
         row_text_only = re.sub(r'<[^>]+>', ' ', row)
 
         if not re.search(rf'\b{re.escape(str(sku))}\b', row_text_only):
@@ -410,8 +436,6 @@ def extract_variant_price(html, sku):
 
         if price is None:
 
-            # вземаме ПОСЛЕДНОТО € число в реда (обикновено
-            # "ЦЕНА НА ДРЕБНО" е последната колона)
             euro_matches = re.findall(r'(\d+[.,]\d+)\s*€', row)
 
             if euro_matches:
