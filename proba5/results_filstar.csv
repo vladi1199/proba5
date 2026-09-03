@@ -1,1 +1,7 @@
-﻿SKU,Наличност,Бройки,Цена,Product ID,Variant ID,Barcode,Пловдив,София
+﻿sku,found,product_id,name,price,available,status
+946537,True,2557,Комплект мухи за булдо FilStar тип C,1.99,UNKNOWN,NO_STOCK_MARKER
+946534,True,,,,,SKU_FOUND_PRODUCT_BLOCK_NOT_FOUND
+946535,True,,,,,SKU_FOUND_PRODUCT_BLOCK_NOT_FOUND
+946536,True,,,,,SKU_FOUND_PRODUCT_BLOCK_NOT_FOUND
+951786,True,,,,,SKU_FOUND_PRODUCT_BLOCK_NOT_FOUND
+951787,True,,,,,SKU_FOUND_PRODUCT_BLOCK_NOT_FOUND
