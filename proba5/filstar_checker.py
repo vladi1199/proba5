@@ -1,3 +1,4 @@
+```python
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -8,6 +9,7 @@ import time
 import requests
 import shutil
 import json
+from urllib.parse import quote, urljoin
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -284,7 +286,7 @@ def save_not_found(sku):
 def search_filstar(sku):
 
     url = (
-        f"{BASE_URL}/api/search?term={sku}"
+        f"{BASE_URL}/api/search?term={quote(str(sku))}"
     )
 
 
@@ -341,10 +343,135 @@ def search_filstar(sku):
 
 
 # =========================================================
-# EXTRACT JAVASCRIPT URLS
+# EXTRACT PRODUCT ID
 # =========================================================
 
-def extract_javascript_urls(html):
+def extract_product_id(html):
+
+    if not html:
+        return None
+
+
+    patterns = [
+
+        r'data-product-id=["\'](\d+)["\']',
+
+        r'/get-serialize-product/(\d+)',
+
+        r'product.?id.?[:="\']+(\d+)',
+
+    ]
+
+
+    ids = []
+
+
+    for pattern in patterns:
+
+        matches = re.findall(
+            pattern,
+            html,
+            re.I
+        )
+
+        ids.extend(
+            matches
+        )
+
+
+    ids = list(
+        dict.fromkeys(ids)
+    )
+
+
+    print(
+        "ID кандидати:",
+        ids
+    )
+
+
+    if ids:
+
+        return ids[0]
+
+
+    return None
+
+
+# =========================================================
+# EXTRACT PRODUCT URL
+# =========================================================
+
+def extract_product_url(
+    html,
+    sku
+):
+
+    if not html:
+        return None
+
+
+    # -----------------------------------------------------
+    # Търсим линк, който съдържа SKU
+    # -----------------------------------------------------
+
+    pattern = (
+        r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>'
+        r'[^<]*'
+        + re.escape(str(sku))
+    )
+
+
+    matches = re.findall(
+        pattern,
+        html,
+        re.I
+    )
+
+
+    if matches:
+
+        return urljoin(
+            BASE_URL,
+            matches[0]
+        )
+
+
+    # -----------------------------------------------------
+    # По-общо: всички href
+    # -----------------------------------------------------
+
+    hrefs = re.findall(
+        r'href=["\']([^"\']+)["\']',
+        html,
+        re.I
+    )
+
+
+    for href in hrefs:
+
+        href_lower = href.lower()
+
+        if (
+            "product" in href_lower
+            or "muhi" in href_lower
+            or "filstar" in href_lower
+        ):
+
+            return urljoin(
+                BASE_URL,
+                href
+            )
+
+
+    return None
+
+
+# =========================================================
+# EXTRACT URL FROM PRODUCT CARD
+# =========================================================
+
+def extract_all_product_urls(html):
 
     if not html:
         return []
@@ -353,9 +480,750 @@ def extract_javascript_urls(html):
     urls = []
 
 
+    hrefs = re.findall(
+        r'href=["\']([^"\']+)["\']',
+        html,
+        re.I
+    )
+
+
+    for href in hrefs:
+
+        full_url = urljoin(
+            BASE_URL,
+            href
+        )
+
+
+        if full_url.startswith(
+            BASE_URL
+        ):
+
+            if full_url not in urls:
+
+                urls.append(
+                    full_url
+                )
+
+
+    return urls
+
+
+# =========================================================
+# SEARCH TYPESENSE ENDPOINT
+# =========================================================
+
+def test_typesense_endpoint(
+    sku
+):
+
+    print()
+    print(
+        "================================================"
+    )
+    print(
+        "🔬 TEST SEARCH-JSON-TYPESENSE"
+    )
+    print(
+        "================================================"
+    )
+
+
+    endpoint = (
+        f"{BASE_URL}/search-json-typesense"
+    )
+
+
     # -----------------------------------------------------
-    # <script src="...">
+    # ТЕСТОВЕ
+    #
+    # Не знаем още какъв параметър очаква Filstar.
+    #
+    # Затова проверяваме няколко реални варианта.
     # -----------------------------------------------------
+
+    tests = [
+
+        (
+            "q",
+            {
+                "q": str(sku)
+            }
+        ),
+
+        (
+            "term",
+            {
+                "term": str(sku)
+            }
+        ),
+
+        (
+            "query",
+            {
+                "query": str(sku)
+            }
+        ),
+
+        (
+            "q_query_by",
+            {
+                "q": str(sku),
+                "query_by": "sku,name"
+            }
+        ),
+
+        (
+            "q_query_by_all",
+            {
+                "q": str(sku),
+                "query_by": "*"
+            }
+        ),
+
+    ]
+
+
+    results = []
+
+
+    for test_name, params in tests:
+
+        print()
+        print(
+            "------------------------------------------------"
+        )
+
+        print(
+            "🧪 TEST:",
+            test_name
+        )
+
+        print(
+            "📌 PARAMS:",
+            params
+        )
+
+
+        try:
+
+            request_headers = {
+
+                "User-Agent":
+                HEADERS["User-Agent"],
+
+                "Accept":
+                "application/json,text/plain,*/*",
+
+                "Accept-Language":
+                HEADERS["Accept-Language"],
+
+                "Referer":
+                f"{BASE_URL}/",
+
+                "X-Requested-With":
+                "XMLHttpRequest",
+
+            }
+
+
+            r = session.get(
+                endpoint,
+                params=params,
+                headers=request_headers,
+                timeout=30
+            )
+
+
+            print(
+                "🔎 HTTP:",
+                r.status_code
+            )
+
+
+            print(
+                "📦 Content-Type:",
+                r.headers.get(
+                    "Content-Type",
+                    ""
+                )
+            )
+
+
+            print(
+                "📏 Размер:",
+                len(r.text),
+                "bytes"
+            )
+
+
+            result_info = {
+
+                "test": test_name,
+
+                "params": params,
+
+                "url": r.url,
+
+                "status": r.status_code,
+
+                "content_type":
+                r.headers.get(
+                    "Content-Type",
+                    ""
+                ),
+
+                "length":
+                len(r.text),
+
+            }
+
+
+            results.append(
+                result_info
+            )
+
+
+            filename = (
+                f"typesense_{sku}_{test_name}.txt"
+            )
+
+
+            save_debug(
+                filename,
+                (
+                    f"URL: {r.url}\n"
+                    f"HTTP: {r.status_code}\n"
+                    f"Content-Type: "
+                    f"{r.headers.get('Content-Type', '')}\n"
+                    f"Size: {len(r.text)}\n\n"
+                    f"{r.text}"
+                )
+            )
+
+
+            # -------------------------------------------------
+            # Опит за JSON
+            # -------------------------------------------------
+
+            try:
+
+                data = r.json()
+
+
+                save_debug(
+                    f"typesense_{sku}_{test_name}.json",
+                    data
+                )
+
+
+                print(
+                    "✅ JSON:",
+                    type(data).__name__
+                )
+
+
+                # -------------------------------------------------
+                # Търсим SKU вътре в JSON
+                # -------------------------------------------------
+
+                serialized = json.dumps(
+                    data,
+                    ensure_ascii=False
+                )
+
+
+                if str(sku) in serialized:
+
+                    print(
+                        "🎯 SKU Е НАМЕРЕНО В JSON!"
+                    )
+
+                    result_info[
+                        "sku_found"
+                    ] = True
+
+                else:
+
+                    print(
+                        "❌ SKU не е намерено в JSON."
+                    )
+
+                    result_info[
+                        "sku_found"
+                    ] = False
+
+
+            except Exception as e:
+
+                print(
+                    "⚠️ Response не е JSON:",
+                    e
+                )
+
+
+        except Exception as e:
+
+            print(
+                "❌ TYPESENSE ERROR:",
+                e
+            )
+
+
+    save_debug(
+        f"typesense_summary_{sku}.json",
+        results
+    )
+
+
+    print()
+    print(
+        "🔬 Typesense тестовете приключиха."
+    )
+
+    print()
+
+
+# =========================================================
+# OPEN PRODUCT PAGE
+# =========================================================
+
+def get_product_page(
+    product_url,
+    sku
+):
+
+    if not product_url:
+
+        print(
+            "⚠️ Няма Product URL."
+        )
+
+        return None
+
+
+    print()
+    print(
+        "================================================"
+    )
+
+    print(
+        "🌐 PRODUCT PAGE"
+    )
+
+    print(
+        product_url
+    )
+
+    print(
+        "================================================"
+    )
+
+
+    try:
+
+        r = session.get(
+            product_url,
+            timeout=30
+        )
+
+
+        print(
+            "🔎 Product HTTP:",
+            r.status_code
+        )
+
+
+        print(
+            "📏 Размер:",
+            len(r.text),
+            "bytes"
+        )
+
+
+        save_debug(
+            f"product_{sku}.html",
+            r.text
+        )
+
+
+        if r.status_code != 200:
+
+            print(
+                "❌ Product page HTTP грешка:",
+                r.status_code
+            )
+
+            return None
+
+
+        return r.text
+
+
+    except Exception as e:
+
+        print(
+            "PRODUCT PAGE ERROR:",
+            e
+        )
+
+        return None
+
+
+# =========================================================
+# SCAN PRODUCT PAGE
+# =========================================================
+
+def scan_product_page(
+    html,
+    sku
+):
+
+    if not html:
+        return
+
+
+    print()
+    print(
+        "================================================"
+    )
+
+    print(
+        "🔬 SCAN PRODUCT PAGE"
+    )
+
+    print(
+        "================================================"
+    )
+
+
+    keywords = [
+
+        str(sku),
+
+        "variants",
+
+        "variant",
+
+        "quantity",
+
+        "discountedPrice",
+
+        "discountedRetailPrice",
+
+        "traderPrice",
+
+        "stores",
+
+        "maxQuantity",
+
+        "data-product-id",
+
+        "data-product-variant",
+
+        "add-variant-to-cart",
+
+        "getProductSerializeUrl",
+
+        "get-serialize-product",
+
+        "search-json-typesense",
+
+    ]
+
+
+    all_matches = []
+
+
+    for keyword in keywords:
+
+        context = extract_context(
+            html,
+            keyword,
+            radius=2500
+        )
+
+
+        if context:
+
+            print(
+                "🎯 НАМЕРЕНО:",
+                keyword
+            )
+
+
+            all_matches.append(
+                context
+            )
+
+
+    if all_matches:
+
+        save_debug(
+            f"product_{sku}_matches.txt",
+            "\n".join(
+                all_matches
+            )
+        )
+
+
+    # -----------------------------------------------------
+    # Извличаме всички data-* атрибути
+    # -----------------------------------------------------
+
+    data_attributes = re.findall(
+        r'data-[a-zA-Z0-9_-]+=["\'][^"\']*["\']',
+        html,
+        re.I
+    )
+
+
+    if data_attributes:
+
+        unique_attributes = list(
+            dict.fromkeys(
+                data_attributes
+            )
+        )
+
+
+        save_debug(
+            f"product_{sku}_data_attributes.txt",
+            "\n".join(
+                unique_attributes
+            )
+        )
+
+
+        print(
+            "📦 Data attributes:",
+            len(unique_attributes)
+        )
+
+
+    # -----------------------------------------------------
+    # Търсим всички JSON script блокове
+    # -----------------------------------------------------
+
+    json_blocks = re.findall(
+        r'<script[^>]*type=["\']application/json["\'][^>]*>'
+        r'(.*?)'
+        r'</script>',
+        html,
+        re.I | re.S
+    )
+
+
+    if json_blocks:
+
+        print(
+            "📦 JSON script блокове:",
+            len(json_blocks)
+        )
+
+
+        for index, block in enumerate(
+            json_blocks,
+            1
+        ):
+
+            save_debug(
+                f"product_{sku}_json_{index}.txt",
+                block
+            )
+
+
+    # -----------------------------------------------------
+    # Търсим inline JavaScript
+    # -----------------------------------------------------
+
+    scripts = re.findall(
+        r'<script[^>]*>(.*?)</script>',
+        html,
+        re.I | re.S
+    )
+
+
+    print(
+        "📜 Inline scripts:",
+        len(scripts)
+    )
+
+
+    for index, script in enumerate(
+        scripts,
+        1
+    ):
+
+        interesting = False
+
+        for keyword in keywords:
+
+            if keyword.lower() in script.lower():
+
+                interesting = True
+
+                break
+
+
+        if interesting:
+
+            save_debug(
+                f"product_{sku}_inline_script_{index}.js",
+                script
+            )
+
+
+# =========================================================
+# FIND SKU IN SEARCH HTML
+# =========================================================
+
+def scan_search_for_sku(
+    html,
+    sku
+):
+
+    if not html:
+        return
+
+
+    print()
+    print(
+        "🔎 Търся SKU в search HTML:",
+        sku
+    )
+
+
+    context = extract_context(
+        html,
+        str(sku),
+        radius=3000
+    )
+
+
+    if context:
+
+        print(
+            "🎯 SKU намерено в search HTML!"
+        )
+
+
+        save_debug(
+            f"search_{sku}_sku_context.txt",
+            context
+        )
+
+    else:
+
+        print(
+            "❌ SKU не е намерено в search HTML."
+        )
+
+
+# =========================================================
+# EXTRACT CONTEXT
+# =========================================================
+
+def extract_context(
+    text,
+    keyword,
+    radius=1200
+):
+
+    if not text:
+        return ""
+
+
+    lower_text = text.lower()
+
+    lower_keyword = keyword.lower()
+
+
+    positions = []
+
+    start = 0
+
+
+    while True:
+
+        pos = lower_text.find(
+            lower_keyword,
+            start
+        )
+
+
+        if pos == -1:
+            break
+
+
+        positions.append(
+            pos
+        )
+
+
+        start = pos + len(
+            lower_keyword
+        )
+
+
+    if not positions:
+        return ""
+
+
+    chunks = []
+
+
+    for index, pos in enumerate(
+        positions[:30],
+        1
+    ):
+
+        chunk_start = max(
+            0,
+            pos - radius
+        )
+
+
+        chunk_end = min(
+            len(text),
+            pos + len(keyword) + radius
+        )
+
+
+        chunk = text[
+            chunk_start:chunk_end
+        ]
+
+
+        chunks.append(
+            "\n\n"
+            + "=" * 80
+            + f"\nMATCH #{index}: {keyword}\n"
+            + "=" * 80
+            + "\n"
+            + chunk
+        )
+
+
+    return "".join(
+        chunks
+    )
+
+
+# =========================================================
+# EXTRACT JAVASCRIPT URLS
+# =========================================================
+
+def extract_javascript_urls(
+    html
+):
+
+    if not html:
+        return []
+
+
+    urls = []
+
 
     patterns = [
 
@@ -410,100 +1278,12 @@ def extract_javascript_urls(html):
 
             if src not in urls:
 
-                urls.append(src)
+                urls.append(
+                    src
+                )
 
 
     return urls
-
-
-# =========================================================
-# FIND TEXT AROUND MATCH
-# =========================================================
-
-def extract_context(
-    text,
-    keyword,
-    radius=1200
-):
-
-    if not text:
-        return ""
-
-
-    lower_text = text.lower()
-
-    lower_keyword = keyword.lower()
-
-
-    positions = []
-
-    start = 0
-
-
-    while True:
-
-        pos = lower_text.find(
-            lower_keyword,
-            start
-        )
-
-
-        if pos == -1:
-            break
-
-
-        positions.append(
-            pos
-        )
-
-
-        start = pos + len(
-            lower_keyword
-        )
-
-
-    if not positions:
-        return ""
-
-
-    chunks = []
-
-
-    for index, pos in enumerate(
-        positions[:20],
-        1
-    ):
-
-        chunk_start = max(
-            0,
-            pos - radius
-        )
-
-
-        chunk_end = min(
-            len(text),
-            pos + len(keyword) + radius
-        )
-
-
-        chunk = text[
-            chunk_start:chunk_end
-        ]
-
-
-        chunks.append(
-            "\n\n"
-            + "=" * 80
-            + f"\nMATCH #{index}: {keyword}\n"
-            + "=" * 80
-            + "\n"
-            + chunk
-        )
-
-
-    return "".join(
-        chunks
-    )
 
 
 # =========================================================
@@ -518,17 +1298,15 @@ def scan_javascript(
     print(
         "================================================"
     )
+
     print(
         "🔬 JAVASCRIPT SCANNER"
     )
+
     print(
         "================================================"
     )
 
-
-    # -----------------------------------------------------
-    # Извличаме всички JS файлове
-    # -----------------------------------------------------
 
     js_urls = extract_javascript_urls(
         html
@@ -541,25 +1319,13 @@ def scan_javascript(
     )
 
 
-    for index, url in enumerate(
-        js_urls,
-        1
-    ):
-
-        print(
-            f"   {index}. {url}"
-        )
-
-
     save_debug(
         "javascript_urls.txt",
-        "\n".join(js_urls)
+        "\n".join(
+            js_urls
+        )
     )
 
-
-    # -----------------------------------------------------
-    # Ключови думи
-    # -----------------------------------------------------
 
     keywords = [
 
@@ -596,10 +1362,6 @@ def scan_javascript(
 
     all_matches = []
 
-
-    # -----------------------------------------------------
-    # Сканираме JS файловете
-    # -----------------------------------------------------
 
     for index, url in enumerate(
         js_urls,
@@ -646,21 +1408,9 @@ def scan_javascript(
             js = r.text
 
 
-            filename = (
-                f"js_{index}.js"
-            )
-
-
             save_debug(
-                filename,
+                f"js_{index}.js",
                 js
-            )
-
-
-            print(
-                "   📦 Размер:",
-                len(js),
-                "bytes"
             )
 
 
@@ -682,7 +1432,8 @@ def scan_javascript(
 
                 context = extract_context(
                     js,
-                    keyword
+                    keyword,
+                    radius=2500
                 )
 
 
@@ -695,14 +1446,11 @@ def scan_javascript(
 
             if file_matches:
 
-                result_filename = (
-                    f"js_{index}_matches.txt"
-                )
-
-
                 save_debug(
-                    result_filename,
-                    "\n".join(file_matches)
+                    f"js_{index}_matches.txt",
+                    "\n".join(
+                        file_matches
+                    )
                 )
 
 
@@ -719,130 +1467,21 @@ def scan_javascript(
             )
 
 
-    # -----------------------------------------------------
-    # Сканираме и самия HTML
-    # -----------------------------------------------------
-
-    print()
-    print(
-        "🔎 Проверявам и HTML-а за endpoint-и..."
-    )
-
-
-    html_matches = []
-
-
-    for keyword in keywords:
-
-        if keyword.lower() not in html.lower():
-
-            continue
-
-
-        print(
-            "🎯 HTML НАМЕРЕНО:",
-            keyword
-        )
-
-
-        context = extract_context(
-            html,
-            keyword
-        )
-
-
-        if context:
-
-            html_matches.append(
-                context
-            )
-
-
-    if html_matches:
-
-        save_debug(
-            "html_matches.txt",
-            "\n".join(html_matches)
-        )
-
-
-        all_matches.extend(
-            html_matches
-        )
-
-
-    # -----------------------------------------------------
-    # Обобщен файл
-    # -----------------------------------------------------
-
     if all_matches:
 
         save_debug(
             "ALL_JAVASCRIPT_MATCHES.txt",
-            "\n".join(all_matches)
+            "\n".join(
+                all_matches
+            )
         )
 
 
     print()
-    print(
-        "================================================"
-    )
-
     print(
         "🔬 JAVASCRIPT SCANNER ГОТОВ"
     )
-
-    print(
-        "📁 Резултатите са в:",
-        DEBUG_DIR
-    )
-
-    print(
-        "================================================"
-    )
-
     print()
-
-
-# =========================================================
-# EXTRACT PRODUCT ID
-# =========================================================
-
-def extract_product_id(html):
-
-    ids = re.findall(
-        r'data-product-id=["\'](\d+)["\']',
-        html,
-        re.I
-    )
-
-
-    if not ids:
-
-        ids = re.findall(
-            r'product.?id.?[:="\']+(\d+)',
-            html,
-            re.I
-        )
-
-
-    ids = list(
-        dict.fromkeys(ids)
-    )
-
-
-    print(
-        "ID кандидати:",
-        ids
-    )
-
-
-    if ids:
-
-        return ids[0]
-
-
-    return None
 
 
 # =========================================================
@@ -881,21 +1520,50 @@ def main():
     scanner_done = False
 
 
-    for sku in skus:
+    # -----------------------------------------------------
+    # ВАЖНО:
+    #
+    # За диагностиката тестваме първите SKU.
+    #
+    # Така няма да направим стотици заявки към Filstar,
+    # докато още разследваме endpoint-а.
+    #
+    # След като открием правилния endpoint,
+    # махаме това ограничение.
+    # -----------------------------------------------------
 
+    test_skus = skus[:3]
+
+
+    print(
+        "🧪 Диагностичен режим."
+    )
+
+    print(
+        "🧪 Ще бъдат тествани SKU:",
+        test_skus
+    )
+
+
+    for sku in test_skus:
+
+        print()
         print(
-            "================"
+            "================================================"
         )
-
 
         print(
             "➡️ SKU:",
             sku
         )
 
+        print(
+            "================================================"
+        )
+
 
         # -------------------------------------------------
-        # SEARCH
+        # SEARCH API
         # -------------------------------------------------
 
         html = search_filstar(
@@ -906,20 +1574,28 @@ def main():
         if not html:
 
             print(
-                "❌ Няма резултат"
+                "❌ Няма search резултат."
             )
-
 
             save_not_found(
                 sku
             )
 
-
             continue
 
 
         # -------------------------------------------------
-        # Пускаме JS scanner само веднъж
+        # SCAN SEARCH HTML
+        # -------------------------------------------------
+
+        scan_search_for_sku(
+            html,
+            sku
+        )
+
+
+        # -------------------------------------------------
+        # JAVASCRIPT SCANNER - само веднъж
         # -------------------------------------------------
 
         if not scanner_done:
@@ -950,33 +1626,80 @@ def main():
         else:
 
             print(
-                "⚠️ Product ID не е намерено"
+                "⚠️ Product ID не е намерено."
             )
 
 
         # -------------------------------------------------
-        # ВАЖНО:
-        #
-        # НЕ извикваме:
-        #
-        # /get-serialize-product/
-        #
-        # защото GitHub Actions получава HTTP 403.
-        #
-        # На този етап само събираме JS информацията,
-        # за да открием реалния публичен endpoint.
+        # PRODUCT URL
         # -------------------------------------------------
 
-        print(
-            "⏭️ Serialize endpoint пропуснат."
+        product_url = extract_product_url(
+            html,
+            sku
+        )
+
+
+        if product_url:
+
+            print(
+                "🔗 Product URL:",
+                product_url
+            )
+
+        else:
+
+            print(
+                "⚠️ Product URL не е намерено."
+            )
+
+
+        # -------------------------------------------------
+        # SAVE ALL PRODUCT URLS
+        # -------------------------------------------------
+
+        product_urls = extract_all_product_urls(
+            html
+        )
+
+
+        save_debug(
+            f"search_{sku}_all_urls.txt",
+            "\n".join(
+                product_urls
+            )
         )
 
 
         # -------------------------------------------------
-        # Временно записваме SKU като not found.
-        #
-        # След като открием endpoint-а,
-        # тук ще поставим реалното извличане.
+        # TEST SEARCH-JSON-TYPESENSE
+        # -------------------------------------------------
+
+        test_typesense_endpoint(
+            sku
+        )
+
+
+        # -------------------------------------------------
+        # PRODUCT PAGE
+        # -------------------------------------------------
+
+        product_html = get_product_page(
+            product_url,
+            sku
+        )
+
+
+        if product_html:
+
+            scan_product_page(
+                product_html,
+                sku
+            )
+
+
+        # -------------------------------------------------
+        # Засега НЕ записваме като реален резултат.
         # -------------------------------------------------
 
         save_not_found(
@@ -989,29 +1712,77 @@ def main():
         )
 
 
+    print()
     print(
-        "💾 Записани резултати:",
-        RESULT_CSV
+        "================================================"
     )
 
+    print(
+        "✅ ДИАГНОСТИКАТА ПРИКЛЮЧИ"
+    )
+
+    print(
+        "================================================"
+    )
+
+    print(
+        "💾 Debug:",
+        DEBUG_DIR
+    )
+
+    print(
+        "💾 Results:",
+        RESULT_CSV
+    )
 
     print(
         "💾 Not found:",
         NOT_FOUND_CSV
     )
 
-
+    print()
     print(
-        "📁 Debug:",
-        DEBUG_DIR
+        "👉 Тествахме само първите 3 SKU."
     )
 
+    print(
+        "👉 /get-serialize-product/ НЕ Е ИЗПОЛЗВАН."
+    )
 
     print(
-        "✅ Диагностиката приключи"
+        "👉 /search-json-typesense Е ТЕСТВАН С:"
+    )
+
+    print(
+        "   q"
+    )
+
+    print(
+        "   term"
+    )
+
+    print(
+        "   query"
+    )
+
+    print(
+        "   q + query_by"
+    )
+
+    print(
+        "   q + query_by=*"
+    )
+
+    print(
+        "👉 Продуктовите страници също са сканирани."
+    )
+
+    print(
+        "👉 Готово."
     )
 
 
 if __name__ == "__main__":
 
     main()
+```
