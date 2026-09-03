@@ -1,4 +1,4 @@
-```python
+```text
 import csv
 import re
 import time
@@ -11,14 +11,13 @@ from bs4 import BeautifulSoup
 BASE_URL = "https://filstar.com"
 CSV_FILE = "sku_list_filstar.csv"
 
-# За тест
 WAIT = 0
 
 
 def load_skus():
     """
     Зарежда SKU от CSV.
-    Игнорира всичко между редове, съдържащи точно ##.
+    Всичко между два реда с точно ## се игнорира.
     """
 
     skus = []
@@ -45,8 +44,7 @@ def load_skus():
 
 def extract_product_data(html, sku):
     """
-    Анализира HTML от /api/search?term=SKU
-    и търси продукта, съдържащ конкретния SKU.
+    Извлича цена и наличност от HTML-а на /api/search?term=SKU.
     """
 
     soup = BeautifulSoup(html, "html.parser")
@@ -62,7 +60,7 @@ def extract_product_data(html, sku):
     }
 
     # ---------------------------------------------------------
-    # 1. Намираме елемент с конкретния SKU
+    # Проверяваме дали SKU изобщо присъства
     # ---------------------------------------------------------
 
     text = soup.get_text(" ", strip=True)
@@ -74,56 +72,12 @@ def extract_product_data(html, sku):
     result["found"] = True
 
     # ---------------------------------------------------------
-    # 2. Търсим data-product-id в близост до SKU
+    # Намираме product блок, който съдържа конкретния SKU
     # ---------------------------------------------------------
-
-    product_id = ""
 
     elements = soup.find_all(
         attrs={"data-product-id": True}
     )
-
-    for element in elements:
-
-        block_text = element.get_text(
-            " ",
-            strip=True
-        )
-
-        # Проверяваме целия родителски блок
-        current = element
-
-        for _ in range(8):
-
-            if current is None:
-                break
-
-            current_text = current.get_text(
-                " ",
-                strip=True
-            )
-
-            if sku in current_text:
-
-                product_id = (
-                    element.get("data-product-id")
-                    or current.get("data-product-id")
-                    or ""
-                )
-
-                if product_id:
-                    break
-
-            current = current.parent
-
-        if product_id:
-            break
-
-    result["product_id"] = product_id
-
-    # ---------------------------------------------------------
-    # 3. Търсим конкретния продукт
-    # ---------------------------------------------------------
 
     product_element = None
 
@@ -131,7 +85,7 @@ def extract_product_data(html, sku):
 
         current = element
 
-        for _ in range(8):
+        for _ in range(10):
 
             if current is None:
                 break
@@ -150,24 +104,57 @@ def extract_product_data(html, sku):
         if product_element is not None:
             break
 
+    # ---------------------------------------------------------
+    # Ако не сме намерили data-product блок
+    # ---------------------------------------------------------
+
     if product_element is None:
-        result["status"] = "SKU_FOUND_BUT_PRODUCT_BLOCK_NOT_FOUND"
+
+        result["status"] = (
+            "SKU_FOUND_BUT_PRODUCT_BLOCK_NOT_FOUND"
+        )
+
         return result
 
     # ---------------------------------------------------------
-    # 4. Име
+    # Product ID
+    # ---------------------------------------------------------
+
+    current = product_element
+
+    for _ in range(10):
+
+        if current is None:
+            break
+
+        product_id = current.get(
+            "data-product-id"
+        )
+
+        if product_id:
+            result["product_id"] = product_id
+            break
+
+        current = current.parent
+
+    # ---------------------------------------------------------
+    # Име
     # ---------------------------------------------------------
 
     name = (
-        product_element.get("data-product-name")
-        or product_element.get("data-product-variant")
+        product_element.get(
+            "data-product-name"
+        )
+        or product_element.get(
+            "data-product-variant"
+        )
         or ""
     )
 
     result["name"] = name.strip()
 
     # ---------------------------------------------------------
-    # 5. Цена
+    # ЦЕНА
     # ---------------------------------------------------------
 
     block_text = product_element.get_text(
@@ -175,19 +162,12 @@ def extract_product_data(html, sku):
         strip=True
     )
 
-    # Търсим цена в EUR.
-    # Пример:
-    # 1.99 €
-    # 1,99 €
-    # от 1.99 €
-    # от 1,99 €
+    price = ""
 
     price_patterns = [
         r"(\d+[.,]\d{2})\s*€",
         r"от\s*(\d+[.,]\d{2})\s*€",
     ]
-
-    price = ""
 
     for pattern in price_patterns:
 
@@ -198,26 +178,33 @@ def extract_product_data(html, sku):
         )
 
         if match:
-            price = match.group(1).replace(",", ".")
+
+            price = (
+                match.group(1)
+                .replace(",", ".")
+            )
+
             break
 
     result["price"] = price
 
     # ---------------------------------------------------------
-    # 6. Наличност
+    # НАЛИЧНОСТ
     # ---------------------------------------------------------
 
-    # Проверяваме класовете на самия блок
+    # Събираме класовете на елемента
     classes = product_element.get(
         "class",
         []
     )
 
-    class_text = " ".join(classes).lower()
+    class_text = " ".join(
+        classes
+    ).lower()
 
-    # Проверяваме и целия текст около продукта
     lower_text = block_text.lower()
 
+    # Маркери за неналичност
     out_of_stock_markers = [
         "out-of-stock",
         "out of stock",
@@ -227,9 +214,10 @@ def extract_product_data(html, sku):
         "не е наличен",
     ]
 
+    # Маркери за наличност
     available_markers = [
-        "наличен",
         "в наличност",
+        "наличен",
     ]
 
     is_out_of_stock = any(
@@ -244,16 +232,21 @@ def extract_product_data(html, sku):
     )
 
     if is_out_of_stock:
+
         result["available"] = "NO"
         result["status"] = "OUT_OF_STOCK"
 
     elif is_available:
+
         result["available"] = "YES"
         result["status"] = "AVAILABLE"
 
     else:
+
         result["available"] = "UNKNOWN"
-        result["status"] = "FOUND_NO_STOCK_MARKER"
+        result["status"] = (
+            "FOUND_NO_STOCK_MARKER"
+        )
 
     return result
 
@@ -286,7 +279,8 @@ def check_sku(session, sku):
         if response.status_code != 200:
 
             print(
-                f"❌ HTTP ERROR: {response.status_code}"
+                f"❌ HTTP ERROR: "
+                f"{response.status_code}"
             )
 
             return {
@@ -296,7 +290,9 @@ def check_sku(session, sku):
                 "name": "",
                 "price": "",
                 "available": "",
-                "status": f"HTTP_{response.status_code}",
+                "status": (
+                    f"HTTP_{response.status_code}"
+                ),
             }
 
         html = response.text
@@ -312,23 +308,28 @@ def check_sku(session, sku):
 
         print()
         print(
-            f"Product ID: {result['product_id']}"
+            f"Product ID: "
+            f"{result['product_id']}"
         )
 
         print(
-            f"Name: {result['name']}"
+            f"Name: "
+            f"{result['name']}"
         )
 
         print(
-            f"Price: {result['price']}"
+            f"Price: "
+            f"{result['price']}"
         )
 
         print(
-            f"Available: {result['available']}"
+            f"Available: "
+            f"{result['available']}"
         )
 
         print(
-            f"Status: {result['status']}"
+            f"Status: "
+            f"{result['status']}"
         )
 
         return result
@@ -362,7 +363,7 @@ def main():
         f"Общо SKU: {len(skus)}"
     )
 
-    # За първия тест проверяваме само първите 10.
+    # Първите 10 SKU за тест
     test_skus = skus[:10]
 
     print(
@@ -377,13 +378,16 @@ def main():
             "(Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 "
             "(KHTML, like Gecko) "
-            "Chrome/131.0.0.0 Safari/537.36"
+            "Chrome/131.0.0.0 "
+            "Safari/537.36"
         ),
         "Accept": (
             "text/html,application/xhtml+xml,"
             "application/xml;q=0.9,*/*;q=0.8"
         ),
-        "Accept-Language": "bg-BG,bg;q=0.9,en;q=0.8",
+        "Accept-Language": (
+            "bg-BG,bg;q=0.9,en;q=0.8"
+        ),
     })
 
     results = []
@@ -409,7 +413,7 @@ def main():
             time.sleep(WAIT)
 
     # ---------------------------------------------------------
-    # Записваме диагностичен CSV
+    # Запис на резултатите
     # ---------------------------------------------------------
 
     output_file = "filstar_api_test.csv"
@@ -439,6 +443,10 @@ def main():
         writer.writeheader()
 
         writer.writerows(results)
+
+    # ---------------------------------------------------------
+    # Финален резултат
+    # ---------------------------------------------------------
 
     print()
     print("=" * 70)
