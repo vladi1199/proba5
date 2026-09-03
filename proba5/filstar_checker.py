@@ -1,277 +1,119 @@
-import csv
-import json
 import os
 import re
-import shutil
-import time
-
-from urllib.parse import quote, urljoin
-
+import csv
+import json
+import html
 import requests
-
+from bs4 import BeautifulSoup, Comment
 
 BASE_URL = "https://filstar.com"
+CSV_FILE = "sku_list_filstar.csv"
+DEBUG_DIR = "debug_html"
 
 WAIT = 2
 
-CSV_FILE = "sku_list_filstar.csv"
-RESULTS_FILE = "results_filstar.csv"
-NOT_FOUND_FILE = "not_found_filstar.csv"
-DEBUG_DIR = "debug_html"
+TEST_SKUS = [
+    "946537",
+    "946534",
+    "946535",
+]
+
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/131.0.0.0 Safari/537.36"
+    ),
+    "Accept": (
+        "text/html,application/xhtml+xml,application/xml;"
+        "q=0.9,image/avif,image/webp,*/*;q=0.8"
+    ),
+    "Accept-Language": "bg-BG,bg;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Connection": "keep-alive",
+}
 
 
 # ============================================================
-# READ SKUS
+# HELPERS
 # ============================================================
+
+def clean_text(value):
+    if value is None:
+        return ""
+
+    value = html.unescape(str(value))
+    value = re.sub(r"\s+", " ", value)
+    return value.strip()
+
+
+def save_text(filename, content):
+    path = os.path.join(DEBUG_DIR, filename)
+
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    return path
+
 
 def read_skus():
-
     skus = []
 
-    in_comment = False
+    if not os.path.exists(CSV_FILE):
+        print(f"❌ CSV файлът не съществува: {CSV_FILE}")
+        return skus
 
-    with open(
-        CSV_FILE,
-        "r",
-        encoding="utf-8-sig",
-        newline="",
-    ) as f:
-
-        reader = csv.DictReader(f)
+    with open(CSV_FILE, "r", encoding="utf-8-sig", newline="") as f:
+        reader = csv.reader(f)
 
         for row in reader:
-
-            sku = str(
-                row.get("SKU", "")
-            ).strip()
-
-            if not sku:
+            if not row:
                 continue
 
-            # ------------------------------------------------
-            # Block comments:
-            #
-            # ##
-            # SKU
-            # SKU
-            # ##
-            # ------------------------------------------------
+            value = row[0].strip()
 
-            if sku == "##":
-
-                in_comment = not in_comment
-
+            if not value:
                 continue
 
-            if in_comment:
+            # Пропускаме header
+            if value.lower() in (
+                "sku",
+                "код",
+                "product sku",
+                "product_sku",
+            ):
                 continue
 
-            skus.append(sku)
+            # Пропускаме коментари
+            if value.startswith("#"):
+                continue
+
+            skus.append(value)
 
     return skus
-
-
-# ============================================================
-# DEBUG FOLDER
-# ============================================================
-
-def init_debug_folder():
-
-    if os.path.exists(DEBUG_DIR):
-
-        shutil.rmtree(
-            DEBUG_DIR
-        )
-
-    os.makedirs(
-        DEBUG_DIR,
-        exist_ok=True,
-    )
-
-
-def save_debug(
-    filename,
-    content,
-):
-
-    path = os.path.join(
-        DEBUG_DIR,
-        filename,
-    )
-
-    folder = os.path.dirname(
-        path
-    )
-
-    if folder:
-
-        os.makedirs(
-            folder,
-            exist_ok=True,
-        )
-
-    with open(
-        path,
-        "w",
-        encoding="utf-8",
-    ) as f:
-
-        if isinstance(
-            content,
-            str,
-        ):
-
-            f.write(
-                content
-            )
-
-        else:
-
-            f.write(
-                str(content)
-            )
-
-
-# ============================================================
-# RESULT CSV
-# ============================================================
-
-def init_csv():
-
-    with open(
-        RESULTS_FILE,
-        "w",
-        encoding="utf-8",
-        newline="",
-    ) as f:
-
-        writer = csv.writer(
-            f
-        )
-
-        writer.writerow(
-            [
-                "SKU",
-                "Наличност",
-                "Бройки",
-                "Цена",
-            ]
-        )
-
-
-def save_result(
-    sku,
-    availability,
-    quantity,
-    price,
-):
-
-    with open(
-        RESULTS_FILE,
-        "a",
-        encoding="utf-8",
-        newline="",
-    ) as f:
-
-        writer = csv.writer(
-            f
-        )
-
-        writer.writerow(
-            [
-                sku,
-                availability,
-                quantity,
-                price,
-            ]
-        )
-
-
-def save_not_found(
-    sku
-):
-
-    with open(
-        NOT_FOUND_FILE,
-        "a",
-        encoding="utf-8",
-        newline="",
-    ) as f:
-
-        writer = csv.writer(
-            f
-        )
-
-        writer.writerow(
-            [sku]
-        )
-
-
-# ============================================================
-# REQUEST SESSION
-# ============================================================
-
-def create_session():
-
-    session = requests.Session()
-
-    session.headers.update(
-        {
-            "User-Agent": (
-                "Mozilla/5.0 "
-                "(Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 "
-                "(KHTML, like Gecko) "
-                "Chrome/139.0.0.0 Safari/537.36"
-            ),
-
-            "Accept": (
-                "text/html,"
-                "application/xhtml+xml,"
-                "application/xml;q=0.9,"
-                "image/avif,"
-                "image/webp,"
-                "*/*;q=0.8"
-            ),
-
-            "Accept-Language":
-                "bg-BG,bg;q=0.9,en;q=0.8",
-
-            "Connection":
-                "keep-alive",
-        }
-    )
-
-    return session
 
 
 # ============================================================
 # API SEARCH
 # ============================================================
 
-def search_filstar(
-    session,
-    sku,
-):
+def search_filstar(session, sku):
+    url = f"{BASE_URL}/api/search"
 
-    url = (
-        BASE_URL
-        + "/api/search?term="
-        + quote(
-            str(sku)
-        )
-    )
+    params = {
+        "term": sku
+    }
 
     try:
-
         response = session.get(
             url,
-            timeout=30,
+            params=params,
+            headers=HEADERS,
+            timeout=30
         )
 
         print(
-            f"   🔎 /api/search?term={sku} "
-            f"→ HTTP {response.status_code}"
+            f"   🔎 /api/search?term={sku} → "
+            f"HTTP {response.status_code}"
         )
 
         print(
@@ -280,1137 +122,724 @@ def search_filstar(
         )
 
         print(
-            f"   Размер: "
-            f"{len(response.text):,} bytes"
+            f"   Размер: {len(response.content):,} bytes"
         )
 
-        save_debug(
-            f"search_{sku}.html",
-            response.text,
-        )
-
-        return response.text
+        return response
 
     except Exception as e:
-
-        print(
-            "   ❌ Search error:",
-            repr(e),
-        )
-
+        print(f"   ❌ ERROR: {e}")
         return None
 
 
 # ============================================================
-# PRODUCT ID
+# EXACT SKU LOCATIONS
 # ============================================================
 
-def extract_product_id(
-    html
-):
+def find_exact_occurrences(source, sku):
+    """
+    Намира ВСИЧКИ срещания на SKU в целия HTML.
+    """
 
-    if not html:
-        return None
+    positions = []
 
-    patterns = [
+    start = 0
 
-        r'data-product-id=["\'](\d+)["\']',
+    while True:
+        pos = source.find(sku, start)
 
-        r'"productId"\s*:\s*"?(\d+)',
+        if pos == -1:
+            break
 
-        r'"product_id"\s*:\s*"?(\d+)',
+        positions.append(pos)
+        start = pos + len(sku)
 
-    ]
-
-    for pattern in patterns:
-
-        match = re.search(
-            pattern,
-            html,
-            re.I,
-        )
-
-        if match:
-
-            product_id = match.group(
-                1
-            )
-
-            print(
-                "   🆔 Product ID:",
-                product_id,
-            )
-
-            return product_id
-
-    print(
-        "   ❌ Product ID not found"
-    )
-
-    return None
+    return positions
 
 
 # ============================================================
-# FIND PRODUCT CONTAINERS
+# DETECT SCRIPT / STYLE / COMMENT
 # ============================================================
 
-def find_product_container_starts(
-    html
-):
+def detect_container_type(source, position):
+    """
+    Опитва се да разбере дали позицията е:
 
-    return list(
-        re.finditer(
-            r'<div\b[^>]*class=["\'][^"\']*product-item-wapper[^"\']*["\'][^>]*>',
-            html,
-            re.I,
-        )
-    )
+    - normal HTML
+    - script
+    - style
+    - comment
+    """
 
+    before = source[:position]
 
-# ============================================================
-# MATCHING DIV END
-# ============================================================
+    last_script_open = before.rfind("<script")
+    last_script_close = before.rfind("</script")
 
-def find_matching_div_end(
-    text,
-    start_pos,
-):
+    last_style_open = before.rfind("<style")
+    last_style_close = before.rfind("</style")
 
-    tag_pattern = re.compile(
-        r'<(/?)div\b[^>]*>',
-        re.I,
-    )
+    last_comment_open = before.rfind("<!--")
+    last_comment_close = before.rfind("-->")
 
-    depth = 0
+    # SCRIPT
+    if last_script_open > last_script_close:
+        return "SCRIPT"
 
-    for match in tag_pattern.finditer(
-        text,
-        start_pos,
-    ):
+    # STYLE
+    if last_style_open > last_style_close:
+        return "STYLE"
 
-        tag = match.group(
-            0
-        )
+    # COMMENT
+    if last_comment_open > last_comment_close:
+        return "HTML COMMENT"
 
-        # Opening div
-        if re.match(
-            r'<div\b',
-            tag,
-            re.I,
-        ):
-
-            depth += 1
-
-        # Closing div
-        else:
-
-            depth -= 1
-
-            if depth == 0:
-
-                return match.end()
-
-    return len(text)
+    return "NORMAL HTML"
 
 
 # ============================================================
-# EXTRACT PRODUCT CONTAINER
+# GET TAG AROUND POSITION
 # ============================================================
 
-def extract_product_container(
-    html,
-    sku,
-):
+def get_tag_around_position(source, position):
+    """
+    Взима приблизително HTML tag-а, в който се намира SKU-то.
+    """
 
-    if not html:
-        return None
+    left = source.rfind("<", 0, position)
+    right = source.find(">", position)
 
-    sku = str(
-        sku
-    )
-
-    starts = find_product_container_starts(
-        html
-    )
-
-    print(
-        "Product containers:",
-        len(starts),
-    )
-
-    for index, match in enumerate(
-        starts,
-        1,
-    ):
-
-        start_pos = match.start()
-
-        end_pos = find_matching_div_end(
-            html,
-            start_pos,
-        )
-
-        container = html[
-            start_pos:end_pos
-        ]
-
-        if sku in container:
-
-            print(
-                "Намерен container за SKU:",
-                sku,
-            )
-
-            print(
-                "Container size:",
-                len(container),
-                "bytes",
-            )
-
-            return container
-
-    return None
-
-
-# ============================================================
-# EXTRACT PRODUCT URL
-# ============================================================
-
-def extract_product_url(
-    html,
-    sku,
-):
-
-    container = extract_product_container(
-        html,
-        sku,
-    )
-
-    if not container:
-        return None
-
-    hrefs = re.findall(
-        r'href\s*=\s*(["\'])(.*?)\1',
-        container,
-        re.I | re.S,
-    )
-
-    ignored = (
-        "/search",
-        "/api/",
-        "/cart/",
-        "/login",
-        "/register",
-        "/manifest",
-    )
-
-    for _, href in hrefs:
-
-        if not href.startswith(
-            "/"
-        ):
-            continue
-
-        if href.startswith(
-            ignored
-        ):
-            continue
-
-        return urljoin(
-            BASE_URL,
-            href,
-        )
-
-    return None
-
-
-# ============================================================
-# CONTEXT EXTRACTOR
-# ============================================================
-
-def extract_context(
-    text,
-    keyword,
-    radius=3000,
-):
-
-    if not text:
+    if left == -1 or right == -1:
         return ""
 
-    positions = [
-        match.start()
-        for match in re.finditer(
-            re.escape(
-                str(keyword)
-            ),
-            text,
-            re.I,
-        )
-    ]
+    tag = source[left:right + 1]
 
-    if not positions:
-        return ""
+    # Ако е прекалено голямо нещо, ограничаваме
+    if len(tag) > 5000:
+        return tag[:5000] + "\n...[TAG TRUNCATED]..."
 
-    output = []
-
-    for position in positions:
-
-        start = max(
-            0,
-            position - radius,
-        )
-
-        end = min(
-            len(text),
-            position + radius,
-        )
-
-        output.append(
-            "\n"
-            + "=" * 100
-            + "\n"
-            + f"KEYWORD: {keyword}\n"
-            + f"POSITION: {position}\n"
-            + "=" * 100
-            + "\n"
-            + text[start:end]
-        )
-
-    return "\n".join(
-        output
-    )
+    return tag
 
 
 # ============================================================
-# INSPECT PRODUCT CONTAINER
+# GET OPENING TAGS / PARENT CONTEXT
 # ============================================================
 
-def inspect_product_container(
-    html,
-    sku,
-):
+def get_parent_tags(source, position, max_tags=12):
+    """
+    Опитва се да намери последните отворени HTML елементи
+    преди позицията.
 
-    if not html:
-        return None
+    Не е пълен HTML parser, а диагностичен анализ.
+    """
 
-    sku = str(
-        sku
+    before = source[:position]
+
+    tags = re.findall(
+        r"<([a-zA-Z][a-zA-Z0-9:-]*)\b[^>]*>",
+        before
     )
 
-    print()
-    print(
-        "=" * 60
-    )
-    print(
-        "INSPECT PRODUCT CONTAINER"
-    )
-    print(
-        "=" * 60
+    closing = re.findall(
+        r"</([a-zA-Z][a-zA-Z0-9:-]*)\s*>",
+        before
     )
 
-    container = extract_product_container(
-        html,
-        sku,
+    # По-груба информация:
+    # показваме последните tags преди SKU
+    result = []
+
+    pattern = re.compile(
+        r"</?[a-zA-Z][^>]*>"
     )
 
-    if not container:
+    all_tags = list(pattern.finditer(before))
 
-        print(
-            "Не е намерен product container за:",
-            sku,
-        )
+    for match in all_tags[-max_tags:]:
+        tag = match.group(0)
 
-        save_debug(
-            f"product_container_{sku}_NOT_FOUND.txt",
-            (
-                f"SKU {sku} не е намерен "
-                f"в нито един product-item-wapper.\n"
-            ),
-        )
+        if len(tag) > 1000:
+            tag = tag[:1000] + "..."
 
-        return None
+        result.append(tag)
 
-    # --------------------------------------------------------
-    # FULL CONTAINER
-    # --------------------------------------------------------
+    return result
 
-    save_debug(
-        f"product_container_{sku}.html",
-        container,
-    )
 
-    # --------------------------------------------------------
-    # DATA ATTRIBUTES
-    # --------------------------------------------------------
+# ============================================================
+# BEAUTIFULSOUP CONTEXT
+# ============================================================
 
-    data_matches = re.findall(
-        r'\b(data-[a-zA-Z0-9_-]+)\s*=\s*(["\'])(.*?)\2',
-        container,
-        re.I | re.S,
-    )
+def soup_context(source, sku, occurrence_index):
+    """
+    Използва BeautifulSoup за намиране на елементите,
+    които съдържат SKU-то.
+    """
 
-    data_output = []
+    soup = BeautifulSoup(source, "html.parser")
 
-    for name, _, value in data_matches:
+    results = []
 
-        data_output.append(
-            f"{name} = {value}"
-        )
+    # Всички елементи, чието text съдържа SKU
+    for element in soup.find_all(string=lambda x: x and sku in x):
 
-    save_debug(
-        f"product_container_{sku}_data.txt",
-        "\n".join(
-            data_output
-        ),
-    )
+        parent = element.parent
 
-    print(
-        "Data attributes:",
-        len(data_output),
-    )
-
-    # --------------------------------------------------------
-    # HREFS
-    # --------------------------------------------------------
-
-    hrefs = re.findall(
-        r'href\s*=\s*(["\'])(.*?)\1',
-        container,
-        re.I | re.S,
-    )
-
-    href_output = [
-        href
-        for _, href in hrefs
-    ]
-
-    save_debug(
-        f"product_container_{sku}_hrefs.txt",
-        "\n".join(
-            href_output
-        ),
-    )
-
-    print(
-        "HREF:",
-        href_output,
-    )
-
-    # --------------------------------------------------------
-    # IMAGES
-    # --------------------------------------------------------
-
-    images = re.findall(
-        r'<img\b[^>]*src\s*=\s*(["\'])(.*?)\1',
-        container,
-        re.I | re.S,
-    )
-
-    image_output = [
-        src
-        for _, src in images
-    ]
-
-    save_debug(
-        f"product_container_{sku}_images.txt",
-        "\n".join(
-            image_output
-        ),
-    )
-
-    # --------------------------------------------------------
-    # ALL KEYWORDS
-    # --------------------------------------------------------
-
-    keywords = [
-        sku,
-
-        "variant",
-        "variants",
-
-        "quantity",
-
-        "price",
-        "discountedPrice",
-        "discountedRetailPrice",
-        "traderPrice",
-
-        "stores",
-        "maxQuantity",
-        "maxQuantityByStores",
-
-        "8617",
-        "8618",
-
-        "946534",
-        "946535",
-        "946537",
-
-        "3809909465340",
-    ]
-
-    all_matches = []
-
-    for keyword in keywords:
-
-        context = extract_context(
-            container,
-            keyword,
-            radius=4000,
-        )
-
-        if not context:
+        if parent is None:
             continue
 
-        print(
-            "Намерено:",
-            keyword,
-        )
+        results.append({
+            "string": clean_text(str(element)),
+            "parent_tag": parent.name,
+            "parent_attributes": dict(parent.attrs),
+            "parent_html": str(parent)[:10000]
+        })
 
-        all_matches.append(
-            context
-        )
+    return results
 
-    if all_matches:
 
-        save_debug(
-            f"product_container_{sku}_matches.txt",
-            "\n\n".join(
-                all_matches
-            ),
-        )
+# ============================================================
+# DATA ATTRIBUTES
+# ============================================================
 
-    # --------------------------------------------------------
-    # EXACT VARIANT IDS
-    # --------------------------------------------------------
+def extract_data_attributes(tag_html):
+    """
+    Извлича всички data-* атрибути.
+    """
 
-    variant_results = []
+    result = {}
 
-    for variant_id in [
-        "8617",
-        "8618",
-    ]:
+    matches = re.findall(
+        r'(data-[\w:-]+)\s*=\s*["\']([^"\']*)["\']',
+        tag_html,
+        flags=re.I
+    )
 
-        positions = [
-            match.start()
-            for match in re.finditer(
-                re.escape(
-                    variant_id
-                ),
-                container,
-            )
-        ]
+    for key, value in matches:
+        result[key] = html.unescape(value)
 
-        if positions:
+    return result
 
-            print(
-                "!!! НАМЕРЕН VARIANT ID:",
-                variant_id,
-            )
 
-            for position in positions:
+# ============================================================
+# ATTRIBUTES
+# ============================================================
 
-                start = max(
-                    0,
-                    position - 5000,
-                )
+def extract_attributes(tag_html):
+    """
+    Извлича атрибутите от HTML tag.
+    """
 
-                end = min(
-                    len(container),
-                    position + 10000,
-                )
+    result = {}
 
-                variant_results.append(
-                    "\n"
-                    + "=" * 100
-                    + "\n"
-                    + f"VARIANT ID: {variant_id}\n"
-                    + f"POSITION: {position}\n"
-                    + "=" * 100
-                    + "\n"
-                    + container[start:end]
-                )
+    if not tag_html.startswith("<"):
+        return result
 
-    if variant_results:
+    match = re.match(
+        r"<\s*([a-zA-Z0-9:-]+)",
+        tag_html
+    )
 
-        save_debug(
-            f"product_container_{sku}_"
-            f"variant_ids.txt",
-            "\n".join(
-                variant_results
-            ),
-        )
+    if not match:
+        return result
 
-    # --------------------------------------------------------
-    # EXACT KNOWN SKUS
-    # --------------------------------------------------------
+    result["_tag"] = match.group(1)
 
-    sku_results = []
+    attributes = re.findall(
+        r'([a-zA-Z_:][a-zA-Z0-9_:\-.]*)\s*=\s*["\']([^"\']*)["\']',
+        tag_html
+    )
 
-    for exact_sku in [
-        "946534",
-        "946535",
-        "946537",
-    ]:
+    for key, value in attributes:
+        result[key] = html.unescape(value)
 
-        positions = [
-            match.start()
-            for match in re.finditer(
-                re.escape(
-                    exact_sku
-                ),
-                container,
-            )
-        ]
+    return result
 
-        if positions:
 
-            print(
-                f"SKU {exact_sku}: "
-                f"{len(positions)} occurrence(s)"
-            )
+# ============================================================
+# OCCURRENCE ANALYSIS
+# ============================================================
 
-            for position in positions:
+def analyze_occurrence(source, sku, occurrence_index, position):
+    context_size = 1500
 
-                start = max(
-                    0,
-                    position - 5000,
-                )
+    start = max(0, position - context_size)
+    end = min(
+        len(source),
+        position + len(sku) + context_size
+    )
 
-                end = min(
-                    len(container),
-                    position + 10000,
-                )
-
-                sku_results.append(
-                    "\n"
-                    + "=" * 100
-                    + "\n"
-                    + f"SKU: {exact_sku}\n"
-                    + f"POSITION: {position}\n"
-                    + "=" * 100
-                    + "\n"
-                    + container[start:end]
-                )
-
-    if sku_results:
-
-        save_debug(
-            f"product_container_{sku}_"
-            f"sku_matches.txt",
-            "\n".join(
-                sku_results
-            ),
-        )
-
-    # --------------------------------------------------------
-    # QUANTITY
-    # --------------------------------------------------------
-
-    quantity_positions = [
-        match.start()
-        for match in re.finditer(
-            r'\bquantity\b',
-            container,
-            re.I,
-        )
+    before = source[start:position]
+    after = source[
+        position + len(sku):end
     ]
 
-    print(
-        "Количество 'quantity':",
-        len(quantity_positions),
+    full_context = source[start:end]
+
+    container_type = detect_container_type(
+        source,
+        position
     )
 
-    quantity_results = []
-
-    for position in quantity_positions:
-
-        start = max(
-            0,
-            position - 5000,
-        )
-
-        end = min(
-            len(container),
-            position + 10000,
-        )
-
-        quantity_results.append(
-            container[start:end]
-        )
-
-    if quantity_results:
-
-        save_debug(
-            f"product_container_{sku}_"
-            f"quantity.txt",
-            "\n\n"
-            + (
-                "\n\n"
-                + "=" * 100
-                + "\n\n"
-            ).join(
-                quantity_results
-            ),
-        )
-
-    # --------------------------------------------------------
-    # PRICE
-    # --------------------------------------------------------
-
-    price_positions = [
-        match.start()
-        for match in re.finditer(
-            r'\bprice\b',
-            container,
-            re.I,
-        )
-    ]
-
-    print(
-        "Количество 'price':",
-        len(price_positions),
+    tag = get_tag_around_position(
+        source,
+        position
     )
 
-    price_results = []
+    attributes = extract_attributes(tag)
 
-    for position in price_positions:
+    data_attributes = extract_data_attributes(tag)
 
-        start = max(
-            0,
-            position - 5000,
-        )
-
-        end = min(
-            len(container),
-            position + 10000,
-        )
-
-        price_results.append(
-            container[start:end]
-        )
-
-    if price_results:
-
-        save_debug(
-            f"product_container_{sku}_"
-            f"price.txt",
-            "\n\n"
-            + (
-                "\n\n"
-                + "=" * 100
-                + "\n\n"
-            ).join(
-                price_results
-            ),
-        )
-
-    # --------------------------------------------------------
-    # VARIANT
-    # --------------------------------------------------------
-
-    variant_positions = [
-        match.start()
-        for match in re.finditer(
-            r'\bvariant\b',
-            container,
-            re.I,
-        )
-    ]
-
-    print(
-        "Количество 'variant':",
-        len(variant_positions),
+    parent_tags = get_parent_tags(
+        source,
+        position
     )
 
-    variant_contexts = []
+    result = []
 
-    for position in variant_positions:
+    result.append("=" * 100)
+    result.append(
+        f"OCCURRENCE #{occurrence_index}"
+    )
+    result.append("=" * 100)
 
-        start = max(
-            0,
-            position - 5000,
-        )
-
-        end = min(
-            len(container),
-            position + 10000,
-        )
-
-        variant_contexts.append(
-            container[start:end]
-        )
-
-    if variant_contexts:
-
-        save_debug(
-            f"product_container_{sku}_"
-            f"variant.txt",
-            "\n\n"
-            + (
-                "\n\n"
-                + "=" * 100
-                + "\n\n"
-            ).join(
-                variant_contexts
-            ),
-        )
-
-    # --------------------------------------------------------
-    # JSON SCRIPT TAGS
-    # --------------------------------------------------------
-
-    json_scripts = re.findall(
-        r'<script[^>]*type=["\']application/json["\'][^>]*>'
-        r'(.*?)'
-        r'</script>',
-        container,
-        re.I | re.S,
+    result.append(
+        f"SKU: {sku}"
     )
 
-    if json_scripts:
+    result.append(
+        f"Character position: {position:,}"
+    )
 
-        print(
-            "JSON script blocks:",
-            len(json_scripts),
+    result.append(
+        f"Container type: {container_type}"
+    )
+
+    result.append("")
+
+    result.append(
+        "-------------------- EXACT TAG --------------------"
+    )
+
+    result.append(tag)
+
+    result.append("")
+
+    result.append(
+        "-------------------- ATTRIBUTES --------------------"
+    )
+
+    if attributes:
+        result.append(
+            json.dumps(
+                attributes,
+                ensure_ascii=False,
+                indent=2
+            )
+        )
+    else:
+        result.append("NO ATTRIBUTES FOUND")
+
+    result.append("")
+
+    result.append(
+        "-------------------- DATA-* ATTRIBUTES --------------------"
+    )
+
+    if data_attributes:
+        result.append(
+            json.dumps(
+                data_attributes,
+                ensure_ascii=False,
+                indent=2
+            )
+        )
+    else:
+        result.append("NO DATA ATTRIBUTES")
+
+    result.append("")
+
+    result.append(
+        "-------------------- PREVIOUS HTML TAGS --------------------"
+    )
+
+    for i, parent in enumerate(parent_tags, 1):
+        result.append(
+            f"[{i}] {parent}"
         )
 
-        save_debug(
-            f"product_container_{sku}_"
-            f"json_scripts.txt",
-            "\n\n"
-            + (
-                "\n\n"
-                + "=" * 100
-                + "\n\n"
-            ).join(
-                json_scripts
-            ),
-        )
+    result.append("")
 
-    # --------------------------------------------------------
-    # VUE / COMPONENT ATTRIBUTES
-    # --------------------------------------------------------
+    result.append(
+        "-------------------- CONTEXT BEFORE --------------------"
+    )
 
-    vue_attributes = []
+    result.append(before)
 
-    for pattern in [
-        r':([a-zA-Z0-9_-]+)=',
-        r'v-([a-zA-Z0-9_-]+)=',
-        r'@([a-zA-Z0-9_-]+)=',
-    ]:
+    result.append("")
 
-        found = re.findall(
-            pattern,
-            container,
-            re.I,
-        )
+    result.append(
+        "-------------------- SKU --------------------"
+    )
 
-        vue_attributes.extend(
-            found
-        )
+    result.append(sku)
 
-    if vue_attributes:
+    result.append("")
 
-        save_debug(
-            f"product_container_{sku}_"
-            f"vue_attributes.txt",
-            "\n".join(
-                dict.fromkeys(
-                    vue_attributes
-                )
-            ),
-        )
+    result.append(
+        "-------------------- CONTEXT AFTER --------------------"
+    )
 
-    # --------------------------------------------------------
-    # NUMBERS
-    # --------------------------------------------------------
+    result.append(after)
+
+    result.append("")
+
+    result.append(
+        "-------------------- FULL CONTEXT --------------------"
+    )
+
+    result.append(full_context)
+
+    return "\n".join(result)
+
+
+# ============================================================
+# SEARCH FOR RELATED SKU / NUMBERS
+# ============================================================
+
+def extract_numbers_near_sku(source, sku, position):
+    """
+    Извлича всички числа в +/- 1500 символа
+    около SKU-то.
+    """
+
+    start = max(
+        0,
+        position - 1500
+    )
+
+    end = min(
+        len(source),
+        position + len(sku) + 1500
+    )
+
+    context = source[start:end]
 
     numbers = re.findall(
-        r'\b\d+(?:\.\d+)?\b',
-        container,
+        r"\b\d{2,}\b",
+        context
     )
 
-    unique_numbers = list(
-        dict.fromkeys(
-            numbers
-        )
-    )
+    # unique, запазваме реда
+    unique = []
 
-    save_debug(
-        f"product_container_{sku}_"
-        f"numbers.txt",
-        "\n".join(
-            unique_numbers
-        ),
+    for number in numbers:
+        if number not in unique:
+            unique.append(number)
+
+    return unique
+
+
+# ============================================================
+# FULL SKU ANALYSIS
+# ============================================================
+
+def analyze_sku(source, sku):
+    print()
+    print("=" * 60)
+    print(f"SKU ANALYSIS: {sku}")
+    print("=" * 60)
+
+    positions = find_exact_occurrences(
+        source,
+        sku
     )
 
     print(
-        "Уникални числа:",
-        len(unique_numbers),
+        f"Exact occurrences: {len(positions)}"
     )
 
+    if not positions:
+        print(
+            f"❌ SKU {sku} не е намерено."
+        )
+        return
+
+    all_results = []
+
     # --------------------------------------------------------
-    # TEXT ONLY
+    # Общ файл
     # --------------------------------------------------------
 
-    text_only = re.sub(
-        r'<[^>]+>',
-        " ",
-        container,
+    summary = []
+
+    summary.append(
+        f"SKU: {sku}"
     )
 
-    text_only = re.sub(
-        r'\s+',
-        " ",
-        text_only,
-    ).strip()
-
-    save_debug(
-        f"product_container_{sku}_"
-        f"text.txt",
-        text_only,
+    summary.append(
+        f"Total occurrences: {len(positions)}"
     )
 
+    summary.append("")
+
     # --------------------------------------------------------
-    # SUMMARY
+    # Всеки occurrence
     # --------------------------------------------------------
 
-    summary = {
-        "sku": sku,
-        "container_size": len(container),
-        "data_attributes": len(data_output),
-        "hrefs": href_output,
-        "images": image_output,
-        "variant_occurrences": len(variant_positions),
-        "quantity_occurrences": len(quantity_positions),
-        "price_occurrences": len(price_positions),
-        "variant_ids_found": [
-            variant_id
-            for variant_id in [
-                "8617",
-                "8618",
-            ]
-            if variant_id in container
-        ],
-        "known_skus_found": [
-            exact_sku
-            for exact_sku in [
-                "946534",
-                "946535",
-                "946537",
-            ]
-            if exact_sku in container
-        ],
-        "contains_barcode": (
-            "3809909465340"
-            in container
-        ),
-        "numbers": unique_numbers,
-    }
+    for index, position in enumerate(
+        positions,
+        start=1
+    ):
 
-    save_debug(
-        f"product_container_{sku}_"
-        f"summary.json",
-        json.dumps(
-            summary,
-            ensure_ascii=False,
-            indent=2,
-        ),
-    )
+        container_type = detect_container_type(
+            source,
+            position
+        )
 
-    return container
+        tag = get_tag_around_position(
+            source,
+            position
+        )
 
+        attributes = extract_attributes(tag)
 
-# ============================================================
-# DIRECT API SEARCH TEST
-# ============================================================
+        data_attributes = extract_data_attributes(
+            tag
+        )
 
-def test_api_search(
-    session,
-    sku,
-):
+        numbers = extract_numbers_near_sku(
+            source,
+            sku,
+            position
+        )
+
+        print()
+        print(
+            f"   #{index}: position={position:,}"
+        )
+
+        print(
+            f"      Type: {container_type}"
+        )
+
+        if tag:
+            print(
+                f"      Tag: {tag[:500]}"
+            )
+
+        if data_attributes:
+            print(
+                "      data-*:"
+            )
+
+            for key, value in data_attributes.items():
+                print(
+                    f"         {key} = {value}"
+                )
+
+        print(
+            f"      Numbers nearby: "
+            f"{', '.join(numbers)}"
+        )
+
+        result = analyze_occurrence(
+            source,
+            sku,
+            index,
+            position
+        )
+
+        all_results.append(result)
+
+        summary.append(
+            f"OCCURRENCE #{index}"
+        )
+
+        summary.append(
+            f"Position: {position}"
+        )
+
+        summary.append(
+            f"Type: {container_type}"
+        )
+
+        summary.append(
+            f"Tag: {tag}"
+        )
+
+        summary.append(
+            "Attributes:"
+        )
+
+        summary.append(
+            json.dumps(
+                attributes,
+                ensure_ascii=False,
+                indent=2
+            )
+        )
+
+        summary.append(
+            "Data attributes:"
+        )
+
+        summary.append(
+            json.dumps(
+                data_attributes,
+                ensure_ascii=False,
+                indent=2
+            )
+        )
+
+        summary.append(
+            "Numbers nearby:"
+        )
+
+        summary.append(
+            ", ".join(numbers)
+        )
+
+        summary.append("")
+        summary.append("-" * 100)
+        summary.append("")
+
+    # --------------------------------------------------------
+    # BeautifulSoup analysis
+    # --------------------------------------------------------
 
     print()
     print(
-        "=" * 60
+        "   🔬 BeautifulSoup text-node analysis..."
     )
+
+    soup_results = soup_context(
+        source,
+        sku,
+        len(positions)
+    )
+
     print(
-        "API SEARCH"
+        f"   BeautifulSoup matches: "
+        f"{len(soup_results)}"
     )
+
+    summary.append("")
+    summary.append(
+        "=" * 100
+    )
+    summary.append(
+        "BEAUTIFULSOUP MATCHES"
+    )
+    summary.append(
+        "=" * 100
+    )
+
+    for i, item in enumerate(
+        soup_results,
+        start=1
+    ):
+
+        summary.append(
+            f"\nMATCH #{i}"
+        )
+
+        summary.append(
+            f"String: {item['string']}"
+        )
+
+        summary.append(
+            f"Parent tag: {item['parent_tag']}"
+        )
+
+        summary.append(
+            "Parent attributes:"
+        )
+
+        summary.append(
+            json.dumps(
+                item["parent_attributes"],
+                ensure_ascii=False,
+                indent=2
+            )
+        )
+
+        summary.append(
+            "Parent HTML:"
+        )
+
+        summary.append(
+            item["parent_html"]
+        )
+
+    # --------------------------------------------------------
+    # SAVE
+    # --------------------------------------------------------
+
+    full_output = "\n\n".join(
+        all_results
+    )
+
+    save_text(
+        f"context_{sku}.txt",
+        full_output
+    )
+
+    save_text(
+        f"context_{sku}_summary.txt",
+        "\n".join(summary)
+    )
+
+    # --------------------------------------------------------
+    # Raw context around ALL occurrences
+    # --------------------------------------------------------
+
+    raw_context = []
+
+    for index, position in enumerate(
+        positions,
+        start=1
+    ):
+
+        start = max(
+            0,
+            position - 5000
+        )
+
+        end = min(
+            len(source),
+            position + len(sku) + 5000
+        )
+
+        raw_context.append(
+            f"\n\n{'=' * 100}\n"
+            f"OCCURRENCE #{index}\n"
+            f"POSITION: {position}\n"
+            f"{'=' * 100}\n\n"
+            f"{source[start:end]}"
+        )
+
+    save_text(
+        f"context_{sku}_raw_5000.txt",
+        "".join(raw_context)
+    )
+
+    print()
     print(
-        "=" * 60
+        f"   💾 Saved:"
     )
 
-    html = search_filstar(
-        session,
-        sku,
+    print(
+        f"      debug_html/context_{sku}.txt"
     )
 
-    if not html:
-        return None
-
-    # --------------------------------------------------------
-    # Exact values in the COMPLETE response
-    # --------------------------------------------------------
-
-    exact_values = [
-        sku,
-        "946534",
-        "946535",
-        "946537",
-        "8617",
-        "8618",
-        "3809909465340",
-    ]
-
-    exact_matches = []
-
-    for value in exact_values:
-
-        context = extract_context(
-            html,
-            value,
-            radius=5000,
-        )
-
-        if context:
-
-            print(
-                "   Exact match:",
-                value,
-            )
-
-            exact_matches.append(
-                context
-            )
-
-    if exact_matches:
-
-        save_debug(
-            f"api_search_{sku}_"
-            f"exact_matches.txt",
-            "\n\n".join(
-                exact_matches
-            ),
-        )
-
-    # --------------------------------------------------------
-    # Generic keywords
-    # --------------------------------------------------------
-
-    keywords = [
-        "variant",
-        "variants",
-        "quantity",
-        "price",
-        "discountedPrice",
-        "discountedRetailPrice",
-        "traderPrice",
-        "stores",
-        "maxQuantity",
-        "maxQuantityByStores",
-    ]
-
-    keyword_summary = {}
-
-    for keyword in keywords:
-
-        count = len(
-            list(
-                re.finditer(
-                    re.escape(
-                        keyword
-                    ),
-                    html,
-                    re.I,
-                )
-            )
-        )
-
-        keyword_summary[
-            keyword
-        ] = count
-
-    save_debug(
-        f"api_search_{sku}_"
-        f"keyword_summary.json",
-        json.dumps(
-            keyword_summary,
-            ensure_ascii=False,
-            indent=2,
-        ),
+    print(
+        f"      debug_html/context_{sku}_summary.txt"
     )
 
-    # --------------------------------------------------------
-    # Product container
-    # --------------------------------------------------------
-
-    container = inspect_product_container(
-        html,
-        sku,
+    print(
+        f"      debug_html/context_{sku}_raw_5000.txt"
     )
-
-    # --------------------------------------------------------
-    # Product ID
-    # --------------------------------------------------------
-
-    product_id = extract_product_id(
-        html
-    )
-
-    # --------------------------------------------------------
-    # Product URL
-    # --------------------------------------------------------
-
-    product_url = extract_product_url(
-        html,
-        sku,
-    )
-
-    if product_url:
-
-        print(
-            "   🔗 Product URL:",
-            product_url,
-        )
-
-    else:
-
-        print(
-            "   ❌ Product URL not found"
-        )
-
-    # --------------------------------------------------------
-    # SUMMARY
-    # --------------------------------------------------------
-
-    summary = {
-        "sku": sku,
-        "response_size": len(html),
-        "product_id": product_id,
-        "product_url": product_url,
-        "container_found": (
-            container is not None
-        ),
-        "container_size": (
-            len(container)
-            if container
-            else 0
-        ),
-        "keywords": keyword_summary,
-    }
-
-    save_debug(
-        f"api_search_{sku}_summary.json",
-        json.dumps(
-            summary,
-            ensure_ascii=False,
-            indent=2,
-        ),
-    )
-
-    return summary
 
 
 # ============================================================
@@ -1419,26 +848,14 @@ def test_api_search(
 
 def main():
 
-    print()
-    print(
-        "=" * 70
-    )
-    print(
-        "FILSTAR DIAGNOSTIC SCRAPER"
-    )
-    print(
-        "=" * 70
-    )
+    print("=" * 70)
+    print("FILSTAR SKU CONTEXT DIAGNOSTIC")
+    print("=" * 70)
 
-    # --------------------------------------------------------
-    # Debug
-    # --------------------------------------------------------
-
-    init_debug_folder()
-
-    # --------------------------------------------------------
-    # Read SKUs
-    # --------------------------------------------------------
+    os.makedirs(
+        DEBUG_DIR,
+        exist_ok=True
+    )
 
     skus = read_skus()
 
@@ -1446,177 +863,93 @@ def main():
         f"🧾 Общо SKU: {len(skus)}"
     )
 
-    if not skus:
-
-        print(
-            "❌ Няма SKU."
-        )
-
-        return
-
-    # --------------------------------------------------------
-    # Само първите 3 за диагностика
-    # --------------------------------------------------------
-
-    test_skus = skus[:3]
-
     print(
-        "🧪 Тестови SKU:",
-        ", ".join(
-            test_skus
-        ),
+        f"🧪 Тестови SKU: "
+        f"{', '.join(TEST_SKUS)}"
     )
 
-    # --------------------------------------------------------
-    # Session
-    # --------------------------------------------------------
+    session = requests.Session()
 
-    session = create_session()
-
-    # --------------------------------------------------------
-    # CSV
-    # --------------------------------------------------------
-
-    init_csv()
-
-    # --------------------------------------------------------
-    # Not found file
-    # --------------------------------------------------------
-
-    with open(
-        NOT_FOUND_FILE,
-        "w",
-        encoding="utf-8",
-        newline="",
-    ) as f:
-
-        writer = csv.writer(
-            f
-        )
-
-        writer.writerow(
-            ["SKU"]
-        )
-
-    # --------------------------------------------------------
-    # Process SKUs
-    # --------------------------------------------------------
-
-    all_summaries = []
+    session.headers.update(
+        HEADERS
+    )
 
     for index, sku in enumerate(
-        test_skus,
-        1,
+        TEST_SKUS,
+        start=1
     ):
 
         print()
+        print("=" * 70)
         print(
-            "=" * 70
+            f"SKU {index}/{len(TEST_SKUS)}: {sku}"
         )
+        print("=" * 70)
 
-        print(
-            f"SKU {index}/{len(test_skus)}:",
-            sku,
-        )
-
-        print(
-            "=" * 70
-        )
-
-        summary = test_api_search(
+        response = search_filstar(
             session,
-            sku,
-        )
-
-        if summary:
-
-            all_summaries.append(
-                summary
-            )
-
-        # ----------------------------------------------------
-        # Засега диагностичният режим НЕ записва резултат.
-        # ----------------------------------------------------
-
-        save_not_found(
             sku
         )
 
+        if response is None:
+            continue
+
+        source = response.text
+
         # ----------------------------------------------------
-        # Пауза
+        # SAVE RAW SEARCH
         # ----------------------------------------------------
 
-        if index < len(
-            test_skus
-        ):
+        raw_file = save_text(
+            f"search_{sku}.html",
+            source
+        )
 
-            time.sleep(
-                WAIT
-            )
+        print(
+            f"   💾 Raw HTML: {raw_file}"
+        )
 
-    # --------------------------------------------------------
-    # Global summary
-    # --------------------------------------------------------
+        # ----------------------------------------------------
+        # ANALYZE SKU
+        # ----------------------------------------------------
 
-    save_debug(
-        "GLOBAL_SUMMARY.json",
-        json.dumps(
-            all_summaries,
-            ensure_ascii=False,
-            indent=2,
-        ),
+        analyze_sku(
+            source,
+            sku
+        )
+
+    print()
+    print("=" * 70)
+    print("DIAGNOSTIC FINISHED")
+    print("=" * 70)
+
+    print(
+        f"Debug folder: {DEBUG_DIR}"
     )
 
     print()
     print(
-        "=" * 70
-    )
-    print(
-        "DIAGNOSTIC FINISHED"
-    )
-    print(
-        "=" * 70
+        "Следващото, което ни интересува:"
     )
 
     print(
-        "Debug folder:",
-        DEBUG_DIR,
+        "1. context_946537.txt"
+    )
+
+    print(
+        "2. context_946534.txt"
+    )
+
+    print(
+        "3. context_946535.txt"
     )
 
     print()
     print(
-        "ВАЖНО:"
+        "Особено важно е какъв е EXACT TAG / Container type "
+        "при occurrence-ите на 946534 и 946535."
     )
 
-    print(
-        "Този тест НЕ използва:"
-    )
-
-    print(
-        " - /get-serialize-product/"
-    )
-
-    print(
-        " - /search-json-typesense"
-    )
-
-    print(
-        " - product page"
-    )
-
-    print(
-        " - browser automation"
-    )
-
-    print(
-        " - Cloudflare bypass"
-    )
-
-
-# ============================================================
-# RUN
-# ============================================================
 
 if __name__ == "__main__":
-
     main()
