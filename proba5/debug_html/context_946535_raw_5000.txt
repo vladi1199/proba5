@@ -1,0 +1,259 @@
+
+
+====================================================================================================
+OCCURRENCE #1
+POSITION: 1154
+====================================================================================================
+
+<!doctype html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta name="facebook-domain-verification" content="hu18a9puhbeodzy107ugzd35gijlx4"/>
+
+    <link rel="preconnect" href="https://a.omappapi.com"/>
+    <link rel="preconnect" href="https://connect.facebook.net"/>
+    <link rel="preconnect" href="https://www.facebook.com"/>
+    <link rel="manifest" href="/manifest.json">
+
+
+                    <title>FilStar - Онлайн магазин за риболовни принадлежности </title>
+<meta name="description" content="Най-добрите оферти за риболовно оборудване и аксесоари в filstar.com. Купете сега висококачествено рибарско оборудване, въдици, макари, примамки и други."/>
+<meta name="author" content="meta.author"/>
+
+<meta property="fb:page_id" content="">
+
+<meta property="og:title" content="Риболовно оборудване и аксесоари - filstar.com "/>
+<meta property="og:type" content="website"/>
+<meta property="og:url" content="https://filstar.com/api/search?term=946535"/>
+<meta property="og:description" content="Най-добрите оферти за риболовно оборудване и аксесоари в filstar.com. Купете сега висококачествено рибарско оборудване, въдици, макари, примамки и други."/>
+<meta property="og:site_name" content="filstar.com"/>
+<meta property="og:image" content="home.og_image"/>
+
+
+    
+                        
+            
+                    <link rel="alternate" hreflang="en"
+                  href="https://filstar.com/en/api/search"/>
+                    <link rel="alternate" hreflang="bg"
+                  href="https://filstar.com/api/search"/>
+                    <link rel="alternate" hreflang="ro"
+                  href="https://filstar.com/ro/api/search"/>
+                    <link rel="alternate" hreflang="el"
+                  href="https://filstar.com/el/api/search"/>
+            
+
+            <link rel="stylesheet" href="/build/0.10ce7f60.css"><link rel="stylesheet" href="/build/2.76dd3e7b.css"><link rel="stylesheet" href="/build/app.9b5f459e.css">
+    
+                    <!-- Global site tag (gtag.js) - Google Analytics & Google Ads -->
+            <script async src="https://www.googletagmanager.com/gtag/js?id=UA-36261628-1"></script>
+            <script>
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', 'UA-36261628-1');
+                gtag('config', 'AW-17927543902');
+            </script>
+        </head>
+
+<body data-controller="gtm" data-object="user" data-main="1" data-data="">
+<div id="app" data-current-cart-url="/cart/current">
+
+                                                                                                                    
+        
+
+
+                <header>
+            <div class="container-fluid px-0">
+
+                <div class="top-header" data-controller="page-view"
+                     data-unique-event-id="">
+                    <nav class="navbar navbar-expand-xl">
+                        <a href="/"
+                           class="navbar-brand">
+                            <img src="/build/images/icons/filstar_logo_new.svg" alt="logo image"
+                                 class="img-fluid logo"/>
+                        </a>
+                        <div class="mobile-content-icons">
+                            
+                                                        <div class="nav-item language d-xl-none d-inline-block align-middle mr-1">
+                                <div class="dropdown">
+                                    <a class="nav-link dropdown-toggle d-flex align-items-center p-0"
+                                       href="#" id="languageDropdownTabletSec" type="button"
+                                       data-toggle="dropdown" aria-expanded="false">
+
+                                        <img src="/build/images/icons/en_flag.svg"
+                                             alt="flag icon" class="mx-0" width="32px">
+                                    </a>
+
+                                    <div class="dropdown-menu" aria-labelledby="languageDropdownTabletSec">
+                                                                                                                                    <a class="dropdown-item py-2 px-0"
+                                                   href="https://filstar.com/en/api/search">
+
+                                                    <img src="/build/images/icons/en_flag.svg"
+                                                         alt="flag icon"
+                                                         class="mr-1"
+                                                         width="20">
+
+                                                    English
+                                                </a>
+                                                                                                                                                                                                                                                                    <a class="dropdown-item py-2 px-0"
+                                                   href="https://filstar.com/ro/api/search">
+
+                                                    <img src="/build/images/icons/ro_flag.svg"
+                                                         alt="flag icon"
+                                                         class="mr-1"
+                                                         width="20">
+
+                                                    Română
+                                                </a>
+                                                                                                                                                                                <a class="dropdown-item py-2 px-0"
+                                                   href="https://filstar.com/el/api/search">
+
+                                            
+
+====================================================================================================
+OCCURRENCE #2
+POSITION: 177198
+====================================================================================================
+
+\u0435 \u043f\u043e\u043b\u0443\u0447\u0438\u0442\u0435 \u0431\u0435\u0437\u043f\u043b\u0430\u0442\u043d\u0430 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0430.&quot;,&quot;freeShippingLabel&quot;:&quot;\u041e\u0441\u0442\u0430\u0432\u0430\u0442 \u0432\u0438 \u043e\u0449\u0435 146.69 \u043b\u0432. \/ 75.00 \u20ac \u0434\u043e \u0431\u0435\u0437\u043f\u043b\u0430\u0442\u043d\u0430 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0430.&quot;,&quot;deliveryToBeConfirmed&quot;:false,&quot;amountForFreeShipping&quot;:75,&quot;formattedTaxPrice&quot;:null,&quot;taxPrice&quot;:0,&quot;canSeeOrderProcessingTax&quot;:false,&quot;canSeeDeliveryFee&quot;:false,&quot;calculateTaxInNextStep&quot;:true,&quot;rows&quot;:[],&quot;quantity&quot;:0}"></cart-widget>
+                                                                    </li>
+                            </ul>
+
+
+                        </div>
+                    </nav>
+                </div>
+
+
+                                                                                                                                                                                                                                                                                                                                                                
+                                                                                
+
+                                                                                                                                                                                                                                                                                                                                                                
+                                                                                                                                                                
+
+                                
+                                
+                                                                                                                                                                                                                                                                                                                                                                
+                                                                                                                                                                                                                                                                                                                                                                                
+
+
+                                                
+            </div>
+                                            </header>
+    
+
+                                    <div id="flash-messages-wrapper">
+                                            </div>
+                    
+    <main class="page categories products-listing">
+        <div class="page-content">
+
+            
+            <section class="products-listing-main-header">
+                <div class="container-fluid px-0">
+                    <div class="row no-gutters">
+                        <div class="col-xl-6 d-flex">
+                            <div class="left-side pt-2">
+                                <div>
+                                                                                                                                                                                        <h1>Търсене на продукти</h1>
+                                                                    </div>
+                            </div>
+                        </div>
+                        <div class="col-xl-6">
+                            <div class="right-side">
+                                                                <div class="cat-image-round"
+                                     style="background: url(/build/images/Search-Results.png); background-size: cover"></div>
+                                                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+
+            <section class="products-listing-view-holder">
+                <div class="container">
+                    <div class="row">
+                        <div class="col-xl-auto">
+                            <button class="filter-btn toggle-filters d-block d-xl-none">Покажи/Скрий филтрите</button>
+                            <div class="attributes">
+
+                                <div class="available-products">
+
+                                                                            <p>ПОКАЗВА <span>1</span> продукта</p>
+                                                                    </div>
+
+                                                                                                                                    <a class="clear-btn" href="/search?term=946535">
+                                    <img src="/build/images/icons/plus_pink.svg" alt="clear icon"/>
+                                    Изчисти филтрите</a>
+                                <aside class="sidebar active">
+                                                                        
+                                    <div class="widgets">
+
+                                                                                    <script type="text/x-template" id="range-filter">
+    <div class="widget-box">
+        <div :class="attribute?('range-slider' + attribute):'range-slider'">
+            <input type="text" :ref="attribute?('slider' + attribute):'slider'" class="js-range-slider" value="" />
+        </div>
+
+    </div>
+</script>
+                                            <div class="attributes-box-holder price-slider">
+                                                <p>Цена</p>
+                                                <div class="range-slider">
+                                                    <range-filter
+                                                            property="price_range"
+                                                            locale="bg"
+                                                            :exchange-rate="1.95583"
+                                                            :exchange-rate-mode="1"
+                                                            :convert-mode="1"
+                                                            :imin="0"
+                                                            :imax="0"
+                                                            :min-range="0"
+                                                            :max-range="2"></range-filter>
+                                                </div>
+                                            </div>
+                                        
+                                                                                    <filter-widget property="manufacturers"
+                                                           placeholder="Търсене на производител"
+                                                           :entries="[{&quot;id&quot;:&quot;11&quot;,&quot;selected&quot;:false,&quot;value&quot;:&quot;Filstar&quot;}]"
+                                                           title="Марка"></filter-widget>
+                                        
+                                        <script type="text/x-template" id="filter-widget">
+    <div class="attributes-box-holder" :class="{'widget-active': open}">
+        <p v-text="title"></p>
+        <div class="attributes-content">
+
+            <div class="filter-list">
+                <ul>
+                    <li v-for="entry in availableEntries" v-if="entry.selected" :class="{'selected': entry.selected}" class="d-block align-items-center justify-content-between">
+                        <label class="form-check-container d-flex justify-content-between">
+                            <input type="checkbox" @click="selectEntry(entry)"  :checked="entry.selected" class="form-check-input filter-check" >
+                            <span class="checkmark"></span>
+                            <span class="attr-info" v-html="entry.value"></span>
+                            <span class="badge bg-info text-white rounded-pill px-2"  style="line-height: 1.5;" v-if="entry.cntProducts" v-html="entry.cntProducts"></span>
+                        </label>
+                    </li>
+                    <li v-for="entry in availableEntries" v-if="!entry.selected" :class="{'selected': entry.selected}" class="d-block align-items-center justify-content-between">
+                        <label class="form-check-container d-flex justify-content-between">
+                            <input type="checkbox" @click="selectEntry(entry)"  :checked="entry.selected" class="form-check-input filter-check" >
+                            <span class="checkmark"></span>
+                            <span class="attr-info" v-html="entry.value"></span>
+                            <span class="badge bg-info text-white rounded-pill px-2"  style="line-height: 1.5;" v-if="entry.cntProducts" v-html="entry.cntProducts"></span>
+                        </label>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</script>
+                                                                                    <filter-widget property="categories"
+                                                           placeholder="Търсене по категория"
+                                                           :entries="[{&quot;id&quot;:&quot;48&quot;,&quot;selected&quot;:false,&quot;value&quot;:&quot;\u041c\u0443\u0445\u0430\u0440\u0441\u043a\u0438 \u0440\u0438\u0431\u043e\u043b\u043e\u0432&quot;}]"
+                                                           title="Категории"></filter-widget>
+                                        
+                             

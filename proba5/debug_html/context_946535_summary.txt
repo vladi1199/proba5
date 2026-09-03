@@ -1,0 +1,41 @@
+SKU: 946535
+Total occurrences: 2
+
+OCCURRENCE #1
+Position: 1154
+Type: NORMAL HTML
+Tag: <meta property="og:url" content="https://filstar.com/api/search?term=946535"/>
+Attributes:
+{
+  "_tag": "meta",
+  "property": "og:url",
+  "content": "https://filstar.com/api/search?term=946535"
+}
+Data attributes:
+{}
+Numbers nearby:
+946535, 36261628, 17927543902
+
+----------------------------------------------------------------------------------------------------
+
+OCCURRENCE #2
+Position: 177198
+Type: NORMAL HTML
+Tag: <a class="clear-btn" href="/search?term=946535">
+Attributes:
+{
+  "_tag": "a",
+  "class": "clear-btn",
+  "href": "/search?term=946535"
+}
+Data attributes:
+{}
+Numbers nearby:
+946535, 95583
+
+----------------------------------------------------------------------------------------------------
+
+
+====================================================================================================
+BEAUTIFULSOUP MATCHES
+====================================================================================================

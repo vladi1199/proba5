@@ -1,0 +1,297 @@
+====================================================================================================
+OCCURRENCE #1
+====================================================================================================
+SKU: 946534
+Character position: 1,154
+Container type: NORMAL HTML
+
+-------------------- EXACT TAG --------------------
+<meta property="og:url" content="https://filstar.com/api/search?term=946534"/>
+
+-------------------- ATTRIBUTES --------------------
+{
+  "_tag": "meta",
+  "property": "og:url",
+  "content": "https://filstar.com/api/search?term=946534"
+}
+
+-------------------- DATA-* ATTRIBUTES --------------------
+NO DATA ATTRIBUTES
+
+-------------------- PREVIOUS HTML TAGS --------------------
+[1] <meta name="facebook-domain-verification" content="hu18a9puhbeodzy107ugzd35gijlx4"/>
+[2] <link rel="preconnect" href="https://a.omappapi.com"/>
+[3] <link rel="preconnect" href="https://connect.facebook.net"/>
+[4] <link rel="preconnect" href="https://www.facebook.com"/>
+[5] <link rel="manifest" href="/manifest.json">
+[6] <title>
+[7] </title>
+[8] <meta name="description" content="Най-добрите оферти за риболовно оборудване и аксесоари в filstar.com. Купете сега висококачествено рибарско оборудване, въдици, макари, примамки и други."/>
+[9] <meta name="author" content="meta.author"/>
+[10] <meta property="fb:page_id" content="">
+[11] <meta property="og:title" content="Риболовно оборудване и аксесоари - filstar.com "/>
+[12] <meta property="og:type" content="website"/>
+
+-------------------- CONTEXT BEFORE --------------------
+<!doctype html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta name="facebook-domain-verification" content="hu18a9puhbeodzy107ugzd35gijlx4"/>
+
+    <link rel="preconnect" href="https://a.omappapi.com"/>
+    <link rel="preconnect" href="https://connect.facebook.net"/>
+    <link rel="preconnect" href="https://www.facebook.com"/>
+    <link rel="manifest" href="/manifest.json">
+
+
+                    <title>FilStar - Онлайн магазин за риболовни принадлежности </title>
+<meta name="description" content="Най-добрите оферти за риболовно оборудване и аксесоари в filstar.com. Купете сега висококачествено рибарско оборудване, въдици, макари, примамки и други."/>
+<meta name="author" content="meta.author"/>
+
+<meta property="fb:page_id" content="">
+
+<meta property="og:title" content="Риболовно оборудване и аксесоари - filstar.com "/>
+<meta property="og:type" content="website"/>
+<meta property="og:url" content="https://filstar.com/api/search?term=
+
+-------------------- SKU --------------------
+946534
+
+-------------------- CONTEXT AFTER --------------------
+"/>
+<meta property="og:description" content="Най-добрите оферти за риболовно оборудване и аксесоари в filstar.com. Купете сега висококачествено рибарско оборудване, въдици, макари, примамки и други."/>
+<meta property="og:site_name" content="filstar.com"/>
+<meta property="og:image" content="home.og_image"/>
+
+
+    
+                        
+            
+                    <link rel="alternate" hreflang="en"
+                  href="https://filstar.com/en/api/search"/>
+                    <link rel="alternate" hreflang="bg"
+                  href="https://filstar.com/api/search"/>
+                    <link rel="alternate" hreflang="ro"
+                  href="https://filstar.com/ro/api/search"/>
+                    <link rel="alternate" hreflang="el"
+                  href="https://filstar.com/el/api/search"/>
+            
+
+            <link rel="stylesheet" href="/build/0.10ce7f60.css"><link rel="stylesheet" href="/build/2.76dd3e7b.css"><link rel="stylesheet" href="/build/app.9b5f459e.css">
+    
+                    <!-- Global site tag (gtag.js) - Google Analytics & Google Ads -->
+            <script async src="https://www.googletagmanager.com/gtag/js?id=UA-36261628-1"></script>
+            <script>
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', 'UA-36261628-1');
+                gtag('config', 'AW-17927543902');
+            </script>
+    
+
+-------------------- FULL CONTEXT --------------------
+<!doctype html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta name="facebook-domain-verification" content="hu18a9puhbeodzy107ugzd35gijlx4"/>
+
+    <link rel="preconnect" href="https://a.omappapi.com"/>
+    <link rel="preconnect" href="https://connect.facebook.net"/>
+    <link rel="preconnect" href="https://www.facebook.com"/>
+    <link rel="manifest" href="/manifest.json">
+
+
+                    <title>FilStar - Онлайн магазин за риболовни принадлежности </title>
+<meta name="description" content="Най-добрите оферти за риболовно оборудване и аксесоари в filstar.com. Купете сега висококачествено рибарско оборудване, въдици, макари, примамки и други."/>
+<meta name="author" content="meta.author"/>
+
+<meta property="fb:page_id" content="">
+
+<meta property="og:title" content="Риболовно оборудване и аксесоари - filstar.com "/>
+<meta property="og:type" content="website"/>
+<meta property="og:url" content="https://filstar.com/api/search?term=946534"/>
+<meta property="og:description" content="Най-добрите оферти за риболовно оборудване и аксесоари в filstar.com. Купете сега висококачествено рибарско оборудване, въдици, макари, примамки и други."/>
+<meta property="og:site_name" content="filstar.com"/>
+<meta property="og:image" content="home.og_image"/>
+
+
+    
+                        
+            
+                    <link rel="alternate" hreflang="en"
+                  href="https://filstar.com/en/api/search"/>
+                    <link rel="alternate" hreflang="bg"
+                  href="https://filstar.com/api/search"/>
+                    <link rel="alternate" hreflang="ro"
+                  href="https://filstar.com/ro/api/search"/>
+                    <link rel="alternate" hreflang="el"
+                  href="https://filstar.com/el/api/search"/>
+            
+
+            <link rel="stylesheet" href="/build/0.10ce7f60.css"><link rel="stylesheet" href="/build/2.76dd3e7b.css"><link rel="stylesheet" href="/build/app.9b5f459e.css">
+    
+                    <!-- Global site tag (gtag.js) - Google Analytics & Google Ads -->
+            <script async src="https://www.googletagmanager.com/gtag/js?id=UA-36261628-1"></script>
+            <script>
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', 'UA-36261628-1');
+                gtag('config', 'AW-17927543902');
+            </script>
+    
+
+====================================================================================================
+OCCURRENCE #2
+====================================================================================================
+SKU: 946534
+Character position: 177,198
+Container type: NORMAL HTML
+
+-------------------- EXACT TAG --------------------
+<a class="clear-btn" href="/search?term=946534">
+
+-------------------- ATTRIBUTES --------------------
+{
+  "_tag": "a",
+  "class": "clear-btn",
+  "href": "/search?term=946534"
+}
+
+-------------------- DATA-* ATTRIBUTES --------------------
+NO DATA ATTRIBUTES
+
+-------------------- PREVIOUS HTML TAGS --------------------
+[1] <div class="container">
+[2] <div class="row">
+[3] <div class="col-xl-auto">
+[4] <button class="filter-btn toggle-filters d-block d-xl-none">
+[5] </button>
+[6] <div class="attributes">
+[7] <div class="available-products">
+[8] <p>
+[9] <span>
+[10] </span>
+[11] </p>
+[12] </div>
+
+-------------------- CONTEXT BEFORE --------------------
+                                                 <h1>Търсене на продукти</h1>
+                                                                    </div>
+                            </div>
+                        </div>
+                        <div class="col-xl-6">
+                            <div class="right-side">
+                                                                <div class="cat-image-round"
+                                     style="background: url(/build/images/Search-Results.png); background-size: cover"></div>
+                                                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+
+            <section class="products-listing-view-holder">
+                <div class="container">
+                    <div class="row">
+                        <div class="col-xl-auto">
+                            <button class="filter-btn toggle-filters d-block d-xl-none">Покажи/Скрий филтрите</button>
+                            <div class="attributes">
+
+                                <div class="available-products">
+
+                                                                            <p>ПОКАЗВА <span>1</span> продукта</p>
+                                                                    </div>
+
+                                                                                                                                    <a class="clear-btn" href="/search?term=
+
+-------------------- SKU --------------------
+946534
+
+-------------------- CONTEXT AFTER --------------------
+">
+                                    <img src="/build/images/icons/plus_pink.svg" alt="clear icon"/>
+                                    Изчисти филтрите</a>
+                                <aside class="sidebar active">
+                                                                        
+                                    <div class="widgets">
+
+                                                                                    <script type="text/x-template" id="range-filter">
+    <div class="widget-box">
+        <div :class="attribute?('range-slider' + attribute):'range-slider'">
+            <input type="text" :ref="attribute?('slider' + attribute):'slider'" class="js-range-slider" value="" />
+        </div>
+
+    </div>
+</script>
+                                            <div class="attributes-box-holder price-slider">
+                                                <p>Цена</p>
+                                                <div class="range-slider">
+                                                    <range-filter
+                                                            property="price_range"
+                                                            locale="bg"
+                                                            :exchange-rate="1.95583"
+                                                            :exchange-rate-mode="1"
+                                                            :convert-mode="1"
+                                                        
+
+-------------------- FULL CONTEXT --------------------
+                                                 <h1>Търсене на продукти</h1>
+                                                                    </div>
+                            </div>
+                        </div>
+                        <div class="col-xl-6">
+                            <div class="right-side">
+                                                                <div class="cat-image-round"
+                                     style="background: url(/build/images/Search-Results.png); background-size: cover"></div>
+                                                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+
+            <section class="products-listing-view-holder">
+                <div class="container">
+                    <div class="row">
+                        <div class="col-xl-auto">
+                            <button class="filter-btn toggle-filters d-block d-xl-none">Покажи/Скрий филтрите</button>
+                            <div class="attributes">
+
+                                <div class="available-products">
+
+                                                                            <p>ПОКАЗВА <span>1</span> продукта</p>
+                                                                    </div>
+
+                                                                                                                                    <a class="clear-btn" href="/search?term=946534">
+                                    <img src="/build/images/icons/plus_pink.svg" alt="clear icon"/>
+                                    Изчисти филтрите</a>
+                                <aside class="sidebar active">
+                                                                        
+                                    <div class="widgets">
+
+                                                                                    <script type="text/x-template" id="range-filter">
+    <div class="widget-box">
+        <div :class="attribute?('range-slider' + attribute):'range-slider'">
+            <input type="text" :ref="attribute?('slider' + attribute):'slider'" class="js-range-slider" value="" />
+        </div>
+
+    </div>
+</script>
+                                            <div class="attributes-box-holder price-slider">
+                                                <p>Цена</p>
+                                                <div class="range-slider">
+                                                    <range-filter
+                                                            property="price_range"
+                                                            locale="bg"
+                                                            :exchange-rate="1.95583"
+                                                            :exchange-rate-mode="1"
+                                                            :convert-mode="1"
+                                                        

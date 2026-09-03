@@ -1,0 +1,157 @@
+SKU: 946537
+Total occurrences: 8
+
+OCCURRENCE #1
+Position: 1154
+Type: NORMAL HTML
+Tag: <meta property="og:url" content="https://filstar.com/api/search?term=946537"/>
+Attributes:
+{
+  "_tag": "meta",
+  "property": "og:url",
+  "content": "https://filstar.com/api/search?term=946537"
+}
+Data attributes:
+{}
+Numbers nearby:
+946537, 36261628, 17927543902
+
+----------------------------------------------------------------------------------------------------
+
+OCCURRENCE #2
+Position: 177198
+Type: NORMAL HTML
+Tag: <a class="clear-btn" href="/search?term=946537">
+Attributes:
+{
+  "_tag": "a",
+  "class": "clear-btn",
+  "href": "/search?term=946537"
+}
+Data attributes:
+{}
+Numbers nearby:
+946537, 95583
+
+----------------------------------------------------------------------------------------------------
+
+OCCURRENCE #3
+Position: 194645
+Type: NORMAL HTML
+Tag: <source srcset="https://filstar.com/media/cache/products_list_webp/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg" type="image/webp">
+Attributes:
+{
+  "_tag": "source",
+  "srcset": "https://filstar.com/media/cache/products_list_webp/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg",
+  "type": "image/webp"
+}
+Data attributes:
+{}
+Numbers nearby:
+2557, 89, 99, 20220223114652, 326
+
+----------------------------------------------------------------------------------------------------
+
+OCCURRENCE #4
+Position: 194814
+Type: NORMAL HTML
+Tag: <source srcset="https://filstar.com/media/cache/products_list/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg" type="image/">
+Attributes:
+{
+  "_tag": "source",
+  "srcset": "https://filstar.com/media/cache/products_list/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg",
+  "type": "image/"
+}
+Data attributes:
+{}
+Numbers nearby:
+2557, 89, 99, 20220223114652, 326
+
+----------------------------------------------------------------------------------------------------
+
+OCCURRENCE #5
+Position: 194998
+Type: NORMAL HTML
+Tag: <img src="https://filstar.com/media/cache/products_list/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg"
+                                            alt = "Комплект мухи за булдо FilStar тип C"
+                    
+                    loading="lazy"
+                class = ""
+        >
+Attributes:
+{
+  "_tag": "img",
+  "src": "https://filstar.com/media/cache/products_list/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg",
+  "alt": "Комплект мухи за булдо FilStar тип C",
+  "loading": "lazy",
+  "class": ""
+}
+Data attributes:
+{}
+Numbers nearby:
+2557, 89, 99, 20220223114652, 326, 12
+
+----------------------------------------------------------------------------------------------------
+
+OCCURRENCE #6
+Position: 197434
+Type: NORMAL HTML
+Tag: <source srcset="https://filstar.com/media/cache/products_list_webp/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg" type="image/webp">
+Attributes:
+{
+  "_tag": "source",
+  "srcset": "https://filstar.com/media/cache/products_list_webp/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg",
+  "type": "image/webp"
+}
+Data attributes:
+{}
+Numbers nearby:
+12, 2557, 20220223114652, 326
+
+----------------------------------------------------------------------------------------------------
+
+OCCURRENCE #7
+Position: 197603
+Type: NORMAL HTML
+Tag: <source srcset="https://filstar.com/media/cache/products_list/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg" type="image/">
+Attributes:
+{
+  "_tag": "source",
+  "srcset": "https://filstar.com/media/cache/products_list/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg",
+  "type": "image/"
+}
+Data attributes:
+{}
+Numbers nearby:
+12, 2557, 20220223114652, 326
+
+----------------------------------------------------------------------------------------------------
+
+OCCURRENCE #8
+Position: 197787
+Type: NORMAL HTML
+Tag: <img src="https://filstar.com/media/cache/products_list/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg"
+                                            alt = "Комплект мухи за булдо FilStar тип C"
+                    
+                    loading="lazy"
+                class = ""
+        >
+Attributes:
+{
+  "_tag": "img",
+  "src": "https://filstar.com/media/cache/products_list/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg",
+  "alt": "Комплект мухи за булдо FilStar тип C",
+  "loading": "lazy",
+  "class": ""
+}
+Data attributes:
+{}
+Numbers nearby:
+12, 2557, 20220223114652, 326
+
+----------------------------------------------------------------------------------------------------
+
+
+====================================================================================================
+BEAUTIFULSOUP MATCHES
+====================================================================================================
