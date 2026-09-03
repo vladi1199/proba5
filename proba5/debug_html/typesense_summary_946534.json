@@ -1,0 +1,59 @@
+[
+  {
+    "test": "q",
+    "params": {
+      "q": "946534"
+    },
+    "url": "https://filstar.com/search-json-typesense?q=946534",
+    "status": 403,
+    "content_type": "text/html; charset=UTF-8",
+    "length": 5894,
+    "json_error": "Expecting value: line 1 column 1 (char 0)"
+  },
+  {
+    "test": "term",
+    "params": {
+      "term": "946534"
+    },
+    "url": "https://filstar.com/search-json-typesense?term=946534",
+    "status": 403,
+    "content_type": "text/html; charset=UTF-8",
+    "length": 5903,
+    "json_error": "Expecting value: line 1 column 1 (char 0)"
+  },
+  {
+    "test": "query",
+    "params": {
+      "query": "946534"
+    },
+    "url": "https://filstar.com/search-json-typesense?query=946534",
+    "status": 403,
+    "content_type": "text/html; charset=UTF-8",
+    "length": 5928,
+    "json_error": "Expecting value: line 1 column 1 (char 0)"
+  },
+  {
+    "test": "q_query_by",
+    "params": {
+      "q": "946534",
+      "query_by": "sku,name"
+    },
+    "url": "https://filstar.com/search-json-typesense?q=946534&query_by=sku%2Cname",
+    "status": 403,
+    "content_type": "text/html; charset=UTF-8",
+    "length": 6012,
+    "json_error": "Expecting value: line 1 column 1 (char 0)"
+  },
+  {
+    "test": "q_query_by_all",
+    "params": {
+      "q": "946534",
+      "query_by": "*"
+    },
+    "url": "https://filstar.com/search-json-typesense?q=946534&query_by=%2A",
+    "status": 403,
+    "content_type": "text/html; charset=UTF-8",
+    "length": 5964,
+    "json_error": "Expecting value: line 1 column 1 (char 0)"
+  }
+]
