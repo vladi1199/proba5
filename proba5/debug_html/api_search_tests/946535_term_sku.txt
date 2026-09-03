@@ -1,3 +1,8 @@
+URL: https://filstar.com/api/search?term=946535&sku=946535
+HTTP: 200
+Content-Type: text/html; charset=UTF-8
+Size: 224440
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -20,7 +25,7 @@
 
 <meta property="og:title" content="Риболовно оборудване и аксесоари - filstar.com "/>
 <meta property="og:type" content="website"/>
-<meta property="og:url" content="https://filstar.com/api/search?term=946534"/>
+<meta property="og:url" content="https://filstar.com/api/search?sku=946535&amp;term=946535"/>
 <meta property="og:description" content="Най-добрите оферти за риболовно оборудване и аксесоари в filstar.com. Купете сега висококачествено рибарско оборудване, въдици, макари, примамки и други."/>
 <meta property="og:site_name" content="filstar.com"/>
 <meta property="og:image" content="home.og_image"/>
@@ -1492,7 +1497,7 @@
                                                                             <p>ПОКАЗВА <span>1</span> продукта</p>
                                                                     </div>
 
-                                                                                                                                    <a class="clear-btn" href="/search?term=946534">
+                                                                                                                                    <a class="clear-btn" href="/search?term=946535">
                                     <img src="/build/images/icons/plus_pink.svg" alt="clear icon"/>
                                     Изчисти филтрите</a>
                                 <aside class="sidebar active">
@@ -2032,7 +2037,7 @@
                             <div class="info-bulletin-footer">
                                 <div class="row justify-content-center justify-content-xl-start">
                                     <div class="col-xl-10 col-lg-7 col-md-8">
-                                        <a class="d-block mb-4" target="_blank" href="https://www.filstar.com/bulgaria/pdf/Proekt.pdf?version=1788440783">
+                                        <a class="d-block mb-4" target="_blank" href="https://www.filstar.com/bulgaria/pdf/Proekt.pdf?version=1788440803">
                                             <img class="w-100" src="/build/images/project-info-image.jpg"
                                                  alt="Project info image"/>
                                         </a>
@@ -2117,6 +2122,5 @@
     
 
 
-<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v3d52b47920f24c319d37e2661827c42b1787588026925" integrity="sha512-d9sL6GJLXn6fInD1+TVXhTcQOsmxeHfmHAvwGDIxp5TO+uo1fiWW7mHomMj4MLRlCsJDTqXzWLHJFFlPCEIj/A==" data-cf-beacon='{"version":"2024.11.0","token":"92193b7a7ef447e3baf52d406814571b","r":1}' crossorigin="anonymous"></script>
 </body>
 </html>
