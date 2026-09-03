@@ -1,25 +1,16 @@
-```text
 import csv
 import re
 import time
-from pathlib import Path
-
 import requests
 from bs4 import BeautifulSoup
 
-
 BASE_URL = "https://filstar.com"
 CSV_FILE = "sku_list_filstar.csv"
-
+TEST_LIMIT = 10
 WAIT = 0
 
 
 def load_skus():
-    """
-    Зарежда SKU от CSV.
-    Всичко между два реда с точно ## се игнорира.
-    """
-
     skus = []
     skip_block = False
 
@@ -43,10 +34,6 @@ def load_skus():
 
 
 def extract_product_data(html, sku):
-    """
-    Извлича цена и наличност от HTML-а на /api/search?term=SKU.
-    """
-
     soup = BeautifulSoup(html, "html.parser")
 
     result = {
@@ -59,41 +46,26 @@ def extract_product_data(html, sku):
         "status": "",
     }
 
-    # ---------------------------------------------------------
-    # Проверяваме дали SKU изобщо присъства
-    # ---------------------------------------------------------
+    page_text = soup.get_text(" ", strip=True)
 
-    text = soup.get_text(" ", strip=True)
-
-    if sku not in text:
+    if sku not in page_text:
         result["status"] = "SKU_NOT_FOUND"
         return result
 
     result["found"] = True
 
-    # ---------------------------------------------------------
-    # Намираме product блок, който съдържа конкретния SKU
-    # ---------------------------------------------------------
-
-    elements = soup.find_all(
-        attrs={"data-product-id": True}
-    )
+    elements = soup.find_all(attrs={"data-product-id": True})
 
     product_element = None
 
     for element in elements:
-
         current = element
 
         for _ in range(10):
-
             if current is None:
                 break
 
-            current_text = current.get_text(
-                " ",
-                strip=True
-            )
+            current_text = current.get_text(" ", strip=True)
 
             if sku in current_text:
                 product_element = current
@@ -104,63 +76,33 @@ def extract_product_data(html, sku):
         if product_element is not None:
             break
 
-    # ---------------------------------------------------------
-    # Ако не сме намерили data-product блок
-    # ---------------------------------------------------------
-
     if product_element is None:
-
-        result["status"] = (
-            "SKU_FOUND_BUT_PRODUCT_BLOCK_NOT_FOUND"
-        )
-
+        result["status"] = "SKU_FOUND_BUT_PRODUCT_BLOCK_NOT_FOUND"
         return result
-
-    # ---------------------------------------------------------
-    # Product ID
-    # ---------------------------------------------------------
 
     current = product_element
 
     for _ in range(10):
-
         if current is None:
             break
 
-        product_id = current.get(
-            "data-product-id"
-        )
+        product_id = current.get("data-product-id")
 
         if product_id:
-            result["product_id"] = product_id
+            result["product_id"] = product_id.strip()
             break
 
         current = current.parent
 
-    # ---------------------------------------------------------
-    # Име
-    # ---------------------------------------------------------
-
     name = (
-        product_element.get(
-            "data-product-name"
-        )
-        or product_element.get(
-            "data-product-variant"
-        )
+        product_element.get("data-product-name")
+        or product_element.get("data-product-variant")
         or ""
     )
 
     result["name"] = name.strip()
 
-    # ---------------------------------------------------------
-    # ЦЕНА
-    # ---------------------------------------------------------
-
-    block_text = product_element.get_text(
-        " ",
-        strip=True
-    )
+    block_text = product_element.get_text(" ", strip=True)
 
     price = ""
 
@@ -170,41 +112,18 @@ def extract_product_data(html, sku):
     ]
 
     for pattern in price_patterns:
-
-        match = re.search(
-            pattern,
-            block_text,
-            re.IGNORECASE
-        )
+        match = re.search(pattern, block_text, re.IGNORECASE)
 
         if match:
-
-            price = (
-                match.group(1)
-                .replace(",", ".")
-            )
-
+            price = match.group(1).replace(",", ".")
             break
 
     result["price"] = price
 
-    # ---------------------------------------------------------
-    # НАЛИЧНОСТ
-    # ---------------------------------------------------------
-
-    # Събираме класовете на елемента
-    classes = product_element.get(
-        "class",
-        []
-    )
-
-    class_text = " ".join(
-        classes
-    ).lower()
-
+    classes = product_element.get("class", [])
+    class_text = " ".join(classes).lower()
     lower_text = block_text.lower()
 
-    # Маркери за неналичност
     out_of_stock_markers = [
         "out-of-stock",
         "out of stock",
@@ -214,15 +133,13 @@ def extract_product_data(html, sku):
         "не е наличен",
     ]
 
-    # Маркери за наличност
     available_markers = [
         "в наличност",
         "наличен",
     ]
 
     is_out_of_stock = any(
-        marker in class_text
-        or marker in lower_text
+        marker in class_text or marker in lower_text
         for marker in out_of_stock_markers
     )
 
@@ -232,27 +149,21 @@ def extract_product_data(html, sku):
     )
 
     if is_out_of_stock:
-
         result["available"] = "NO"
         result["status"] = "OUT_OF_STOCK"
 
     elif is_available:
-
         result["available"] = "YES"
         result["status"] = "AVAILABLE"
 
     else:
-
         result["available"] = "UNKNOWN"
-        result["status"] = (
-            "FOUND_NO_STOCK_MARKER"
-        )
+        result["status"] = "FOUND_NO_STOCK_MARKER"
 
     return result
 
 
 def check_sku(session, sku):
-
     url = f"{BASE_URL}/api/search"
 
     params = {
@@ -265,23 +176,16 @@ def check_sku(session, sku):
     print("=" * 70)
 
     try:
-
         response = session.get(
             url,
             params=params,
             timeout=30
         )
 
-        print(
-            f"HTTP: {response.status_code}"
-        )
+        print(f"HTTP: {response.status_code}")
 
         if response.status_code != 200:
-
-            print(
-                f"❌ HTTP ERROR: "
-                f"{response.status_code}"
-            )
+            print(f"ERROR: HTTP {response.status_code}")
 
             return {
                 "sku": sku,
@@ -290,55 +194,26 @@ def check_sku(session, sku):
                 "name": "",
                 "price": "",
                 "available": "",
-                "status": (
-                    f"HTTP_{response.status_code}"
-                ),
+                "status": f"HTTP_{response.status_code}",
             }
 
         html = response.text
 
-        print(
-            f"HTML: {len(html)} characters"
-        )
+        print(f"HTML: {len(html)} characters")
 
-        result = extract_product_data(
-            html,
-            sku
-        )
+        result = extract_product_data(html, sku)
 
         print()
-        print(
-            f"Product ID: "
-            f"{result['product_id']}"
-        )
-
-        print(
-            f"Name: "
-            f"{result['name']}"
-        )
-
-        print(
-            f"Price: "
-            f"{result['price']}"
-        )
-
-        print(
-            f"Available: "
-            f"{result['available']}"
-        )
-
-        print(
-            f"Status: "
-            f"{result['status']}"
-        )
+        print(f"Product ID: {result['product_id']}")
+        print(f"Name: {result['name']}")
+        print(f"Price: {result['price']}")
+        print(f"Available: {result['available']}")
+        print(f"Status: {result['status']}")
 
         return result
 
     except Exception as e:
-
-        print(
-            f"❌ ERROR: {e}"
-        )
+        print(f"ERROR: {e}")
 
         return {
             "sku": sku,
@@ -352,23 +227,17 @@ def check_sku(session, sku):
 
 
 def main():
-
     print("=" * 70)
     print("FILSTAR API SEARCH TEST")
     print("=" * 70)
 
     skus = load_skus()
 
-    print(
-        f"Общо SKU: {len(skus)}"
-    )
+    print(f"Общо SKU: {len(skus)}")
 
-    # Първите 10 SKU за тест
-    test_skus = skus[:10]
+    test_skus = skus[:TEST_LIMIT]
 
-    print(
-        f"Тестови SKU: {len(test_skus)}"
-    )
+    print(f"Тестови SKU: {len(test_skus)}")
 
     session = requests.Session()
 
@@ -382,39 +251,26 @@ def main():
             "Safari/537.36"
         ),
         "Accept": (
-            "text/html,application/xhtml+xml,"
-            "application/xml;q=0.9,*/*;q=0.8"
+            "text/html,"
+            "application/xhtml+xml,"
+            "application/xml;q=0.9,"
+            "*/*;q=0.8"
         ),
-        "Accept-Language": (
-            "bg-BG,bg;q=0.9,en;q=0.8"
-        ),
+        "Accept-Language": "bg-BG,bg;q=0.9,en;q=0.8",
     })
 
     results = []
 
-    for index, sku in enumerate(
-        test_skus,
-        start=1
-    ):
-
+    for index, sku in enumerate(test_skus, start=1):
         print()
-        print(
-            f"[{index}/{len(test_skus)}]"
-        )
+        print(f"[{index}/{len(test_skus)}]")
 
-        result = check_sku(
-            session,
-            sku
-        )
+        result = check_sku(session, sku)
 
         results.append(result)
 
-        if WAIT:
+        if WAIT > 0:
             time.sleep(WAIT)
-
-    # ---------------------------------------------------------
-    # Запис на резултатите
-    # ---------------------------------------------------------
 
     output_file = "filstar_api_test.csv"
 
@@ -434,33 +290,24 @@ def main():
         encoding="utf-8-sig",
         newline=""
     ) as f:
-
         writer = csv.DictWriter(
             f,
             fieldnames=fieldnames
         )
 
         writer.writeheader()
-
         writer.writerows(results)
-
-    # ---------------------------------------------------------
-    # Финален резултат
-    # ---------------------------------------------------------
 
     print()
     print("=" * 70)
     print("ГОТОВО")
     print("=" * 70)
 
-    print(
-        f"Резултат: {output_file}"
-    )
+    print(f"Резултатът е записан в: {output_file}")
 
     print()
 
     for result in results:
-
         print(
             f"{result['sku']} | "
             f"{result['price']} € | "
@@ -471,4 +318,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-```
