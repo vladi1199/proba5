@@ -4,7 +4,6 @@ import requests
 from bs4 import BeautifulSoup
 
 BASE_URL = "https://filstar.com"
-WAIT = 2
 
 DEBUG_DIR = "debug_html"
 os.makedirs(DEBUG_DIR, exist_ok=True)
@@ -15,19 +14,23 @@ HEADERS = {
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/139.0.0.0 Safari/537.36"
     ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept": (
+        "text/html,application/xhtml+xml,application/xml;"
+        "q=0.9,image/avif,image/webp,*/*;q=0.8"
+    ),
     "Accept-Language": "bg-BG,bg;q=0.9,en-US;q=0.8,en;q=0.7",
 }
 
 
-def print_separator(title):
+def separator(title):
     print()
     print("=" * 80)
     print(title)
     print("=" * 80)
 
 
-def get_html(url):
+def request_page(url):
+
     print(f"\nGET: {url}")
 
     try:
@@ -38,8 +41,14 @@ def get_html(url):
         )
 
         print(f"HTTP STATUS: {response.status_code}")
-        print(f"CONTENT-TYPE: {response.headers.get('Content-Type')}")
-        print(f"SIZE: {len(response.text):,} bytes")
+        print(
+            f"CONTENT-TYPE: "
+            f"{response.headers.get('Content-Type')}"
+        )
+        print(
+            f"SIZE: "
+            f"{len(response.text):,} bytes"
+        )
 
         return response
 
@@ -48,112 +57,168 @@ def get_html(url):
         return None
 
 
-def find_product_containers(soup):
-    """
-    Намира всички елементи, които изглеждат като product-item-wapper.
-    """
+def save_html(response, filename):
 
-    containers = []
-
-    # Основният вариант
-    containers.extend(
-        soup.select(".product-item-wapper")
+    path = os.path.join(
+        DEBUG_DIR,
+        filename
     )
 
-    # Допълнителна проверка за евентуални изписвания
-    if not containers:
-        for tag in soup.find_all(True):
-            classes = tag.get("class", [])
+    with open(
+        path,
+        "w",
+        encoding="utf-8"
+    ) as f:
+        f.write(response.text)
 
-            if any(
-                "product-item" in str(c).lower()
-                for c in classes
-            ):
-                containers.append(tag)
-
-    # Премахване на дубликати
-    unique = []
-
-    for item in containers:
-        if item not in unique:
-            unique.append(item)
-
-    return unique
+    print(f"DEBUG FILE SAVED: {path}")
 
 
-def analyze_container(container, index):
-    print_separator(f"PRODUCT CONTAINER #{index}")
+def find_terms(text):
 
-    html = str(container)
+    terms = [
+        "946537",
+        "946534",
+        "946535",
+        "2557",
 
-    print(f"CONTAINER SIZE: {len(html):,} bytes")
+        "variant",
+        "variants",
+        "variantId",
+        "variant-id",
 
-    print("\n--- TAG ---")
-    print(container.name)
+        "productId",
+        "product-id",
 
-    print("\n--- ALL ATTRIBUTES ---")
+        "sku",
+        "barcode",
 
-    if container.attrs:
-        for key, value in container.attrs.items():
-            print(f"{key} = {value}")
-    else:
-        print("NO ATTRIBUTES")
+        "quantity",
+        "stock",
+        "availability",
 
-    print("\n--- CLASS ---")
-    print(container.get("class"))
+        "price",
+        "discountedPrice",
+        "originalPrice",
 
-    print("\n--- DATA ATTRIBUTES ---")
+        "stores",
+        "store",
 
-    found_data = False
+        "Пловдив",
+        "София",
 
-    for key, value in container.attrs.items():
-        if str(key).lower().startswith("data-"):
-            print(f"{key} = {value}")
-            found_data = True
+        "Има 6 разновидности",
+    ]
 
-    if not found_data:
-        print("NO DATA-* ATTRIBUTES ON CONTAINER")
+    lower = text.lower()
 
-    print("\n--- LINKS ---")
+    for term in terms:
 
-    links = []
+        count = lower.count(
+            term.lower()
+        )
 
-    for a in container.find_all("a", href=True):
-        href = a.get("href")
-        text = " ".join(a.get_text(" ", strip=True).split())
+        if count:
+            print(
+                f"{term}: {count}"
+            )
 
-        links.append((href, text))
 
-    if links:
-        for href, text in links:
-            print(f"HREF: {href}")
-            print(f"TEXT: {text[:300]}")
-            print("---")
-    else:
-        print("NO LINKS")
+def show_contexts(text):
 
-    print("\n--- IMAGES ---")
-
-    images = container.find_all("img")
-
-    if images:
-        for img in images:
-            print(f"SRC: {img.get('src')}")
-            print(f"ALT: {img.get('alt')}")
-            print("---")
-    else:
-        print("NO IMAGES")
-
-    print("\n--- TEXT CONTENT ---")
-
-    text = container.get_text(
-        "\n",
-        strip=True
+    separator(
+        "IMPORTANT TERM CONTEXT"
     )
 
-    print(text[:10000])
+    terms = [
+        "946537",
+        "946534",
+        "946535",
+        "variant",
+        "variants",
+        "variantId",
+        "productId",
+        "sku",
+        "barcode",
+        "quantity",
+        "stock",
+        "availability",
+        "discountedPrice",
+    ]
 
-    print("\n--- IMPORTANT TERMS INSIDE CONTAINER ---")
+    lower = text.lower()
+
+    shown = set()
+
+    for term in terms:
+
+        start = 0
+
+        while True:
+
+            position = lower.find(
+                term.lower(),
+                start
+            )
+
+            if position == -1:
+                break
+
+            # Не показваме един и същ контекст
+            # многократно.
+            context_start = max(
+                0,
+                position - 500
+            )
+
+            context_end = min(
+                len(text),
+                position + len(term) + 1000
+            )
+
+            context = text[
+                context_start:context_end
+            ]
+
+            key = (
+                term,
+                context_start
+            )
+
+            if key not in shown:
+
+                print()
+                print(
+                    f"--- {term} "
+                    f"at {position} ---"
+                )
+
+                print(context)
+
+                shown.add(key)
+
+            start = position + len(term)
+
+            # Ограничаваме броя контексти,
+            # за да не получим огромен log.
+            if len(shown) >= 30:
+                return
+
+
+def inspect_scripts(soup):
+
+    separator(
+        "INLINE SCRIPT ANALYSIS"
+    )
+
+    scripts = soup.find_all(
+        "script"
+    )
+
+    print(
+        f"TOTAL SCRIPT TAGS: "
+        f"{len(scripts)}"
+    )
 
     terms = [
         "946537",
@@ -167,102 +232,21 @@ def analyze_container(container, index):
         "sku",
         "barcode",
         "quantity",
+        "stock",
         "price",
         "discountedPrice",
-        "originalPrice",
-        "discount",
-        "stock",
-        "availability",
         "stores",
-        "store",
-        "plovdiv",
-        "sofia",
-        "Filstar",
     ]
 
-    lower_html = html.lower()
+    for index, script in enumerate(
+        scripts,
+        start=1
+    ):
 
-    for term in terms:
-        count = lower_html.count(term.lower())
-
-        if count:
-            print(f"{term}: {count}")
-
-    print("\n--- HTML INSIDE CONTAINER ---")
-
-    print(html[:30000])
-
-    if len(html) > 30000:
-        print()
-        print(
-            f"[HTML TRUNCATED: total {len(html):,} bytes]"
+        content = script.get_text(
+            "",
+            strip=False
         )
-
-    return html
-
-
-def find_json_like_content(container):
-    """
-    Търси потенциални JSON / Vue атрибути вътре в product container.
-    """
-
-    print_separator("JSON / VUE ATTRIBUTE ANALYSIS")
-
-    found = False
-
-    for tag in container.find_all(True):
-
-        for key, value in tag.attrs.items():
-
-            key_lower = str(key).lower()
-
-            if (
-                "json" in key_lower
-                or "product" in key_lower
-                or "variant" in key_lower
-                or "sku" in key_lower
-                or "data-" in key_lower
-            ):
-
-                print(f"TAG: <{tag.name}>")
-                print(f"ATTRIBUTE: {key}")
-                print(f"VALUE: {value}")
-                print("---")
-
-                found = True
-
-    if not found:
-        print("NO RELEVANT JSON/VUE/DATA ATTRIBUTES FOUND")
-
-
-def search_global_scripts(soup):
-    print_separator("SCRIPT ANALYSIS")
-
-    scripts = soup.find_all("script")
-
-    print(f"TOTAL SCRIPT TAGS: {len(scripts)}")
-
-    terms = [
-        "946537",
-        "946534",
-        "946535",
-        "2557",
-        "variant",
-        "variants",
-        "quantity",
-        "price",
-        "product",
-        "sku",
-        "barcode",
-        "stores",
-    ]
-
-    for index, script in enumerate(scripts, start=1):
-
-        content = script.string
-
-        if not content:
-            content = script.get_text()
 
         if not content:
             continue
@@ -270,143 +254,251 @@ def search_global_scripts(soup):
         matches = []
 
         for term in terms:
+
             if term.lower() in content.lower():
                 matches.append(term)
 
-        if matches:
+        if not matches:
+            continue
+
+        print()
+        print(
+            f"SCRIPT #{index}"
+        )
+        print(
+            f"SIZE: {len(content):,}"
+        )
+        print(
+            f"MATCHES: {matches}"
+        )
+
+        # Ако е малък inline script,
+        # показваме целия.
+        if len(content) <= 15000:
+
+            print(
+                "--- SCRIPT CONTENT ---"
+            )
+
+            print(content)
+
+        else:
+
+            print(
+                "--- FIRST 5000 CHARACTERS ---"
+            )
+
+            print(
+                content[:5000]
+            )
+
+
+def inspect_elements(soup):
+
+    separator(
+        "ELEMENT / ATTRIBUTE ANALYSIS"
+    )
+
+    interesting = []
+
+    for tag in soup.find_all(True):
+
+        attrs = tag.attrs
+
+        for key, value in attrs.items():
+
+            key_lower = str(key).lower()
+
+            value_text = str(value)
+
+            value_lower = value_text.lower()
+
+            interesting_terms = [
+                "946537",
+                "946534",
+                "946535",
+                "2557",
+                "variant",
+                "sku",
+                "barcode",
+                "product",
+            ]
+
+            if (
+                any(
+                    term in key_lower
+                    for term in [
+                        "data-",
+                        "variant",
+                        "product",
+                        "sku",
+                        "barcode",
+                    ]
+                )
+                or any(
+                    term in value_lower
+                    for term in interesting_terms
+                )
+            ):
+
+                interesting.append(
+                    (
+                        tag.name,
+                        key,
+                        value_text
+                    )
+                )
+
+    # премахваме дубликати
+    unique = []
+
+    for item in interesting:
+
+        if item not in unique:
+            unique.append(item)
+
+    for tag_name, key, value in unique:
+
+        print(
+            f"<{tag_name}> "
+            f"{key} = {value}"
+        )
+
+
+def inspect_product_area(soup):
+
+    separator(
+        "PRODUCT PAGE STRUCTURE"
+    )
+
+    selectors = [
+        ".product-detail",
+        ".product-details",
+        ".product-page",
+        ".product",
+        ".variants",
+        ".variant",
+        ".product-variants",
+        "[data-product-id]",
+    ]
+
+    found = set()
+
+    for selector in selectors:
+
+        elements = soup.select(
+            selector
+        )
+
+        if not elements:
+            continue
+
+        print()
+        print(
+            f"SELECTOR: {selector}"
+        )
+        print(
+            f"FOUND: {len(elements)}"
+        )
+
+        for index, element in enumerate(
+            elements[:10],
+            start=1
+        ):
+
+            html = str(element)
+
+            key = (
+                selector,
+                html[:1000]
+            )
+
+            if key in found:
+                continue
+
+            found.add(key)
 
             print()
-            print(f"SCRIPT #{index}")
-            print(f"SIZE: {len(content):,}")
-            print(f"MATCHES: {matches}")
+            print(
+                f"--- ELEMENT #{index} ---"
+            )
+            print(
+                f"SIZE: {len(html):,}"
+            )
 
-            # Показваме само ако изглежда като inline script,
-            # а не огромен външен JS файл.
-            if len(content) <= 20000:
-                print("--- SCRIPT CONTENT ---")
-                print(content[:20000])
-            else:
-                print("--- FIRST 5000 CHARACTERS ---")
-                print(content[:5000])
+            print(
+                html[:15000]
+            )
 
 
-def save_debug_file(response, filename):
-    path = os.path.join(DEBUG_DIR, filename)
+def main():
 
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(response.text)
+    separator(
+        "FILSTAR PRODUCT PAGE TEST"
+    )
 
-    print()
-    print(f"DEBUG FILE SAVED: {path}")
+    url = (
+        f"{BASE_URL}"
+        f"/Muhi-za-buldo-bz"
+    )
 
-
-def test_api_search():
-
-    sku = "946537"
-
-    url = f"{BASE_URL}/api/search?term={sku}"
-
-    print_separator("TEST /api/search")
-
-    response = get_html(url)
+    response = request_page(
+        url
+    )
 
     if response is None:
         return
 
-    if response.status_code != 200:
-        print("\nREQUEST FAILED")
-        return
-
-    filename = f"next_test_{sku}.html"
-
-    save_debug_file(
+    save_html(
         response,
-        filename
+        "product_2557_test.html"
     )
+
+    if response.status_code != 200:
+
+        separator(
+            "NON-200 RESPONSE"
+        )
+
+        print(
+            response.text[:10000]
+        )
+
+        return
 
     soup = BeautifulSoup(
         response.text,
         "html.parser"
     )
 
-    print_separator("GLOBAL PRODUCT CONTAINERS")
-
-    containers = find_product_containers(soup)
-
-    print(
-        f"PRODUCT CONTAINERS FOUND: {len(containers)}"
+    separator(
+        "GLOBAL TERM COUNTS"
     )
 
-    if not containers:
-        print("NO PRODUCT CONTAINERS FOUND")
-        return
-
-    target_container = None
-
-    for index, container in enumerate(containers, start=1):
-
-        html = str(container)
-
-        if (
-            "946537" in html
-            or "2557" in html
-            or "Комплект мухи за булдо FilStar тип C" in html
-        ):
-            target_container = container
-            target_index = index
-            break
-
-    if target_container is None:
-        print(
-            "\nCould not identify target container."
-        )
-
-        # Ако няма директно съвпадение,
-        # анализираме първия.
-        target_container = containers[0]
-        target_index = 1
-
-    print(
-        f"\nTARGET CONTAINER: #{target_index}"
+    find_terms(
+        response.text
     )
 
-    analyze_container(
-        target_container,
-        target_index
-    )
-
-    find_json_like_content(
-        target_container
-    )
-
-    search_global_scripts(
+    inspect_elements(
         soup
     )
 
-    print_separator("END OF TEST")
+    inspect_product_area(
+        soup
+    )
 
-    print(
-        """
-Следващата информация, която ни интересува, е:
+    inspect_scripts(
+        soup
+    )
 
-1. ALL ATTRIBUTES на product container
-2. DATA ATTRIBUTES
-3. HTML INSIDE CONTAINER
-4. JSON / VUE ATTRIBUTE ANALYSIS
-5. SCRIPT ANALYSIS
+    show_contexts(
+        response.text
+    )
 
-Особено търсим:
-- variant ID
-- SKU
-- barcode
-- quantity
-- price
-- discountedPrice
-- productId
-- stores
-"""
+    separator(
+        "END OF TEST"
     )
 
 
 if __name__ == "__main__":
-    test_api_search()
+    main()
