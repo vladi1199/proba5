@@ -1,0 +1,126 @@
+[
+  {
+    "test": "base",
+    "status": 404,
+    "size": 199208,
+    "content_type": "text/html; charset=UTF-8",
+    "found": [
+      "variant",
+      "quantity",
+      "price",
+      "stores"
+    ]
+  },
+  {
+    "test": "term_sku",
+    "status": 200,
+    "size": 224784,
+    "content_type": "text/html; charset=UTF-8",
+    "found": [
+      "946537",
+      "946537",
+      "variant",
+      "quantity",
+      "price",
+      "stores"
+    ]
+  },
+  {
+    "test": "term_variant",
+    "status": 200,
+    "size": 224803,
+    "content_type": "text/html; charset=UTF-8",
+    "found": [
+      "946537",
+      "946537",
+      "variant",
+      "quantity",
+      "price",
+      "stores"
+    ]
+  },
+  {
+    "test": "term_product",
+    "status": 200,
+    "size": 224803,
+    "content_type": "text/html; charset=UTF-8",
+    "found": [
+      "946537",
+      "946537",
+      "variant",
+      "quantity",
+      "price",
+      "stores"
+    ]
+  },
+  {
+    "test": "term_id",
+    "status": 200,
+    "size": 224798,
+    "content_type": "text/html; charset=UTF-8",
+    "found": [
+      "946537",
+      "946537",
+      "variant",
+      "quantity",
+      "price",
+      "stores"
+    ]
+  },
+  {
+    "test": "term_page",
+    "status": 200,
+    "size": 224808,
+    "content_type": "text/html; charset=UTF-8",
+    "found": [
+      "946537",
+      "946537",
+      "variant",
+      "quantity",
+      "price",
+      "stores"
+    ]
+  },
+  {
+    "test": "term_limit",
+    "status": 200,
+    "size": 224798,
+    "content_type": "text/html; charset=UTF-8",
+    "found": [
+      "946537",
+      "946537",
+      "variant",
+      "quantity",
+      "price",
+      "stores"
+    ]
+  },
+  {
+    "test": "term_sku_product",
+    "status": 200,
+    "size": 224818,
+    "content_type": "text/html; charset=UTF-8",
+    "found": [
+      "946537",
+      "946537",
+      "variant",
+      "quantity",
+      "price",
+      "stores"
+    ]
+  },
+  {
+    "test": "term_variant_product",
+    "status": 200,
+    "size": 224822,
+    "content_type": "text/html; charset=UTF-8",
+    "found": [
+      "946537",
+      "946537",
+      "variant",
+      "quantity",
+      "price",
+      "stores"
+    ]
+  }
+]
