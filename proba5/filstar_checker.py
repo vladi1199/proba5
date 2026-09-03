@@ -6,6 +6,7 @@ import os
 import re
 import time
 import requests
+import shutil
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -23,6 +24,11 @@ RESULT_CSV = os.path.join(
 NOT_FOUND_CSV = os.path.join(
     BASE_DIR,
     "not_found_filstar.csv"
+)
+
+DEBUG_DIR = os.path.join(
+    BASE_DIR,
+    "debug_html"
 )
 
 
@@ -91,6 +97,71 @@ def read_skus():
             result.append(line)
 
     return result
+
+
+# =========================================================
+# INIT DEBUG FOLDER
+# =========================================================
+
+def init_debug_folder():
+
+    # Изтриваме цялата стара debug папка
+    if os.path.exists(DEBUG_DIR):
+
+        print(
+            "🗑️ Изтривам старата debug папка:",
+            DEBUG_DIR
+        )
+
+        shutil.rmtree(DEBUG_DIR)
+
+    # Създаваме чиста debug папка
+    os.makedirs(
+        DEBUG_DIR,
+        exist_ok=True
+    )
+
+    print(
+        "📁 Създадена е нова debug папка:",
+        DEBUG_DIR
+    )
+
+
+# =========================================================
+# SAVE DEBUG HTML
+# =========================================================
+
+def save_debug_html(filename, html):
+
+    if not html:
+        return
+
+    filepath = os.path.join(
+        DEBUG_DIR,
+        filename
+    )
+
+    try:
+
+        with open(
+            filepath,
+            "w",
+            encoding="utf-8"
+        ) as f:
+
+            f.write(html)
+
+        print(
+            "💾 Debug HTML:",
+            filepath
+        )
+
+    except Exception as e:
+
+        print(
+            "⚠️ Грешка при запис на debug HTML:",
+            e
+        )
 
 
 # =========================================================
@@ -197,6 +268,15 @@ def search_filstar(sku):
 
         html = r.text
 
+        # -------------------------------------------------
+        # SAVE SEARCH HTML FOR DEBUG
+        # -------------------------------------------------
+
+        save_debug_html(
+            f"search_{sku}.html",
+            html
+        )
+
     except Exception as e:
 
         print(
@@ -211,7 +291,7 @@ def search_filstar(sku):
 
 
 # =========================================================
-# EXTRACT PRODUCT URL (за да отворим детайлната страница)
+# EXTRACT PRODUCT URL
 # =========================================================
 
 def extract_product_url(html):
@@ -277,7 +357,7 @@ def fetch_product_page(url):
 
 
 # =========================================================
-# EXTRACT PRICE FOR EXACT SKU (fast-order-table)
+# EXTRACT PRICE FOR EXACT SKU
 # =========================================================
 
 def extract_variant_price(html, sku):
@@ -285,9 +365,11 @@ def extract_variant_price(html, sku):
     """
     Продукти с няколко варианта (цвят/размер) показват само
     ЕДНА обща цена на страницата за търсене — тази на "показания"
-    вариант. За точната цена по конкретен SKU трябва да се
-    прочете таблицата за бърза поръчка (fast-order-table) на
-    самата продуктова страница, ред по ред.
+    вариант.
+
+    За точната цена по конкретен SKU трябва да се прочете
+    таблицата за бърза поръчка (fast-order-table) на
+    продуктовата страница, ред по ред.
     """
 
     table_match = re.search(
@@ -390,7 +472,7 @@ def extract_variant_price(html, sku):
 
 
 # =========================================================
-# EXTRACT PRICE (fallback — общата цена от search картона)
+# EXTRACT PRICE
 # =========================================================
 
 def extract_price(html):
@@ -564,7 +646,21 @@ def extract_quantity(
 
 def main():
 
+    # -------------------------------------------------
+    # RESET DEBUG FOLDER
+    # -------------------------------------------------
+
+    init_debug_folder()
+
+    # -------------------------------------------------
+    # INIT CSV
+    # -------------------------------------------------
+
     init_csv()
+
+    # -------------------------------------------------
+    # READ SKU
+    # -------------------------------------------------
 
     skus = read_skus()
 
@@ -577,7 +673,10 @@ def main():
 
         print("================")
 
-        print("➡️ SKU:", sku)
+        print(
+            "➡️ SKU:",
+            sku
+        )
 
         # -------------------------------------------------
         # SEARCH
@@ -587,7 +686,9 @@ def main():
 
         if not html:
 
-            print("❌ Няма резултат")
+            print(
+                "❌ Няма резултат"
+            )
 
             save_not_found(sku)
 
@@ -597,11 +698,15 @@ def main():
         # PRODUCT ID
         # -------------------------------------------------
 
-        product_id = extract_product_id(html)
+        product_id = extract_product_id(
+            html
+        )
 
         if not product_id:
 
-            print("❌ Няма Product ID")
+            print(
+                "❌ Няма Product ID"
+            )
 
             save_not_found(sku)
 
@@ -609,45 +714,78 @@ def main():
 
             continue
 
-        print("✅ Product ID:", product_id)
+        print(
+            "✅ Product ID:",
+            product_id
+        )
 
         # -------------------------------------------------
-        # AVAILABILITY (от search картона)
+        # AVAILABILITY
         # -------------------------------------------------
 
-        availability = extract_availability(html, product_id)
+        availability = extract_availability(
+            html,
+            product_id
+        )
 
-        print("✅ Наличност:", availability)
+        print(
+            "✅ Наличност:",
+            availability
+        )
 
         # -------------------------------------------------
-        # QUANTITY (best effort от search картона)
+        # QUANTITY
         # -------------------------------------------------
 
-        quantity = extract_quantity(html, sku)
+        quantity = extract_quantity(
+            html,
+            sku
+        )
 
         if quantity is not None:
 
-            print("✅ Quantity:", quantity)
+            print(
+                "✅ Quantity:",
+                quantity
+            )
 
         else:
 
-            print("⚠️ Quantity не е намерено")
+            print(
+                "⚠️ Quantity не е намерено"
+            )
 
         # -------------------------------------------------
-        # PRICE — точна цена по SKU от продуктовата страница
+        # PRICE
         # -------------------------------------------------
 
         price = None
 
-        product_url = extract_product_url(html)
+        product_url = extract_product_url(
+            html
+        )
 
         if product_url:
 
-            print("🔗 Продуктова страница:", product_url)
+            print(
+                "🔗 Продуктова страница:",
+                product_url
+            )
 
-            product_html = fetch_product_page(product_url)
+            product_html = fetch_product_page(
+                product_url
+            )
+
+            # -------------------------------------------------
+            # SAVE PRODUCT HTML FOR DEBUG
+            # -------------------------------------------------
 
             if product_html:
+
+                save_debug_html(
+                    f"product_{sku}.html",
+                    product_html
+                )
 
                 price = extract_variant_price(
                     product_html,
@@ -670,12 +808,19 @@ def main():
 
         else:
 
-            print("⚠️ Няма линк към продуктова страница")
+            print(
+                "⚠️ Няма линк към продуктова страница"
+            )
 
-        # fallback — ако не успяхме да вземем точната цена
+        # -------------------------------------------------
+        # FALLBACK PRICE
+        # -------------------------------------------------
+
         if not price:
 
-            price = extract_price(html)
+            price = extract_price(
+                html
+            )
 
             if price:
 
@@ -686,11 +831,16 @@ def main():
 
         if price:
 
-            print("✅ Крайна цена:", price)
+            print(
+                "✅ Крайна цена:",
+                price
+            )
 
         else:
 
-            print("❌ Няма намерена цена")
+            print(
+                "❌ Няма намерена цена"
+            )
 
         # -------------------------------------------------
         # SAVE
@@ -709,15 +859,32 @@ def main():
 
         else:
 
-            save_not_found(sku)
+            save_not_found(
+                sku
+            )
 
-        time.sleep(WAIT)
+        time.sleep(
+            WAIT
+        )
 
-    print("💾 Записани резултати:", RESULT_CSV)
+    print(
+        "💾 Записани резултати:",
+        RESULT_CSV
+    )
 
-    print("💾 Not found:", NOT_FOUND_CSV)
+    print(
+        "💾 Not found:",
+        NOT_FOUND_CSV
+    )
 
-    print("✅ Готово")
+    print(
+        "📁 Debug:",
+        DEBUG_DIR
+    )
+
+    print(
+        "✅ Готово"
+    )
 
 
 if __name__ == "__main__":
