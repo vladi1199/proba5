@@ -7,8 +7,6 @@ import re
 import time
 import requests
 
-from playwright.sync_api import sync_playwright
-
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -53,84 +51,6 @@ session = requests.Session()
 session.headers.update(
     HEADERS
 )
-
-
-# =========================================================
-# BROWSER (само за продуктовите страници — заради 403)
-# =========================================================
-
-_pw = None
-_browser = None
-_page = None
-
-
-def start_browser():
-
-    global _pw, _browser, _page
-
-    _pw = sync_playwright().start()
-
-    _browser = _pw.chromium.launch(
-        headless=True,
-        args=[
-            "--disable-blink-features=AutomationControlled",
-            "--disable-dev-shm-usage",
-            "--no-sandbox"
-        ]
-    )
-
-    context = _browser.new_context(
-        user_agent=HEADERS["User-Agent"],
-        locale="bg-BG",
-        viewport={"width": 1366, "height": 900}
-    )
-
-    # -------------------------------------------------
-    # STEALTH: прикриваме типичните следи, по които
-    # anti-bot защитите разпознават headless браузър
-    # -------------------------------------------------
-
-    context.add_init_script(
-        """
-        Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-        Object.defineProperty(navigator, 'languages', {get: () => ['bg-BG', 'bg', 'en-US', 'en']});
-        Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
-        window.chrome = { runtime: {} };
-        const originalQuery = window.navigator.permissions.query;
-        window.navigator.permissions.query = (parameters) => (
-            parameters.name === 'notifications'
-                ? Promise.resolve({ state: Notification.permission })
-                : originalQuery(parameters)
-        );
-        """
-    )
-
-    _page = context.new_page()
-
-
-def stop_browser():
-
-    global _pw, _browser
-
-    try:
-
-        if _browser:
-
-            _browser.close()
-
-    except Exception:
-
-        pass
-
-    try:
-
-        if _pw:
-
-            _pw.stop()
-
-    except Exception:
-
-        pass
 
 
 # =========================================================
@@ -195,6 +115,7 @@ def init_csv():
             ]
         )
 
+
     with open(
         NOT_FOUND_CSV,
         "w",
@@ -222,7 +143,9 @@ def save_result(row):
         encoding="utf-8"
     ) as f:
 
-        csv.writer(f).writerow(row)
+        csv.writer(f).writerow(
+            row
+        )
 
 
 # =========================================================
@@ -238,41 +161,66 @@ def save_not_found(sku):
         encoding="utf-8"
     ) as f:
 
-        csv.writer(f).writerow([sku])
+        csv.writer(f).writerow(
+            [
+                sku
+            ]
+        )
 
 
 # =========================================================
-# SEARCH FILSTAR (requests — работи, 200 OK)
+# SEARCH FILSTAR
 # =========================================================
 
 def search_filstar(sku):
 
-    url = f"{BASE_URL}/api/search?term={sku}"
+    url = (
+        f"{BASE_URL}/api/search?term={sku}"
+    )
 
-    print("🌐 SEARCH:", url)
+    print(
+        "🌐 SEARCH:",
+        url
+    )
 
     try:
 
-        r = session.get(url, timeout=30)
+        r = session.get(
+            url,
+            timeout=30
+        )
 
-        print("🔎 Search HTTP:", r.status_code)
+        print(
+            "🔎 Search HTTP:",
+            r.status_code
+        )
 
-        return r.text
+        html = r.text
 
     except Exception as e:
 
-        print("SEARCH ERROR:", e)
+        print(
+            "SEARCH ERROR:",
+            e
+        )
 
         return None
 
 
+    return html
+
+
 # =========================================================
-# EXTRACT PRODUCT URL
+# EXTRACT PRODUCT URL (за да отворим детайлната страница)
 # =========================================================
 
 def extract_product_url(html):
 
-    for match in re.finditer(r'<a\b[^>]*>', html, re.I):
+    for match in re.finditer(
+        r'<a\b[^>]*>',
+        html,
+        re.I
+    ):
 
         tag = match.group(0)
 
@@ -299,77 +247,31 @@ def extract_product_url(html):
 
 
 # =========================================================
-# FETCH PRODUCT PAGE (Playwright — заради 403 при requests)
+# FETCH PRODUCT PAGE
 # =========================================================
 
 def fetch_product_page(url):
 
     try:
 
-        _page.goto(
+        r = session.get(
             url,
-            timeout=30000,
-            wait_until="domcontentloaded"
+            timeout=30
         )
 
-        # изчакваме мрежата да се успокои (евентуален AJAX)
-        try:
+        print(
+            "🔎 Product page HTTP:",
+            r.status_code
+        )
 
-            _page.wait_for_load_state(
-                "networkidle",
-                timeout=10000
-            )
-
-        except Exception:
-
-            pass
-
-        # ако still сме на interstitial ("Един момент...",
-        # "Just a moment", "Please wait" и т.н.) — изчакваме
-        # допълнително и проверяваме отново, до 3 опита
-        for attempt in range(3):
-
-            current_title = _page.title()
-
-            if not any(
-                marker in current_title
-                for marker in [
-                    "момент",
-                    "moment",
-                    "wait",
-                    "Please wait",
-                    "checking"
-                ]
-            ):
-
-                break
-
-            print(
-                f"🔬 DEBUG: все още interstitial "
-                f"('{current_title}'), изчакване {attempt + 1}/3..."
-            )
-
-            _page.wait_for_timeout(5000)
-
-        current_url = _page.url
-
-        current_title = _page.title()
-
-        print(f"🔬 DEBUG: текущ URL след зареждане: {current_url}")
-
-        print(f"🔬 DEBUG: текущ title: {current_title}")
-
-        html = _page.content()
-
-        print(f"🔬 DEBUG: дължина на HTML: {len(html)} символа")
-
-        print("🔎 Product page: OK (Playwright)")
-
-        return html
+        return r.text
 
     except Exception as e:
 
-        print("PRODUCT PAGE ERROR:", e)
+        print(
+            "PRODUCT PAGE ERROR:",
+            e
+        )
 
         return None
 
@@ -380,77 +282,77 @@ def fetch_product_page(url):
 
 def extract_variant_price(html, sku):
 
-    # -------------------------------------------------
-    # DIAGNOSTIC: търсим SKU кода директно в суровия HTML,
-    # за да разберем къде и как се пази цената по вариант
-    # -------------------------------------------------
+    """
+    Продукти с няколко варианта (цвят/размер) показват само
+    ЕДНА обща цена на страницата за търсене — тази на "показания"
+    вариант. За точната цена по конкретен SKU трябва да се
+    прочете таблицата за бърза поръчка (fast-order-table) на
+    самата продуктова страница, ред по ред.
+    """
 
-    idx = html.find(str(sku))
-
-    if idx == -1:
-
-        print(
-            f"🔬 DEBUG: SKU {sku} НЕ се среща никъде "
-            f"в суровия HTML на продуктовата страница"
-        )
-
-    else:
-
-        snippet_start = max(0, idx - 300)
-
-        snippet_end = min(len(html), idx + 300)
-
-        snippet = html[snippet_start:snippet_end]
-
-        print(f"🔬 DEBUG: намерен SKU {sku} в HTML, контекст:")
-
-        print(snippet)
-
-    sku_json_count = html.count('"sku"')
-
-    print(f'🔬 DEBUG: брой срещания на "sku" JSON ключ в HTML: {sku_json_count}')
-
-    # -------------------------------------------------
-    # Опит по таблица (ако все пак съществува)
-    # -------------------------------------------------
-
-    tables = re.findall(
-        r'<table\b[^>]*>(.*?)</table>',
+    table_match = re.search(
+        r'id=["\']fast-order-table["\'].*?<tbody[^>]*>(.*?)</tbody>',
         html,
         re.I | re.S
     )
 
-    variants_table = None
-
-    for t in tables:
-
-        if "ДРЕБНО" in t.upper():
-
-            variants_table = t
-
-            break
-
-    if variants_table is None:
-
-        print("⚠️ Не намерих таблица с варианти в HTML")
+    if not table_match:
 
         return None
 
+    tbody_html = table_match.group(1)
+
     rows = re.findall(
         r'<tr\b[^>]*>(.*?)</tr>',
-        variants_table,
+        tbody_html,
         re.I | re.S
     )
 
-    print(f"🔎 Намерени редове в таблицата с варианти: {len(rows)}")
-
     for row in rows:
 
-        row_text_only = re.sub(r'<[^>]+>', ' ', row)
+        code_match = re.search(
+            r'class=["\'][^"\']*td-sky[^"\']*["\'][^>]*>(.*?)</td>',
+            row,
+            re.I | re.S
+        )
 
-        if not re.search(rf'\b{re.escape(str(sku))}\b', row_text_only):
+        row_matches_sku = False
+
+        if code_match:
+
+            code_text = re.sub(
+                r'<[^>]+>',
+                '',
+                code_match.group(1)
+            )
+
+            code_digits = re.sub(
+                r'\D+',
+                '',
+                code_text
+            )
+
+            if code_digits == str(sku):
+
+                row_matches_sku = True
+
+        if not row_matches_sku:
+
+            # fallback: SKU споменат някъде в реда като текст
+            if re.search(
+                rf'\b{re.escape(str(sku))}\b',
+                row
+            ):
+
+                row_matches_sku = True
+
+        if not row_matches_sku:
 
             continue
+
+        # -------------------------------------------------
+        # Намерихме реда — вадим цената именно от него
+        # -------------------------------------------------
 
         price = None
 
@@ -462,7 +364,10 @@ def extract_variant_price(html, sku):
 
         if strike_match:
 
-            m = re.search(r'(\d+[.,]\d+)\s*€', strike_match.group(1))
+            m = re.search(
+                r'(\d+[.,]\d+)\s*€',
+                strike_match.group(1)
+            )
 
             if m:
 
@@ -470,11 +375,14 @@ def extract_variant_price(html, sku):
 
         if price is None:
 
-            euro_matches = re.findall(r'(\d+[.,]\d+)\s*€', row)
+            m2 = re.search(
+                r'(\d+[.,]\d+)\s*€',
+                row
+            )
 
-            if euro_matches:
+            if m2:
 
-                price = euro_matches[-1].replace(",", ".")
+                price = m2.group(1).replace(",", ".")
 
         return price
 
@@ -488,19 +396,27 @@ def extract_variant_price(html, sku):
 def extract_price(html):
 
     patterns = [
+
         r'/\s*(\d+\.\d+)\s*€',
         r'/\s*(\d+,\d+)\s*€',
         r'(\d+\.\d+)\s*€',
         r'(\d+,\d+)\s*€'
+
     ]
 
     for pattern in patterns:
 
-        m = re.search(pattern, html, re.I)
+        m = re.search(
+            pattern,
+            html,
+            re.I
+        )
 
         if m:
 
-            return m.group(1).replace(",", ".")
+            price = m.group(1)
+
+            return price.replace(",", ".")
 
     return None
 
@@ -511,7 +427,10 @@ def extract_price(html):
 
 def extract_product_id(html):
 
-    ids = re.findall(r'/get-serialize-product/(\d+)', html)
+    ids = re.findall(
+        r'/get-serialize-product/(\d+)',
+        html
+    )
 
     if not ids:
 
@@ -521,9 +440,14 @@ def extract_product_id(html):
             re.I
         )
 
-    ids = list(dict.fromkeys(ids))
+    ids = list(
+        dict.fromkeys(ids)
+    )
 
-    print("ID кандидати:", ids)
+    print(
+        "ID кандидати:",
+        ids
+    )
 
     if ids:
 
@@ -536,7 +460,10 @@ def extract_product_id(html):
 # EXTRACT AVAILABILITY
 # =========================================================
 
-def extract_availability(html, product_id):
+def extract_availability(
+    html,
+    product_id
+):
 
     pattern = (
         r'<div\b[^>]*'
@@ -544,7 +471,11 @@ def extract_availability(html, product_id):
         r'[^>]*>'
     )
 
-    matches = re.finditer(pattern, html, re.I)
+    matches = re.finditer(
+        pattern,
+        html,
+        re.I
+    )
 
     for match in matches:
 
@@ -591,7 +522,10 @@ def extract_availability(html, product_id):
 # EXTRACT QUANTITY
 # =========================================================
 
-def extract_quantity(html, sku):
+def extract_quantity(
+    html,
+    sku
+):
 
     patterns = [
 
@@ -611,7 +545,11 @@ def extract_quantity(html, sku):
 
     for pattern in patterns:
 
-        m = re.search(pattern, html, re.I | re.S)
+        m = re.search(
+            pattern,
+            html,
+            re.I | re.S
+        )
 
         if m:
 
@@ -630,121 +568,150 @@ def main():
 
     skus = read_skus()
 
-    print("Общо SKU:", len(skus))
+    print(
+        "Общо SKU:",
+        len(skus)
+    )
 
-    start_browser()
+    for sku in skus:
 
-    try:
+        print("================")
 
-        for sku in skus:
+        print("➡️ SKU:", sku)
 
-            print("================")
+        # -------------------------------------------------
+        # SEARCH
+        # -------------------------------------------------
 
-            print("➡️ SKU:", sku)
+        html = search_filstar(sku)
 
-            html = search_filstar(sku)
+        if not html:
 
-            if not html:
+            print("❌ Няма резултат")
 
-                print("❌ Няма резултат")
+            save_not_found(sku)
 
-                save_not_found(sku)
+            continue
 
-                continue
+        # -------------------------------------------------
+        # PRODUCT ID
+        # -------------------------------------------------
 
-            product_id = extract_product_id(html)
+        product_id = extract_product_id(html)
 
-            if not product_id:
+        if not product_id:
 
-                print("❌ Няма Product ID")
+            print("❌ Няма Product ID")
 
-                save_not_found(sku)
-
-                time.sleep(WAIT)
-
-                continue
-
-            print("✅ Product ID:", product_id)
-
-            availability = extract_availability(html, product_id)
-
-            print("✅ Наличност:", availability)
-
-            quantity = extract_quantity(html, sku)
-
-            if quantity is not None:
-
-                print("✅ Quantity:", quantity)
-
-            else:
-
-                print("⚠️ Quantity не е намерено")
-
-            price = None
-
-            product_url = extract_product_url(html)
-
-            if product_url:
-
-                print("🔗 Продуктова страница:", product_url)
-
-                product_html = fetch_product_page(product_url)
-
-                if product_html:
-
-                    price = extract_variant_price(product_html, sku)
-
-                    if price:
-
-                        print("✅ Точна цена по SKU:", price)
-
-                    else:
-
-                        print(
-                            "⚠️ SKU не е намерен в fast-order-table, "
-                            "ползвам общата цена като fallback"
-                        )
-
-            else:
-
-                print("⚠️ Няма линк към продуктова страница")
-
-            if not price:
-
-                price = extract_price(html)
-
-                if price:
-
-                    print("⚠️ Fallback обща цена:", price)
-
-            if price:
-
-                print("✅ Крайна цена:", price)
-
-            else:
-
-                print("❌ Няма намерена цена")
-
-            if price:
-
-                save_result(
-                    [
-                        sku,
-                        availability,
-                        quantity if quantity is not None else "-",
-                        price
-                    ]
-                )
-
-            else:
-
-                save_not_found(sku)
+            save_not_found(sku)
 
             time.sleep(WAIT)
 
-    finally:
+            continue
 
-        stop_browser()
+        print("✅ Product ID:", product_id)
+
+        # -------------------------------------------------
+        # AVAILABILITY (от search картона)
+        # -------------------------------------------------
+
+        availability = extract_availability(html, product_id)
+
+        print("✅ Наличност:", availability)
+
+        # -------------------------------------------------
+        # QUANTITY (best effort от search картона)
+        # -------------------------------------------------
+
+        quantity = extract_quantity(html, sku)
+
+        if quantity is not None:
+
+            print("✅ Quantity:", quantity)
+
+        else:
+
+            print("⚠️ Quantity не е намерено")
+
+        # -------------------------------------------------
+        # PRICE — точна цена по SKU от продуктовата страница
+        # -------------------------------------------------
+
+        price = None
+
+        product_url = extract_product_url(html)
+
+        if product_url:
+
+            print("🔗 Продуктова страница:", product_url)
+
+            product_html = fetch_product_page(product_url)
+
+            if product_html:
+
+                price = extract_variant_price(
+                    product_html,
+                    sku
+                )
+
+                if price:
+
+                    print(
+                        "✅ Точна цена по SKU:",
+                        price
+                    )
+
+                else:
+
+                    print(
+                        "⚠️ SKU не е намерен в fast-order-table, "
+                        "ползвам общата цена като fallback"
+                    )
+
+        else:
+
+            print("⚠️ Няма линк към продуктова страница")
+
+        # fallback — ако не успяхме да вземем точната цена
+        if not price:
+
+            price = extract_price(html)
+
+            if price:
+
+                print(
+                    "⚠️ Fallback обща цена:",
+                    price
+                )
+
+        if price:
+
+            print("✅ Крайна цена:", price)
+
+        else:
+
+            print("❌ Няма намерена цена")
+
+        # -------------------------------------------------
+        # SAVE
+        # -------------------------------------------------
+
+        if price:
+
+            save_result(
+                [
+                    sku,
+                    availability,
+                    quantity if quantity is not None else "-",
+                    price
+                ]
+            )
+
+        else:
+
+            save_not_found(sku)
+
+        time.sleep(WAIT)
 
     print("💾 Записани резултати:", RESULT_CSV)
 
