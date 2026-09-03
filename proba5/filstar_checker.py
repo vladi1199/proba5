@@ -1,154 +1,136 @@
-import re
 from playwright.sync_api import sync_playwright
 
-BASE_URL = "https://filstar.com"
 
-SKU = "946537"
+BASE_URL = "https://filstar.com"
+PRODUCT_ID = "2557"
+
 
 with sync_playwright() as p:
 
-    print("Стартирам...")
+    print("=" * 70)
+    print("FILSTAR SERIALIZE TEST")
+    print("=" * 70)
 
     browser = p.chromium.launch(
         headless=True
     )
 
-    page = browser.new_page()
-
-    url = f"{BASE_URL}/api/search?term={SKU}"
-
-    response = page.request.get(
-        url,
-        timeout=30000
+    context = browser.new_context(
+        viewport={
+            "width": 1440,
+            "height": 1000
+        },
+        locale="bg-BG"
     )
 
-    print(
-        "HTTP:",
-        response.status
-    )
-
-    html = response.text()
-
-    print(
-        "HTML:",
-        len(html),
-        "characters"
-    )
+    page = context.new_page()
 
     # --------------------------------------------------------
-    # Търсим SKU
+    # 1. Отваряме началната страница
     # --------------------------------------------------------
-
-    pos = html.find(SKU)
-
-    print(
-        "SKU position:",
-        pos
-    )
-
-    if pos >= 0:
-
-        start = max(
-            0,
-            pos - 5000
-        )
-
-        end = min(
-            len(html),
-            pos + 10000
-        )
-
-        snippet = html[
-            start:end
-        ]
-
-        print()
-        print("=" * 70)
-        print("КОНТЕКСТ ОКОЛО SKU")
-        print("=" * 70)
-        print()
-
-        print(snippet)
-
-    # --------------------------------------------------------
-    # Търсим ключови думи за inventory
-    # --------------------------------------------------------
-
-    keywords = [
-        "quantity",
-        "available",
-        "inventory",
-        "stock",
-        "variant",
-        "barcode",
-        "price",
-        "product-id",
-    ]
 
     print()
-    print("=" * 70)
-    print("ТЪРСЕНЕ НА ДАННИ")
-    print("=" * 70)
+    print("1. Отварям filstar.com...")
 
-    for keyword in keywords:
+    try:
 
-        count = len(
-            re.findall(
-                re.escape(keyword),
-                html,
-                re.IGNORECASE
+        response = page.goto(
+            BASE_URL,
+            wait_until="domcontentloaded",
+            timeout=60000
+        )
+
+        if response:
+            print(
+                f"   HTTP {response.status}"
             )
+
+    except Exception as e:
+
+        print(
+            f"   ERROR: {e}"
+        )
+
+    # --------------------------------------------------------
+    # 2. Директно проверяваме serialize endpoint-а
+    # --------------------------------------------------------
+
+    serialize_url = (
+        f"{BASE_URL}"
+        f"/get-serialize-product/"
+        f"{PRODUCT_ID}"
+    )
+
+    print()
+    print(
+        "2. Проверявам:"
+    )
+
+    print(
+        f"   {serialize_url}"
+    )
+
+    try:
+
+        response = page.request.get(
+            serialize_url,
+            timeout=30000
+        )
+
+        print()
+        print(
+            f"   HTTP: {response.status}"
         )
 
         print(
-            f"{keyword}: {count}"
+            f"   Content-Type: "
+            f"{response.headers.get('content-type')}"
         )
 
-    # --------------------------------------------------------
-    # Всички data-* атрибути
-    # --------------------------------------------------------
-
-    data_attributes = sorted(
-        set(
-            re.findall(
-                r'\bdata-[a-zA-Z0-9_-]+',
-                html
-            )
-        )
-    )
-
-    print()
-    print("=" * 70)
-    print("DATA ATTRIBUTES")
-    print("=" * 70)
-
-    for attr in data_attributes:
+        text = response.text()
 
         print(
-            attr
+            f"   Length: "
+            f"{len(text)}"
         )
 
-    # --------------------------------------------------------
-    # Записваме целия HTML
-    # --------------------------------------------------------
+        print()
+        print("=" * 70)
+        print("ПЪРВИТЕ 2000 СИМВОЛА")
+        print("=" * 70)
+        print()
 
-    with open(
-        "api_search_debug.html",
-        "w",
-        encoding="utf-8"
-    ) as f:
-
-        f.write(
-            html
+        print(
+            text[:2000]
         )
 
-    print()
-    print(
-        "💾 Запазен:"
-    )
+        # ----------------------------------------------------
+        # Записваме отговора
+        # ----------------------------------------------------
 
-    print(
-        "api_search_debug.html"
-    )
+        with open(
+            "serialize_debug.txt",
+            "w",
+            encoding="utf-8"
+        ) as f:
+
+            f.write(text)
+
+        print()
+        print(
+            "💾 Запазен: serialize_debug.txt"
+        )
+
+    except Exception as e:
+
+        print()
+        print(
+            f"❌ ERROR: {e}"
+        )
 
     browser.close()
+
+    print()
+    print("=" * 70)
+    print("КРАЙ")
+    print("=" * 70)
