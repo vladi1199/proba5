@@ -39,7 +39,6 @@ DEBUG_DIR = os.path.join(
 
 BASE_URL = "https://filstar.com"
 
-
 WAIT = 2
 
 
@@ -47,14 +46,18 @@ HEADERS = {
 
     "User-Agent":
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 Chrome/128 Safari/537.36",
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/128.0.0.0 Safari/537.36",
 
     "Accept":
-    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "text/html,application/xhtml+xml,application/xml;q=0.9,"
+    "application/json;q=0.8,*/*;q=0.7",
 
     "Accept-Language":
-    "bg-BG,bg;q=0.9,en;q=0.8"
+    "bg-BG,bg;q=0.9,en;q=0.8",
 
+    "Referer":
+    "https://filstar.com/"
 }
 
 
@@ -338,25 +341,480 @@ def search_filstar(sku):
 
 
 # =========================================================
+# EXTRACT JAVASCRIPT URLS
+# =========================================================
+
+def extract_javascript_urls(html):
+
+    if not html:
+        return []
+
+
+    urls = []
+
+
+    # -----------------------------------------------------
+    # <script src="...">
+    # -----------------------------------------------------
+
+    patterns = [
+
+        r'<script[^>]+src=["\']([^"\']+)["\']',
+
+        r'<script[^>]+src=([^ >]+)',
+
+    ]
+
+
+    for pattern in patterns:
+
+        matches = re.findall(
+            pattern,
+            html,
+            re.I
+        )
+
+
+        for src in matches:
+
+            src = src.strip()
+
+            src = src.strip(
+                "\"'"
+            )
+
+
+            if not src:
+                continue
+
+
+            if src.startswith("//"):
+
+                src = "https:" + src
+
+
+            elif src.startswith("/"):
+
+                src = BASE_URL + src
+
+
+            elif src.startswith("http://"):
+
+                src = "https://" + src[7:]
+
+
+            elif not src.startswith("http"):
+
+                src = BASE_URL + "/" + src.lstrip("/")
+
+
+            if src not in urls:
+
+                urls.append(src)
+
+
+    return urls
+
+
+# =========================================================
+# FIND TEXT AROUND MATCH
+# =========================================================
+
+def extract_context(
+    text,
+    keyword,
+    radius=1200
+):
+
+    if not text:
+        return ""
+
+
+    lower_text = text.lower()
+
+    lower_keyword = keyword.lower()
+
+
+    positions = []
+
+    start = 0
+
+
+    while True:
+
+        pos = lower_text.find(
+            lower_keyword,
+            start
+        )
+
+
+        if pos == -1:
+            break
+
+
+        positions.append(
+            pos
+        )
+
+
+        start = pos + len(
+            lower_keyword
+        )
+
+
+    if not positions:
+        return ""
+
+
+    chunks = []
+
+
+    for index, pos in enumerate(
+        positions[:20],
+        1
+    ):
+
+        chunk_start = max(
+            0,
+            pos - radius
+        )
+
+
+        chunk_end = min(
+            len(text),
+            pos + len(keyword) + radius
+        )
+
+
+        chunk = text[
+            chunk_start:chunk_end
+        ]
+
+
+        chunks.append(
+            "\n\n"
+            + "=" * 80
+            + f"\nMATCH #{index}: {keyword}\n"
+            + "=" * 80
+            + "\n"
+            + chunk
+        )
+
+
+    return "".join(
+        chunks
+    )
+
+
+# =========================================================
+# SCAN JAVASCRIPT
+# =========================================================
+
+def scan_javascript(
+    html
+):
+
+    print()
+    print(
+        "================================================"
+    )
+    print(
+        "🔬 JAVASCRIPT SCANNER"
+    )
+    print(
+        "================================================"
+    )
+
+
+    # -----------------------------------------------------
+    # Извличаме всички JS файлове
+    # -----------------------------------------------------
+
+    js_urls = extract_javascript_urls(
+        html
+    )
+
+
+    print(
+        "📜 Намерени JS файлове:",
+        len(js_urls)
+    )
+
+
+    for index, url in enumerate(
+        js_urls,
+        1
+    ):
+
+        print(
+            f"   {index}. {url}"
+        )
+
+
+    save_debug(
+        "javascript_urls.txt",
+        "\n".join(js_urls)
+    )
+
+
+    # -----------------------------------------------------
+    # Ключови думи
+    # -----------------------------------------------------
+
+    keywords = [
+
+        "search-json-typesense",
+
+        "Typesense",
+
+        "typesense",
+
+        "query_by",
+
+        "queryBy",
+
+        "search-url",
+
+        "searchUrl",
+
+        "autocomplete",
+
+        "get-serialize-product",
+
+        "getProductSerializeUrl",
+
+        "addToCartUrl",
+
+        "discountedPrice",
+
+        "quantity",
+
+        "variants",
+
+    ]
+
+
+    all_matches = []
+
+
+    # -----------------------------------------------------
+    # Сканираме JS файловете
+    # -----------------------------------------------------
+
+    for index, url in enumerate(
+        js_urls,
+        1
+    ):
+
+        print()
+        print(
+            "------------------------------------------------"
+        )
+
+        print(
+            f"📥 JS {index}/{len(js_urls)}"
+        )
+
+        print(
+            url
+        )
+
+
+        try:
+
+            r = session.get(
+                url,
+                timeout=30
+            )
+
+
+            print(
+                "   HTTP:",
+                r.status_code
+            )
+
+
+            if r.status_code != 200:
+
+                print(
+                    "   ❌ JS недостъпен"
+                )
+
+                continue
+
+
+            js = r.text
+
+
+            filename = (
+                f"js_{index}.js"
+            )
+
+
+            save_debug(
+                filename,
+                js
+            )
+
+
+            print(
+                "   📦 Размер:",
+                len(js),
+                "bytes"
+            )
+
+
+            file_matches = []
+
+
+            for keyword in keywords:
+
+                if keyword.lower() not in js.lower():
+
+                    continue
+
+
+                print(
+                    "   🎯 НАМЕРЕНО:",
+                    keyword
+                )
+
+
+                context = extract_context(
+                    js,
+                    keyword
+                )
+
+
+                if context:
+
+                    file_matches.append(
+                        context
+                    )
+
+
+            if file_matches:
+
+                result_filename = (
+                    f"js_{index}_matches.txt"
+                )
+
+
+                save_debug(
+                    result_filename,
+                    "\n".join(file_matches)
+                )
+
+
+                all_matches.extend(
+                    file_matches
+                )
+
+
+        except Exception as e:
+
+            print(
+                "   ❌ JS ERROR:",
+                e
+            )
+
+
+    # -----------------------------------------------------
+    # Сканираме и самия HTML
+    # -----------------------------------------------------
+
+    print()
+    print(
+        "🔎 Проверявам и HTML-а за endpoint-и..."
+    )
+
+
+    html_matches = []
+
+
+    for keyword in keywords:
+
+        if keyword.lower() not in html.lower():
+
+            continue
+
+
+        print(
+            "🎯 HTML НАМЕРЕНО:",
+            keyword
+        )
+
+
+        context = extract_context(
+            html,
+            keyword
+        )
+
+
+        if context:
+
+            html_matches.append(
+                context
+            )
+
+
+    if html_matches:
+
+        save_debug(
+            "html_matches.txt",
+            "\n".join(html_matches)
+        )
+
+
+        all_matches.extend(
+            html_matches
+        )
+
+
+    # -----------------------------------------------------
+    # Обобщен файл
+    # -----------------------------------------------------
+
+    if all_matches:
+
+        save_debug(
+            "ALL_JAVASCRIPT_MATCHES.txt",
+            "\n".join(all_matches)
+        )
+
+
+    print()
+    print(
+        "================================================"
+    )
+
+    print(
+        "🔬 JAVASCRIPT SCANNER ГОТОВ"
+    )
+
+    print(
+        "📁 Резултатите са в:",
+        DEBUG_DIR
+    )
+
+    print(
+        "================================================"
+    )
+
+    print()
+
+
+# =========================================================
 # EXTRACT PRODUCT ID
 # =========================================================
 
 def extract_product_id(html):
 
     ids = re.findall(
-        r'/get-serialize-product/(\d+)',
+        r'data-product-id=["\'](\d+)["\']',
         html,
         re.I
     )
-
-
-    if not ids:
-
-        ids = re.findall(
-            r'data-product-id=["\'](\d+)["\']',
-            html,
-            re.I
-        )
 
 
     if not ids:
@@ -385,414 +843,6 @@ def extract_product_id(html):
 
 
     return None
-
-
-# =========================================================
-# GET SERIALIZED PRODUCT
-# =========================================================
-
-def get_serialized_product(product_id):
-
-    url = (
-        f"{BASE_URL}/get-serialize-product/{product_id}"
-    )
-
-
-    print(
-        "🌐 SERIALIZE:",
-        url
-    )
-
-
-    try:
-
-        r = session.get(
-            url,
-            timeout=30
-        )
-
-
-        print(
-            "🔎 Serialize HTTP:",
-            r.status_code
-        )
-
-
-        response_text = r.text
-
-
-        # -------------------------------------------------
-        # Записваме пълния response за debug
-        # -------------------------------------------------
-
-        save_debug(
-            f"serialize_{product_id}.json",
-            response_text
-        )
-
-
-        if r.status_code != 200:
-
-            print(
-                "❌ Serialize HTTP грешка:",
-                r.status_code
-            )
-
-            return None
-
-
-        try:
-
-            data = r.json()
-
-        except Exception:
-
-            try:
-
-                data = json.loads(
-                    response_text
-                )
-
-            except Exception as e:
-
-                print(
-                    "❌ Response-ът не е валиден JSON:",
-                    e
-                )
-
-                return None
-
-
-        return data
-
-
-    except Exception as e:
-
-        print(
-            "SERIALIZE ERROR:",
-            e
-        )
-
-        return None
-
-
-# =========================================================
-# FIND EXACT VARIANT
-# =========================================================
-
-def find_variant(
-    product_data,
-    sku
-):
-
-    if not isinstance(
-        product_data,
-        dict
-    ):
-
-        return None
-
-
-    variants = product_data.get(
-        "variants",
-        []
-    )
-
-
-    if not isinstance(
-        variants,
-        list
-    ):
-
-        print(
-            "⚠️ Няма variants[]"
-        )
-
-        return None
-
-
-    print(
-        "🔎 Общо варианти:",
-        len(variants)
-    )
-
-
-    target_sku = str(sku).strip()
-
-
-    for variant in variants:
-
-        if not isinstance(
-            variant,
-            dict
-        ):
-
-            continue
-
-
-        variant_sku = str(
-            variant.get(
-                "sku",
-                ""
-            )
-        ).strip()
-
-
-        if variant_sku == target_sku:
-
-            return variant
-
-
-    return None
-
-
-# =========================================================
-# EXTRACT PRICE FROM VARIANT
-# =========================================================
-
-def extract_variant_price_from_data(
-    variant
-):
-
-    if not variant:
-        return None
-
-
-    # -----------------------------------------------------
-    # Първо използваме discountedPrice,
-    # както е показано в AddToCart.js
-    # -----------------------------------------------------
-
-    discounted_price = variant.get(
-        "discountedPrice"
-    )
-
-
-    if discounted_price is not None:
-
-        try:
-
-            return f"{float(discounted_price):.2f}"
-
-        except Exception:
-            pass
-
-
-    # -----------------------------------------------------
-    # Ако няма discountedPrice → price
-    # -----------------------------------------------------
-
-    price = variant.get(
-        "price"
-    )
-
-
-    if price is not None:
-
-        try:
-
-            return f"{float(price):.2f}"
-
-        except Exception:
-            pass
-
-
-    return None
-
-
-# =========================================================
-# EXTRACT QUANTITY FROM VARIANT
-# =========================================================
-
-def extract_variant_quantity(
-    variant
-):
-
-    if not variant:
-        return None
-
-
-    quantity = variant.get(
-        "quantity"
-    )
-
-
-    if quantity is not None:
-
-        try:
-
-            return int(
-                quantity
-            )
-
-        except Exception:
-            pass
-
-
-    # -----------------------------------------------------
-    # Fallback: ако quantity липсва,
-    # събираме количествата по магазини
-    # -----------------------------------------------------
-
-    stores = variant.get(
-        "stores",
-        []
-    )
-
-
-    if isinstance(
-        stores,
-        list
-    ):
-
-        total = 0
-
-        found = False
-
-
-        for store in stores:
-
-            if not isinstance(
-                store,
-                dict
-            ):
-
-                continue
-
-
-            store_quantity = store.get(
-                "quantity"
-            )
-
-
-            if store_quantity is None:
-                continue
-
-
-            try:
-
-                total += int(
-                    store_quantity
-                )
-
-                found = True
-
-            except Exception:
-                pass
-
-
-        if found:
-
-            return total
-
-
-    return None
-
-
-# =========================================================
-# EXTRACT AVAILABILITY FROM VARIANT
-# =========================================================
-
-def extract_variant_availability(
-    variant
-):
-
-    quantity = extract_variant_quantity(
-        variant
-    )
-
-
-    if quantity is not None:
-
-        if quantity > 0:
-
-            return "Наличен"
-
-        return "Неналичен"
-
-
-    return "Неизвестна"
-
-
-# =========================================================
-# DEBUG VARIANT
-# =========================================================
-
-def print_variant_info(
-    variant
-):
-
-    if not variant:
-
-        return
-
-
-    print(
-        "────────────────────────────"
-    )
-
-
-    print(
-        "✅ Variant ID:",
-        variant.get("id")
-    )
-
-
-    print(
-        "✅ SKU:",
-        variant.get("sku")
-    )
-
-
-    print(
-        "✅ Barcode:",
-        variant.get("barcode")
-    )
-
-
-    print(
-        "✅ Price:",
-        variant.get("price")
-    )
-
-
-    print(
-        "✅ DiscountedPrice:",
-        variant.get("discountedPrice")
-    )
-
-
-    print(
-        "✅ Quantity:",
-        variant.get("quantity")
-    )
-
-
-    stores = variant.get(
-        "stores"
-    )
-
-
-    if stores:
-
-        print(
-            "🏪 Stores:"
-        )
-
-
-        for store in stores:
-
-            print(
-                "   -",
-                store.get("name"),
-                ":",
-                store.get("quantity")
-            )
-
-
-    print(
-        "────────────────────────────"
-    )
 
 
 # =========================================================
@@ -826,6 +876,9 @@ def main():
         "Общо SKU:",
         len(skus)
     )
+
+
+    scanner_done = False
 
 
     for sku in skus:
@@ -866,6 +919,19 @@ def main():
 
 
         # -------------------------------------------------
+        # Пускаме JS scanner само веднъж
+        # -------------------------------------------------
+
+        if not scanner_done:
+
+            scan_javascript(
+                html
+            )
+
+            scanner_done = True
+
+
+        # -------------------------------------------------
         # PRODUCT ID
         # -------------------------------------------------
 
@@ -874,199 +940,49 @@ def main():
         )
 
 
-        if not product_id:
+        if product_id:
 
             print(
-                "❌ Няма Product ID"
+                "✅ Product ID:",
+                product_id
+            )
+
+        else:
+
+            print(
+                "⚠️ Product ID не е намерено"
             )
 
 
-            save_not_found(
-                sku
-            )
-
-
-            time.sleep(
-                WAIT
-            )
-
-
-            continue
-
+        # -------------------------------------------------
+        # ВАЖНО:
+        #
+        # НЕ извикваме:
+        #
+        # /get-serialize-product/
+        #
+        # защото GitHub Actions получава HTTP 403.
+        #
+        # На този етап само събираме JS информацията,
+        # за да открием реалния публичен endpoint.
+        # -------------------------------------------------
 
         print(
-            "✅ Product ID:",
-            product_id
+            "⏭️ Serialize endpoint пропуснат."
         )
 
 
         # -------------------------------------------------
-        # GET SERIALIZED PRODUCT
+        # Временно записваме SKU като not found.
+        #
+        # След като открием endpoint-а,
+        # тук ще поставим реалното извличане.
         # -------------------------------------------------
 
-        product_data = get_serialized_product(
-            product_id
-        )
-
-
-        if not product_data:
-
-            print(
-                "❌ Няма Serialized Product данни"
-            )
-
-
-            save_not_found(
-                sku
-            )
-
-
-            time.sleep(
-                WAIT
-            )
-
-
-            continue
-
-
-        # -------------------------------------------------
-        # FIND EXACT SKU VARIANT
-        # -------------------------------------------------
-
-        variant = find_variant(
-            product_data,
+        save_not_found(
             sku
         )
 
-
-        if not variant:
-
-            print(
-                "❌ SKU не е намерено във variants[]:",
-                sku
-            )
-
-
-            save_not_found(
-                sku
-            )
-
-
-            time.sleep(
-                WAIT
-            )
-
-
-            continue
-
-
-        # -------------------------------------------------
-        # PRINT VARIANT INFO
-        # -------------------------------------------------
-
-        print_variant_info(
-            variant
-        )
-
-
-        # -------------------------------------------------
-        # QUANTITY
-        # -------------------------------------------------
-
-        quantity = extract_variant_quantity(
-            variant
-        )
-
-
-        if quantity is not None:
-
-            print(
-                "📦 Крайно количество:",
-                quantity
-            )
-
-        else:
-
-            print(
-                "⚠️ Quantity не е намерено"
-            )
-
-
-        # -------------------------------------------------
-        # AVAILABILITY
-        # -------------------------------------------------
-
-        availability = extract_variant_availability(
-            variant
-        )
-
-
-        print(
-            "📊 Наличност:",
-            availability
-        )
-
-
-        # -------------------------------------------------
-        # PRICE
-        # -------------------------------------------------
-
-        price = extract_variant_price_from_data(
-            variant
-        )
-
-
-        if price:
-
-            print(
-                "💰 Крайна цена:",
-                price
-            )
-
-        else:
-
-            print(
-                "❌ Няма намерена цена"
-            )
-
-
-        # -------------------------------------------------
-        # SAVE RESULT
-        # -------------------------------------------------
-
-        if price:
-
-            save_result(
-                [
-                    sku,
-                    availability,
-                    quantity
-                    if quantity is not None
-                    else "-",
-                    price
-                ]
-            )
-
-
-            print(
-                "✅ Записан резултат:",
-                sku,
-                availability,
-                quantity,
-                price
-            )
-
-
-        else:
-
-            save_not_found(
-                sku
-            )
-
-
-        # -------------------------------------------------
-        # WAIT
-        # -------------------------------------------------
 
         time.sleep(
             WAIT
@@ -1092,7 +1008,7 @@ def main():
 
 
     print(
-        "✅ Готово"
+        "✅ Диагностиката приключи"
     )
 
 
