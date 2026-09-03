@@ -1,320 +1,182 @@
-import csv
-import re
-import time
 import requests
 from bs4 import BeautifulSoup
 
 BASE_URL = "https://filstar.com"
-CSV_FILE = "sku_list_filstar.csv"
-TEST_LIMIT = 10
-WAIT = 0
+SKU = "946537"
 
+url = f"{BASE_URL}/api/search"
 
-def load_skus():
-    skus = []
-    skip_block = False
+session = requests.Session()
 
-    with open(CSV_FILE, "r", encoding="utf-8-sig", newline="") as f:
-        reader = csv.DictReader(f)
+session.headers.update({
+    "User-Agent": (
+        "Mozilla/5.0 "
+        "(Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 "
+        "(KHTML, like Gecko) "
+        "Chrome/131.0.0.0 "
+        "Safari/537.36"
+    ),
+    "Accept": (
+        "text/html,"
+        "application/xhtml+xml,"
+        "application/xml;q=0.9,"
+        "*/*;q=0.8"
+    ),
+    "Accept-Language": "bg-BG,bg;q=0.9,en;q=0.8",
+})
 
-        for row in reader:
-            sku = str(row.get("SKU", "")).strip()
+print("=" * 70)
+print("FILSTAR API SEARCH DEBUG")
+print("=" * 70)
 
-            if sku == "##":
-                skip_block = not skip_block
-                continue
+print(f"SKU: {SKU}")
+print(f"URL: {url}?term={SKU}")
 
-            if skip_block:
-                continue
+response = session.get(
+    url,
+    params={"term": SKU},
+    timeout=30
+)
 
-            if sku:
-                skus.append(sku)
+print()
+print(f"HTTP: {response.status_code}")
+print(f"HTML: {len(response.text)} characters")
 
-    return skus
+html = response.text
 
+with open(
+    "api_search_debug_current.html",
+    "w",
+    encoding="utf-8"
+) as f:
+    f.write(html)
 
-def extract_product_data(html, sku):
-    soup = BeautifulSoup(html, "html.parser")
+print()
+print("Записан файл:")
+print("api_search_debug_current.html")
 
-    result = {
-        "sku": sku,
-        "found": False,
-        "product_id": "",
-        "name": "",
-        "price": "",
-        "available": "",
-        "status": "",
-    }
+soup = BeautifulSoup(
+    html,
+    "html.parser"
+)
 
-    page_text = soup.get_text(" ", strip=True)
+print()
+print("=" * 70)
+print("DATA-PRODUCT ELEMENTS")
+print("=" * 70)
 
-    if sku not in page_text:
-        result["status"] = "SKU_NOT_FOUND"
-        return result
+elements = soup.find_all(
+    attrs={"data-product-id": True}
+)
 
-    result["found"] = True
+print(
+    f"Намерени елементи: {len(elements)}"
+)
 
-    elements = soup.find_all(attrs={"data-product-id": True})
-
-    product_element = None
-
-    for element in elements:
-        current = element
-
-        for _ in range(10):
-            if current is None:
-                break
-
-            current_text = current.get_text(" ", strip=True)
-
-            if sku in current_text:
-                product_element = current
-                break
-
-            current = current.parent
-
-        if product_element is not None:
-            break
-
-    if product_element is None:
-        result["status"] = "SKU_FOUND_BUT_PRODUCT_BLOCK_NOT_FOUND"
-        return result
-
-    current = product_element
-
-    for _ in range(10):
-        if current is None:
-            break
-
-        product_id = current.get("data-product-id")
-
-        if product_id:
-            result["product_id"] = product_id.strip()
-            break
-
-        current = current.parent
-
-    name = (
-        product_element.get("data-product-name")
-        or product_element.get("data-product-variant")
-        or ""
-    )
-
-    result["name"] = name.strip()
-
-    block_text = product_element.get_text(" ", strip=True)
-
-    price = ""
-
-    price_patterns = [
-        r"(\d+[.,]\d{2})\s*€",
-        r"от\s*(\d+[.,]\d{2})\s*€",
-    ]
-
-    for pattern in price_patterns:
-        match = re.search(pattern, block_text, re.IGNORECASE)
-
-        if match:
-            price = match.group(1).replace(",", ".")
-            break
-
-    result["price"] = price
-
-    classes = product_element.get("class", [])
-    class_text = " ".join(classes).lower()
-    lower_text = block_text.lower()
-
-    out_of_stock_markers = [
-        "out-of-stock",
-        "out of stock",
-        "няма наличност",
-        "неналичен",
-        "изчерпан",
-        "не е наличен",
-    ]
-
-    available_markers = [
-        "в наличност",
-        "наличен",
-    ]
-
-    is_out_of_stock = any(
-        marker in class_text or marker in lower_text
-        for marker in out_of_stock_markers
-    )
-
-    is_available = any(
-        marker in lower_text
-        for marker in available_markers
-    )
-
-    if is_out_of_stock:
-        result["available"] = "NO"
-        result["status"] = "OUT_OF_STOCK"
-
-    elif is_available:
-        result["available"] = "YES"
-        result["status"] = "AVAILABLE"
-
-    else:
-        result["available"] = "UNKNOWN"
-        result["status"] = "FOUND_NO_STOCK_MARKER"
-
-    return result
-
-
-def check_sku(session, sku):
-    url = f"{BASE_URL}/api/search"
-
-    params = {
-        "term": sku
-    }
+for index, element in enumerate(
+    elements,
+    start=1
+):
 
     print()
-    print("=" * 70)
-    print(f"SKU: {sku}")
-    print("=" * 70)
+    print("-" * 70)
+    print(f"ELEMENT #{index}")
+    print("-" * 70)
 
-    try:
-        response = session.get(
-            url,
-            params=params,
-            timeout=30
+    print("TAG:", element.name)
+
+    print()
+    print("ATTRIBUTES:")
+
+    for key, value in element.attrs.items():
+        print(
+            f"  {key} = {value}"
         )
 
-        print(f"HTTP: {response.status_code}")
+    print()
+    print("TEXT:")
 
-        if response.status_code != 200:
-            print(f"ERROR: HTTP {response.status_code}")
+    text = element.get_text(
+        " ",
+        strip=True
+    )
 
-            return {
-                "sku": sku,
-                "found": False,
-                "product_id": "",
-                "name": "",
-                "price": "",
-                "available": "",
-                "status": f"HTTP_{response.status_code}",
-            }
+    print(text[:2000])
 
-        html = response.text
+print()
+print("=" * 70)
+print("SEARCHING RAW HTML")
+print("=" * 70)
 
-        print(f"HTML: {len(html)} characters")
+search_terms = [
+    SKU,
+    "946537",
+    "data-product-id",
+    "data-product-variant",
+    "data-product-name",
+    "discount-price",
+    "out-of-stock",
+    "product-list-view",
+]
 
-        result = extract_product_data(html, sku)
+for term in search_terms:
 
-        print()
-        print(f"Product ID: {result['product_id']}")
-        print(f"Name: {result['name']}")
-        print(f"Price: {result['price']}")
-        print(f"Available: {result['available']}")
-        print(f"Status: {result['status']}")
+    count = html.lower().count(
+        term.lower()
+    )
 
-        return result
+    print(
+        f"{term}: {count}"
+    )
 
-    except Exception as e:
-        print(f"ERROR: {e}")
+print()
+print("=" * 70)
+print("SKU RAW HTML CONTEXT")
+print("=" * 70)
 
-        return {
-            "sku": sku,
-            "found": False,
-            "product_id": "",
-            "name": "",
-            "price": "",
-            "available": "",
-            "status": "EXCEPTION",
-        }
+position = html.find(SKU)
 
+if position == -1:
 
-def main():
-    print("=" * 70)
-    print("FILSTAR API SEARCH TEST")
-    print("=" * 70)
+    print(
+        "SKU НЕ е намерен като обикновен текст "
+        "в raw HTML."
+    )
 
-    skus = load_skus()
+else:
 
-    print(f"Общо SKU: {len(skus)}")
+    print(
+        f"SKU намерен на позиция: {position}"
+    )
 
-    test_skus = skus[:TEST_LIMIT]
+    start = max(
+        0,
+        position - 3000
+    )
 
-    print(f"Тестови SKU: {len(test_skus)}")
+    end = min(
+        len(html),
+        position + 5000
+    )
 
-    session = requests.Session()
+    context = html[start:end]
 
-    session.headers.update({
-        "User-Agent": (
-            "Mozilla/5.0 "
-            "(Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 "
-            "(KHTML, like Gecko) "
-            "Chrome/131.0.0.0 "
-            "Safari/537.36"
-        ),
-        "Accept": (
-            "text/html,"
-            "application/xhtml+xml,"
-            "application/xml;q=0.9,"
-            "*/*;q=0.8"
-        ),
-        "Accept-Language": "bg-BG,bg;q=0.9,en;q=0.8",
-    })
-
-    results = []
-
-    for index, sku in enumerate(test_skus, start=1):
-        print()
-        print(f"[{index}/{len(test_skus)}]")
-
-        result = check_sku(session, sku)
-
-        results.append(result)
-
-        if WAIT > 0:
-            time.sleep(WAIT)
-
-    output_file = "filstar_api_test.csv"
-
-    fieldnames = [
-        "sku",
-        "found",
-        "product_id",
-        "name",
-        "price",
-        "available",
-        "status",
-    ]
+    print(context)
 
     with open(
-        output_file,
+        "sku_context.txt",
         "w",
-        encoding="utf-8-sig",
-        newline=""
+        encoding="utf-8"
     ) as f:
-        writer = csv.DictWriter(
-            f,
-            fieldnames=fieldnames
-        )
-
-        writer.writeheader()
-        writer.writerows(results)
+        f.write(context)
 
     print()
-    print("=" * 70)
-    print("ГОТОВО")
-    print("=" * 70)
+    print(
+        "Контекстът е записан в sku_context.txt"
+    )
 
-    print(f"Резултатът е записан в: {output_file}")
-
-    print()
-
-    for result in results:
-        print(
-            f"{result['sku']} | "
-            f"{result['price']} € | "
-            f"{result['available']} | "
-            f"{result['status']}"
-        )
-
-
-if __name__ == "__main__":
-    main()
+print()
+print("=" * 70)
+print("ГОТОВО")
+print("=" * 70)
