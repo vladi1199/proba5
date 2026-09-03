@@ -4,7 +4,6 @@ from bs4 import BeautifulSoup
 BASE_URL = "https://filstar.com"
 SKU = "946537"
 
-url = f"{BASE_URL}/api/search"
 
 session = requests.Session()
 
@@ -26,10 +25,14 @@ session.headers.update({
     "Accept-Language": "bg-BG,bg;q=0.9,en;q=0.8",
 })
 
+
 print("=" * 70)
-print("FILSTAR API SEARCH DEBUG")
+print("FILSTAR SKU STRUCTURE DEBUG")
 print("=" * 70)
 
+url = f"{BASE_URL}/api/search"
+
+print()
 print(f"SKU: {SKU}")
 print(f"URL: {url}?term={SKU}")
 
@@ -43,6 +46,11 @@ print()
 print(f"HTTP: {response.status_code}")
 print(f"HTML: {len(response.text)} characters")
 
+if response.status_code != 200:
+    print()
+    print("ERROR: HTTP", response.status_code)
+    exit(1)
+
 html = response.text
 
 with open(
@@ -53,26 +61,91 @@ with open(
     f.write(html)
 
 print()
-print("Записан файл:")
+print("HTML записан в:")
 print("api_search_debug_current.html")
+
+
+print()
+print("=" * 70)
+print("ВСИЧКИ СРЕЩАНИЯ НА SKU")
+print("=" * 70)
+
+positions = []
+start = 0
+
+while True:
+
+    position = html.find(
+        SKU,
+        start
+    )
+
+    if position == -1:
+        break
+
+    positions.append(position)
+
+    start = position + len(SKU)
+
+
+print()
+print(
+    f"Общо срещания: {len(positions)}"
+)
+
+
+for index, position in enumerate(
+    positions,
+    start=1
+):
+
+    print()
+    print("-" * 70)
+    print(
+        f"СРЕЩАНЕ #{index} "
+        f"на позиция {position}"
+    )
+    print("-" * 70)
+
+    start_context = max(
+        0,
+        position - 800
+    )
+
+    end_context = min(
+        len(html),
+        position + 1200
+    )
+
+    context = html[
+        start_context:end_context
+    ]
+
+    print(context)
+
+
+print()
+print("=" * 70)
+print("SOUP ELEMENTS СЪДЪРЖАЩИ SKU")
+print("=" * 70)
 
 soup = BeautifulSoup(
     html,
     "html.parser"
 )
 
-print()
-print("=" * 70)
-print("DATA-PRODUCT ELEMENTS")
-print("=" * 70)
-
 elements = soup.find_all(
-    attrs={"data-product-id": True}
+    lambda tag:
+        tag.string is not None
+        and SKU in tag.string
 )
 
+print()
 print(
-    f"Намерени елементи: {len(elements)}"
+    f"Намерени директни text nodes: "
+    f"{len(elements)}"
 )
+
 
 for index, element in enumerate(
     elements,
@@ -81,13 +154,24 @@ for index, element in enumerate(
 
     print()
     print("-" * 70)
-    print(f"ELEMENT #{index}")
+    print(
+        f"TEXT NODE #{index}"
+    )
     print("-" * 70)
 
-    print("TAG:", element.name)
+    print(
+        "TAG:",
+        element.name
+    )
 
-    print()
-    print("ATTRIBUTES:")
+    print(
+        "TEXT:",
+        repr(element.string)
+    )
+
+    print(
+        "ATTRIBUTES:"
+    )
 
     for key, value in element.attrs.items():
         print(
@@ -95,86 +179,87 @@ for index, element in enumerate(
         )
 
     print()
-    print("TEXT:")
-
-    text = element.get_text(
-        " ",
-        strip=True
+    print(
+        "PARENT:"
     )
 
-    print(text[:2000])
+    if element.parent:
+
+        print(
+            str(element.parent)[:5000]
+        )
+
 
 print()
 print("=" * 70)
-print("SEARCHING RAW HTML")
+print("ЕЛЕМЕНТИ С DATA- АТРИБУТИ")
 print("=" * 70)
 
-search_terms = [
-    SKU,
-    "946537",
-    "data-product-id",
-    "data-product-variant",
-    "data-product-name",
-    "discount-price",
-    "out-of-stock",
-    "product-list-view",
-]
+data_elements = soup.find_all(
+    attrs=lambda attrs:
+        attrs and any(
+            key.startswith("data-")
+            for key in attrs
+        )
+)
 
-for term in search_terms:
+sku_data_elements = []
 
-    count = html.lower().count(
-        term.lower()
+for element in data_elements:
+
+    element_html = str(
+        element
     )
 
-    print(
-        f"{term}: {count}"
-    )
+    if SKU in element_html:
+        sku_data_elements.append(
+            element
+        )
+
 
 print()
-print("=" * 70)
-print("SKU RAW HTML CONTEXT")
-print("=" * 70)
+print(
+    f"Data елементи, съдържащи SKU: "
+    f"{len(sku_data_elements)}"
+)
 
-position = html.find(SKU)
 
-if position == -1:
+for index, element in enumerate(
+    sku_data_elements,
+    start=1
+):
+
+    print()
+    print("-" * 70)
+    print(
+        f"DATA ELEMENT #{index}"
+    )
+    print("-" * 70)
 
     print(
-        "SKU НЕ е намерен като обикновен текст "
-        "в raw HTML."
+        "TAG:",
+        element.name
     )
-
-else:
 
     print(
-        f"SKU намерен на позиция: {position}"
+        "ATTRIBUTES:"
     )
 
-    start = max(
-        0,
-        position - 3000
-    )
+    for key, value in element.attrs.items():
 
-    end = min(
-        len(html),
-        position + 5000
-    )
-
-    context = html[start:end]
-
-    print(context)
-
-    with open(
-        "sku_context.txt",
-        "w",
-        encoding="utf-8"
-    ) as f:
-        f.write(context)
+        print(
+            f"  {key} = {value}"
+        )
 
     print()
     print(
-        "Контекстът е записан в sku_context.txt"
+        "HTML:"
     )
+
+    print(
+        str(element)[:5000]
+    )
+
 
 print()
 print("=" * 70)
