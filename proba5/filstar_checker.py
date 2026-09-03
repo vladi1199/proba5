@@ -6,7 +6,7 @@ import os
 import re
 import time
 import requests
-
+import shutil
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -30,7 +30,11 @@ DEBUG_DIR = os.path.join(
     "debug_html"
 )
 
+# Изтриваме цялото старо съдържание на debug_html
+if os.path.exists(DEBUG_DIR):
+    shutil.rmtree(DEBUG_DIR)
 
+# Създаваме наново празната папка
 os.makedirs(
     DEBUG_DIR,
     exist_ok=True
