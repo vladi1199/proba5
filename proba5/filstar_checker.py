@@ -286,12 +286,40 @@ def fetch_product_page(url):
             wait_until="domcontentloaded"
         )
 
-        # изчакваме таблицата за бърза поръчка да се появи,
-        # ако е рендирана допълнително от JS
+        # опитваме да кликнем таба "Варианти", ако съществува —
+        # таблицата с цени по SKU обикновено се зарежда лениво
+        try:
+
+            variant_tab = _page.get_by_text(
+                "Варианти",
+                exact=False
+            ).first
+
+            if variant_tab:
+
+                variant_tab.click(timeout=5000)
+
+        except Exception:
+
+            pass
+
+        # изчакваме мрежата да се успокои (AJAX зареждане на редовете)
+        try:
+
+            _page.wait_for_load_state(
+                "networkidle",
+                timeout=10000
+            )
+
+        except Exception:
+
+            pass
+
+        # допълнително изчакваме поява на текст "ЦЕНА НА ДРЕБНО"
         try:
 
             _page.wait_for_selector(
-                "#fast-order-table",
+                "text=ЦЕНА НА ДРЕБНО",
                 timeout=8000
             )
 
@@ -318,51 +346,49 @@ def fetch_product_page(url):
 
 def extract_variant_price(html, sku):
 
-    table_match = re.search(
-        r'id=["\']fast-order-table["\'].*?<tbody[^>]*>(.*?)</tbody>',
+    # -------------------------------------------------
+    # Намираме ВСИЧКИ таблици в страницата и избираме
+    # тази, чието заглавие съдържа "ЦЕНА НА ДРЕБНО"
+    # (по-надеждно от фиксиран ID, който сайтът е сменил)
+    # -------------------------------------------------
+
+    tables = re.findall(
+        r'<table\b[^>]*>(.*?)</table>',
         html,
         re.I | re.S
     )
 
-    if not table_match:
+    variants_table = None
+
+    for t in tables:
+
+        if "ЦЕНА НА ДРЕБНО" in t.upper() or "ДРЕБНО" in t.upper():
+
+            variants_table = t
+
+            break
+
+    if variants_table is None:
+
+        print("⚠️ Не намерих таблица с варианти в HTML")
 
         return None
 
-    tbody_html = table_match.group(1)
-
     rows = re.findall(
         r'<tr\b[^>]*>(.*?)</tr>',
-        tbody_html,
+        variants_table,
         re.I | re.S
     )
 
+    print(f"🔎 Намерени редове в таблицата с варианти: {len(rows)}")
+
     for row in rows:
 
-        code_match = re.search(
-            r'class=["\'][^"\']*td-sky[^"\']*["\'][^>]*>(.*?)</td>',
-            row,
-            re.I | re.S
-        )
+        # SKU може да е в произволна клетка на реда —
+        # проверяваме целия ред за точно съвпадение по цифри
+        row_text_only = re.sub(r'<[^>]+>', ' ', row)
 
-        row_matches_sku = False
-
-        if code_match:
-
-            code_text = re.sub(r'<[^>]+>', '', code_match.group(1))
-
-            code_digits = re.sub(r'\D+', '', code_text)
-
-            if code_digits == str(sku):
-
-                row_matches_sku = True
-
-        if not row_matches_sku:
-
-            if re.search(rf'\b{re.escape(str(sku))}\b', row):
-
-                row_matches_sku = True
-
-        if not row_matches_sku:
+        if not re.search(rf'\b{re.escape(str(sku))}\b', row_text_only):
 
             continue
 
@@ -384,11 +410,13 @@ def extract_variant_price(html, sku):
 
         if price is None:
 
-            m2 = re.search(r'(\d+[.,]\d+)\s*€', row)
+            # вземаме ПОСЛЕДНОТО € число в реда (обикновено
+            # "ЦЕНА НА ДРЕБНО" е последната колона)
+            euro_matches = re.findall(r'(\d+[.,]\d+)\s*€', row)
 
-            if m2:
+            if euro_matches:
 
-                price = m2.group(1).replace(",", ".")
+                price = euro_matches[-1].replace(",", ".")
 
         return price
 
