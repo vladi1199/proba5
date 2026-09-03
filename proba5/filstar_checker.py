@@ -1,140 +1,129 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 import csv
 import json
 import os
 import re
 import shutil
 import time
+
 from urllib.parse import quote, urljoin
 
 import requests
 
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-SKU_CSV = os.path.join(BASE_DIR, "sku_list_filstar.csv")
-RESULT_CSV = os.path.join(BASE_DIR, "results_filstar.csv")
-NOT_FOUND_CSV = os.path.join(BASE_DIR, "not_found_filstar.csv")
-DEBUG_DIR = os.path.join(BASE_DIR, "debug_html")
-
 BASE_URL = "https://filstar.com"
 WAIT = 2
 
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/128.0.0.0 Safari/537.36"
-    ),
-    "Accept": (
-        "text/html,application/xhtml+xml,application/xml;q=0.9,"
-        "application/json;q=0.8,*/*;q=0.7"
-    ),
-    "Accept-Language": "bg-BG,bg;q=0.9,en;q=0.8",
-    "Referer": "https://filstar.com/",
-}
+CSV_FILE = "sku_list_filstar.csv"
+RESULTS_FILE = "results_filstar.csv"
+NOT_FOUND_FILE = "not_found_filstar.csv"
+DEBUG_DIR = "debug_html"
 
-session = requests.Session()
-session.headers.update(HEADERS)
 
+# ============================================================
+# CSV
+# ============================================================
 
 def read_skus():
-    result = []
-    block = False
+    skus = []
 
-    with open(SKU_CSV, encoding="utf-8-sig") as f:
-        for line in f:
-            line = line.strip()
+    with open(
+        CSV_FILE,
+        "r",
+        encoding="utf-8-sig",
+        newline="",
+    ) as f:
 
-            if not line:
+        reader = csv.DictReader(f)
+
+        for row in reader:
+
+            sku = str(
+                row.get("SKU", "")
+            ).strip()
+
+            if not sku:
                 continue
 
-            if line.upper() == "SKU":
+            # Поддръжка на блокови коментари:
+            #
+            # ##
+            # SKU...
+            # SKU...
+            # ##
+            #
+            # Всичко между ## и ## се игнорира.
+
+            if not hasattr(read_skus, "in_comment"):
+                read_skus.in_comment = False
+
+            if sku == "##":
+                read_skus.in_comment = not read_skus.in_comment
                 continue
 
-            if line == "##":
-                block = not block
+            if read_skus.in_comment:
                 continue
 
-            if block:
-                continue
+            skus.append(sku)
 
-            result.append(line)
+    return skus
 
-    return result
 
+# ============================================================
+# DEBUG
+# ============================================================
 
 def init_debug_folder():
     if os.path.exists(DEBUG_DIR):
-        print("Изтривам старата debug папка:", DEBUG_DIR)
+        shutil.rmtree(DEBUG_DIR)
 
-        try:
-            shutil.rmtree(DEBUG_DIR)
-        except Exception as e:
-            print("Грешка при изтриване на debug папката:", e)
-
-    os.makedirs(DEBUG_DIR, exist_ok=True)
-
-    print(
-        "Създадена е нова debug папка:",
+    os.makedirs(
         DEBUG_DIR,
+        exist_ok=True,
     )
 
 
 def save_debug(filename, content):
-    if content is None:
-        return
-
-    filepath = os.path.join(
+    path = os.path.join(
         DEBUG_DIR,
         filename,
     )
 
-    os.makedirs(
-        os.path.dirname(filepath),
-        exist_ok=True,
-    )
+    folder = os.path.dirname(path)
 
-    try:
-        with open(
-            filepath,
-            "w",
-            encoding="utf-8",
-        ) as f:
-
-            if isinstance(content, str):
-                f.write(content)
-
-            else:
-                json.dump(
-                    content,
-                    f,
-                    ensure_ascii=False,
-                    indent=2,
-                )
-
-        print(
-            "Debug:",
-            filepath,
+    if folder:
+        os.makedirs(
+            folder,
+            exist_ok=True,
         )
 
-    except Exception as e:
-        print(
-            "Грешка при запис на debug:",
-            e,
+    with open(
+        path,
+        "w",
+        encoding="utf-8",
+    ) as f:
+
+        f.write(
+            content
+            if isinstance(content, str)
+            else str(content)
         )
 
+
+# ============================================================
+# CSV RESULTS
+# ============================================================
 
 def init_csv():
     with open(
-        RESULT_CSV,
+        RESULTS_FILE,
         "w",
-        newline="",
         encoding="utf-8",
+        newline="",
     ) as f:
-        csv.writer(f).writerow(
+
+        writer = csv.writer(f)
+
+        writer.writerow(
             [
                 "SKU",
                 "Наличност",
@@ -143,1171 +132,1273 @@ def init_csv():
             ]
         )
 
+
+def save_result(
+    sku,
+    availability,
+    quantity,
+    price,
+):
+
     with open(
-        NOT_FOUND_CSV,
-        "w",
-        newline="",
+        RESULTS_FILE,
+        "a",
         encoding="utf-8",
+        newline="",
     ) as f:
-        csv.writer(f).writerow(
-            ["SKU"]
+
+        writer = csv.writer(f)
+
+        writer.writerow(
+            [
+                sku,
+                availability,
+                quantity,
+                price,
+            ]
         )
 
 
-def save_result(row):
-    with open(
-        RESULT_CSV,
-        "a",
-        newline="",
-        encoding="utf-8",
-    ) as f:
-        csv.writer(f).writerow(row)
-
-
 def save_not_found(sku):
+
     with open(
-        NOT_FOUND_CSV,
+        NOT_FOUND_FILE,
         "a",
-        newline="",
         encoding="utf-8",
+        newline="",
     ) as f:
-        csv.writer(f).writerow(
+
+        writer = csv.writer(f)
+
+        writer.writerow(
             [sku]
         )
 
 
-def search_filstar(sku):
-    url = (
-        f"{BASE_URL}/api/search"
-        f"?term={quote(str(sku))}"
-    )
+# ============================================================
+# SEARCH
+# ============================================================
 
-    print(
-        "SEARCH:",
-        url,
+def search_filstar(
+    session,
+    sku,
+):
+
+    url = (
+        BASE_URL
+        + "/api/search?term="
+        + quote(str(sku))
     )
 
     try:
-        r = session.get(
+
+        response = session.get(
             url,
             timeout=30,
         )
 
         print(
-            "Search HTTP:",
-            r.status_code,
+            f"   🔎 /api/search?term={sku} → "
+            f"HTTP {response.status_code}"
+        )
+
+        print(
+            f"   Content-Type: "
+            f"{response.headers.get('Content-Type')}"
+        )
+
+        print(
+            f"   Размер: "
+            f"{len(response.text):,} bytes"
         )
 
         save_debug(
             f"search_{sku}.html",
-            r.text,
+            response.text,
         )
 
-        if r.status_code != 200:
-            print(
-                "Search HTTP грешка:",
-                r.status_code,
-            )
-            return None
-
-        return r.text
+        return response.text
 
     except Exception as e:
+
         print(
-            "SEARCH ERROR:",
-            e,
+            "   ❌ Search error:",
+            repr(e),
         )
+
         return None
 
 
+# ============================================================
+# PRODUCT ID
+# ============================================================
+
 def extract_product_id(html):
+
     if not html:
         return None
 
-    # Основният и най-надежден вариант:
+    # Най-прекият вариант:
     # data-product-id="2557"
-    patterns = [
+
+    match = re.search(
         r'data-product-id=["\'](\d+)["\']',
-        r'/get-serialize-product/(\d+)',
-        r'product.?id.?[:="\']+(\d+)',
+        html,
+        re.I,
+    )
+
+    if match:
+
+        product_id = match.group(1)
+
+        print(
+            "   🆔 Product ID:",
+            product_id,
+        )
+
+        return product_id
+
+    # Резервен вариант
+
+    patterns = [
+        r'"productId"\s*:\s*"?(\d+)',
+        r'"product_id"\s*:\s*"?(\d+)',
+        r'data-product-id\s*=\s*[\'"](\d+)',
     ]
 
-    ids = []
-
     for pattern in patterns:
-        ids.extend(
-            re.findall(
-                pattern,
+
+        match = re.search(
+            pattern,
+            html,
+            re.I,
+        )
+
+        if match:
+
+            product_id = match.group(1)
+
+            print(
+                "   🆔 Product ID:",
+                product_id,
+            )
+
+            return product_id
+
+    print(
+        "   ❌ Product ID not found"
+    )
+
+    return None
+
+
+# ============================================================
+# PRODUCT URL
+# ============================================================
+
+def extract_product_url(
+    html,
+    sku=None,
+):
+
+    if not html:
+        return None
+
+    # --------------------------------------------------------
+    # Първо търсим product-item-wapper контейнер,
+    # който съдържа конкретния SKU.
+    # --------------------------------------------------------
+
+    if sku:
+
+        sku = str(sku)
+
+        starts = list(
+            re.finditer(
+                r'<div[^>]*class=["\'][^"\']*product-item-wapper[^"\']*["\'][^>]*>',
                 html,
                 re.I,
             )
         )
 
-    ids = list(
-        dict.fromkeys(ids)
-    )
+        for index, match in enumerate(
+            starts
+        ):
 
-    print(
-        "ID кандидати:",
-        ids,
-    )
+            start_pos = match.start()
 
-    return ids[0] if ids else None
+            if index + 1 < len(starts):
 
+                end_pos = starts[
+                    index + 1
+                ].start()
 
-def extract_product_url(html, sku):
-    """
-    Намира product-item-wapper контейнера, в който се намира SKU,
-    и след това взема вътрешния product link.
+            else:
 
-    Това е важно, защото старият метод търсеше произволен href
-    около SKU и можеше да върне manifest.json или друг служебен URL.
-    """
+                end_pos = len(html)
 
-    if not html:
-        return None
+            container = html[
+                start_pos:end_pos
+            ]
 
-    sku = str(sku)
-
-    # Търсим всички product-item-wapper контейнери.
-    containers = re.findall(
-        r'<div[^>]*class=["\'][^"\']*product-item-wapper[^"\']*["\'][^>]*>'
-        r'.*?'
-        r'</div>\s*</div>\s*</div>',
-        html,
-        re.I | re.S,
-    )
-
-    print(
-        "Намерени product-item-wapper контейнери:",
-        len(containers),
-    )
-
-    # Първо търсим контейнер, който съдържа SKU.
-    for container in containers:
-
-        if sku not in container:
-            continue
-
-        print(
-            "Намерено SKU в product контейнер:",
-            sku,
-        )
-
-        # Вземаме href от link към продукта.
-        hrefs = re.findall(
-            r'<a[^>]+href=["\']([^"\']+)["\']',
-            container,
-            re.I,
-        )
-
-        for href in hrefs:
-            href = href.strip()
-
-            if not href:
+            if sku not in container:
                 continue
 
-            # Изключваме служебни URL-и.
-            if (
-                "/api/" in href
-                or "/get-serialize-product/" in href
-                or href.startswith("#")
-                or href.startswith("javascript:")
-            ):
-                continue
-
-            full_url = urljoin(
-                BASE_URL,
-                href,
+            hrefs = re.findall(
+                r'href=["\']([^"\']+)["\']',
+                container,
+                re.I,
             )
 
-            # Търсим нормален продукт URL.
-            if (
-                full_url.startswith(BASE_URL)
-                and full_url.rstrip("/") != BASE_URL
-                and "manifest.json" not in full_url
-                and "/search" not in full_url
-                and "/cart" not in full_url
-            ):
-                print(
-                    "Product URL намерен:",
-                    full_url,
+            for href in hrefs:
+
+                if (
+                    href.startswith("/")
+                    and not href.startswith(
+                        (
+                            "/search",
+                            "/api/",
+                            "/cart/",
+                            "/login",
+                            "/register",
+                            "/manifest",
+                        )
+                    )
+                ):
+
+                    full_url = urljoin(
+                        BASE_URL,
+                        href,
+                    )
+
+                    print(
+                        "   🔗 Product URL:",
+                        full_url,
+                    )
+
+                    return full_url
+
+    # --------------------------------------------------------
+    # Резервен вариант:
+    # Търсим URL около SKU.
+    # --------------------------------------------------------
+
+    if sku:
+
+        pattern = (
+            r'href=["\']([^"\']+)["\'][^>]*>'
+            r'.{0,5000}?'
+            + re.escape(str(sku))
+        )
+
+        match = re.search(
+            pattern,
+            html,
+            re.I | re.S,
+        )
+
+        if match:
+
+            href = match.group(1)
+
+            if href.startswith("/"):
+                return urljoin(
+                    BASE_URL,
+                    href,
                 )
 
-                return full_url
-
-    # Резервен метод:
-    # намираме data-product-id и търсим href непосредствено
-    # в същия по-голям HTML блок.
-    sku_pos = html.find(sku)
-
-    if sku_pos != -1:
-
-        start = max(
-            0,
-            sku_pos - 10000,
-        )
-
-        end = min(
-            len(html),
-            sku_pos + 10000,
-        )
-
-        nearby = html[start:end]
-
-        hrefs = re.findall(
-            r'<a[^>]+href=["\']([^"\']+)["\']',
-            nearby,
-            re.I,
-        )
-
-        for href in hrefs:
-            href = href.strip()
-
-            full_url = urljoin(
-                BASE_URL,
-                href,
-            )
-
-            if (
-                full_url.startswith(BASE_URL)
-                and full_url.rstrip("/") != BASE_URL
-                and "manifest.json" not in full_url
-                and "/api/" not in full_url
-                and "/search" not in full_url
-                and "/cart" not in full_url
-                and "/get-serialize-product/" not in full_url
-            ):
-                print(
-                    "Product URL намерен чрез fallback:",
-                    full_url,
-                )
-
-                return full_url
+    print(
+        "   ❌ Product URL not found"
+    )
 
     return None
 
 
+# ============================================================
+# ALL URLS
+# ============================================================
+
 def extract_all_urls(html):
+
     if not html:
         return []
 
-    urls = []
-
-    hrefs = re.findall(
+    urls = re.findall(
         r'href=["\']([^"\']+)["\']',
         html,
         re.I,
     )
 
-    for href in hrefs:
+    result = []
 
-        full_url = urljoin(
+    for url in urls:
+
+        full = urljoin(
             BASE_URL,
-            href,
+            url,
         )
 
-        if full_url.startswith(BASE_URL):
+        if full not in result:
+            result.append(full)
 
-            if full_url not in urls:
-                urls.append(full_url)
+    return result
 
-    return urls
 
+# ============================================================
+# CONTEXT
+# ============================================================
 
 def extract_context(
     text,
     keyword,
-    radius=2000,
+    radius=1000,
 ):
+
     if not text:
         return ""
 
-    lower_text = text.lower()
-    lower_keyword = keyword.lower()
-
-    positions = []
-    start = 0
-
-    while True:
-
-        pos = lower_text.find(
-            lower_keyword,
-            start,
+    positions = [
+        m.start()
+        for m in re.finditer(
+            re.escape(str(keyword)),
+            text,
+            re.I,
         )
-
-        if pos == -1:
-            break
-
-        positions.append(pos)
-
-        start = (
-            pos
-            + len(lower_keyword)
-        )
+    ]
 
     if not positions:
         return ""
 
-    chunks = []
+    output = []
 
-    for index, pos in enumerate(
-        positions[:30],
-        1,
-    ):
+    for pos in positions[:20]:
 
-        chunk_start = max(
+        start = max(
             0,
             pos - radius,
         )
 
-        chunk_end = min(
+        end = min(
             len(text),
-            pos
-            + len(keyword)
-            + radius,
+            pos + radius,
         )
 
-        chunks.append(
-            "\n\n"
-            + "=" * 80
-            + f"\nMATCH #{index}: {keyword}\n"
+        output.append(
+            "\n"
             + "=" * 80
             + "\n"
-            + text[
-                chunk_start:chunk_end
-            ]
+            + f"KEYWORD: {keyword}\n"
+            + f"POSITION: {pos}\n"
+            + "=" * 80
+            + "\n"
+            + text[start:end]
         )
 
-    return "".join(chunks)
-
-
-def test_api_search_variants(sku):
-    """
-    Тества различни параметри към публичния /api/search endpoint.
-
-    Цел:
-    Да проверим дали API-то може да върне информация за конкретен
-    variant, SKU, product ID или други данни, когато се подадат
-    допълнителни параметри.
-    """
-
-    print()
-    print("=" * 60)
-    print("TEST API SEARCH VARIANTS")
-    print("=" * 60)
-
-    endpoint = (
-        f"{BASE_URL}/api/search"
+    return "\n".join(
+        output
     )
+
+
+# ============================================================
+# PRODUCT CONTAINER INSPECTION
+# ============================================================
+
+def inspect_product_container(
+    html,
+    sku,
+):
+
+    if not html:
+        return None
 
     sku = str(sku)
 
-    tests = [
-        (
-            "base",
-            {
-                "term": sku,
-            },
-        ),
-        (
-            "term_sku",
-            {
-                "term": sku,
-                "sku": sku,
-            },
-        ),
-        (
-            "term_variant",
-            {
-                "term": sku,
-                "variant": sku,
-            },
-        ),
-        (
-            "term_product",
-            {
-                "term": sku,
-                "product": "2557",
-            },
-        ),
-        (
-            "term_id",
-            {
-                "term": sku,
-                "id": "2557",
-            },
-        ),
-        (
-            "term_page",
-            {
-                "term": sku,
-                "page": "1",
-            },
-        ),
-        (
-            "term_limit",
-            {
-                "term": sku,
-                "limit": "100",
-            },
-        ),
-        (
-            "term_sku_product",
-            {
-                "term": sku,
-                "sku": sku,
-                "product": "2557",
-            },
-        ),
-        (
-            "term_variant_product",
-            {
-                "term": sku,
-                "variant": sku,
-                "product": "2557",
-            },
-        ),
-    ]
-
-    summary = []
-
-    test_dir = os.path.join(
-        DEBUG_DIR,
-        "api_search_tests",
-    )
-
-    os.makedirs(
-        test_dir,
-        exist_ok=True,
-    )
-
-    interesting_keywords = [
-        sku,
-        "2557",
-        "8617",
-        "8618",
-        "variants",
-        "variant",
-        "quantity",
-        "discountedPrice",
-        "discountedRetailPrice",
-        "price",
-        "stores",
-        "maxQuantity",
-        "sku",
-    ]
-
-    for test_name, params in tests:
-
-        print()
-        print(
-            "-" * 60
-        )
-
-        print(
-            "TEST:",
-            test_name,
-        )
-
-        print(
-            "PARAMS:",
-            params,
-        )
-
-        try:
-
-            headers = {
-                "User-Agent": HEADERS[
-                    "User-Agent"
-                ],
-                "Accept": (
-                    "application/json,"
-                    "text/plain,"
-                    "*/*"
-                ),
-                "Accept-Language": (
-                    HEADERS[
-                        "Accept-Language"
-                    ]
-                ),
-                "Referer": (
-                    BASE_URL + "/"
-                ),
-                "X-Requested-With": (
-                    "XMLHttpRequest"
-                ),
-            }
-
-            r = session.get(
-                endpoint,
-                params=params,
-                headers=headers,
-                timeout=30,
-            )
-
-            print(
-                "HTTP:",
-                r.status_code,
-            )
-
-            print(
-                "URL:",
-                r.url,
-            )
-
-            print(
-                "Content-Type:",
-                r.headers.get(
-                    "Content-Type",
-                    "",
-                ),
-            )
-
-            print(
-                "Размер:",
-                len(r.text),
-                "bytes",
-            )
-
-            info = {
-                "test": test_name,
-                "params": params,
-                "url": r.url,
-                "status": r.status_code,
-                "content_type": r.headers.get(
-                    "Content-Type",
-                    "",
-                ),
-                "length": len(r.text),
-            }
-
-            # Запазваме целия raw response.
-            save_debug(
-                os.path.join(
-                    "api_search_tests",
-                    f"{sku}_{test_name}.txt",
-                ),
-                (
-                    f"URL: {r.url}\n"
-                    f"HTTP: {r.status_code}\n"
-                    f"Content-Type: "
-                    f"{r.headers.get('Content-Type', '')}\n"
-                    f"Size: {len(r.text)}\n\n"
-                    f"{r.text}"
-                ),
-            )
-
-            # Търсим интересни полета в raw response.
-            response_text = r.text
-
-            found_keywords = []
-
-            for keyword in interesting_keywords:
-
-                if (
-                    keyword.lower()
-                    in response_text.lower()
-                ):
-                    found_keywords.append(
-                        keyword
-                    )
-
-            info[
-                "interesting_keywords"
-            ] = found_keywords
-
-            print(
-                "Интересни полета:",
-                found_keywords,
-            )
-
-            # Ако е JSON, записваме и структурираната версия.
-            try:
-
-                data = r.json()
-
-                info["json"] = True
-                info["json_type"] = (
-                    type(data).__name__
-                )
-
-                save_debug(
-                    os.path.join(
-                        "api_search_tests",
-                        f"{sku}_{test_name}.json",
-                    ),
-                    data,
-                )
-
-                serialized = json.dumps(
-                    data,
-                    ensure_ascii=False,
-                )
-
-                info[
-                    "sku_found"
-                ] = sku in serialized
-
-                info[
-                    "parent_id_found"
-                ] = "2557" in serialized
-
-                info[
-                    "variant_8617_found"
-                ] = "8617" in serialized
-
-                info[
-                    "variant_8618_found"
-                ] = "8618" in serialized
-
-                info[
-                    "quantity_found"
-                ] = (
-                    "quantity"
-                    in serialized.lower()
-                )
-
-                info[
-                    "discounted_price_found"
-                ] = (
-                    "discountedPrice"
-                    in serialized
-                )
-
-                print(
-                    "JSON:",
-                    type(data).__name__,
-                )
-
-                print(
-                    "SKU намерено:",
-                    info["sku_found"],
-                )
-
-                print(
-                    "Product 2557:",
-                    info[
-                        "parent_id_found"
-                    ],
-                )
-
-                print(
-                    "Variant 8617:",
-                    info[
-                        "variant_8617_found"
-                    ],
-                )
-
-                print(
-                    "Variant 8618:",
-                    info[
-                        "variant_8618_found"
-                    ],
-                )
-
-                print(
-                    "Quantity:",
-                    info[
-                        "quantity_found"
-                    ],
-                )
-
-                print(
-                    "discountedPrice:",
-                    info[
-                        "discounted_price_found"
-                    ],
-                )
-
-            except Exception as e:
-
-                info["json"] = False
-                info["json_error"] = str(e)
-
-                print(
-                    "Не е JSON:",
-                    e,
-                )
-
-            summary.append(
-                info
-            )
-
-        except Exception as e:
-
-            print(
-                "API SEARCH ERROR:",
-                e,
-            )
-
-            summary.append(
-                {
-                    "test": test_name,
-                    "params": params,
-                    "error": str(e),
-                }
-            )
-
-        time.sleep(1)
-
-    save_debug(
-        f"api_search_summary_{sku}.json",
-        summary,
-    )
-
-
-def test_typesense_endpoint(sku):
     print()
-    print("=" * 60)
-    print("TEST SEARCH-JSON-TYPESENSE")
-    print("=" * 60)
-
-    endpoint = (
-        f"{BASE_URL}/search-json-typesense"
+    print(
+        "=" * 60
+    )
+    print(
+        "INSPECT PRODUCT CONTAINER"
+    )
+    print(
+        "=" * 60
     )
 
-    tests = [
-        (
-            "q",
-            {
-                "q": str(sku),
-            },
-        ),
-        (
-            "term",
-            {
-                "term": str(sku),
-            },
-        ),
-        (
-            "query",
-            {
-                "query": str(sku),
-            },
-        ),
-        (
-            "q_query_by",
-            {
-                "q": str(sku),
-                "query_by": "sku,name",
-            },
-        ),
-        (
-            "q_query_by_all",
-            {
-                "q": str(sku),
-                "query_by": "*",
-            },
-        ),
-    ]
+    starts = list(
+        re.finditer(
+            r'<div[^>]*class=["\'][^"\']*product-item-wapper[^"\']*["\'][^>]*>',
+            html,
+            re.I,
+        )
+    )
 
-    summary = []
+    print(
+        "Product containers:",
+        len(starts),
+    )
 
-    for test_name, params in tests:
+    for index, match in enumerate(
+        starts,
+        1,
+    ):
 
-        print()
+        start_pos = match.start()
+
+        if index < len(starts):
+
+            end_pos = starts[
+                index
+            ].start()
+
+        else:
+
+            end_pos = len(html)
+
+        container = html[
+            start_pos:end_pos
+        ]
+
+        if sku not in container:
+            continue
+
         print(
-            "TEST:",
-            test_name,
+            "Намерен контейнер за SKU:",
+            sku,
         )
 
         print(
-            "PARAMS:",
-            params,
+            "Container size:",
+            len(container),
+            "bytes",
         )
 
-        try:
+        # ----------------------------------------------------
+        # Целият container
+        # ----------------------------------------------------
 
-            headers = {
-                "User-Agent": HEADERS[
-                    "User-Agent"
+        save_debug(
+            f"product_container_{sku}.html",
+            container,
+        )
+
+        # ----------------------------------------------------
+        # DATA ATTRIBUTES
+        # ----------------------------------------------------
+
+        data_attributes = re.findall(
+            r'\bdata-[a-zA-Z0-9_-]+=["\']([^"\']*)["\']',
+            container,
+            re.I,
+        )
+
+        if data_attributes:
+
+            save_debug(
+                f"product_container_{sku}_data.txt",
+                "\n".join(
+                    data_attributes
+                ),
+            )
+
+            print(
+                "Data attributes:",
+                len(data_attributes),
+            )
+
+        # ----------------------------------------------------
+        # HREFS
+        # ----------------------------------------------------
+
+        hrefs = re.findall(
+            r'href=["\']([^"\']+)["\']',
+            container,
+            re.I,
+        )
+
+        print(
+            "HREF:",
+            hrefs,
+        )
+
+        # ----------------------------------------------------
+        # KEYWORDS
+        # ----------------------------------------------------
+
+        keywords = [
+            sku,
+            "variants",
+            "variant",
+            "quantity",
+            "price",
+            "discountedPrice",
+            "discountedRetailPrice",
+            "traderPrice",
+            "stores",
+            "maxQuantity",
+            "maxQuantityByStores",
+            "8617",
+            "8618",
+            "946534",
+            "946537",
+            "3809909465340",
+        ]
+
+        matches = []
+
+        for keyword in keywords:
+
+            context = extract_context(
+                container,
+                keyword,
+                radius=3000,
+            )
+
+            if context:
+
+                print(
+                    "Намерено:",
+                    keyword,
+                )
+
+                matches.append(
+                    context
+                )
+
+        if matches:
+
+            save_debug(
+                f"product_container_{sku}_matches.txt",
+                "\n".join(matches),
+            )
+
+        # ----------------------------------------------------
+        # JSON CANDIDATES
+        # ----------------------------------------------------
+
+        json_candidates = []
+
+        scripts = re.findall(
+            r'<script[^>]*type=["\']application/json["\'][^>]*>'
+            r'(.*?)'
+            r'</script>',
+            container,
+            re.I | re.S,
+        )
+
+        json_candidates.extend(
+            scripts
+        )
+
+        for keyword in [
+            "quantity",
+            "discountedPrice",
+            "variants",
+            "stores",
+        ]:
+
+            positions = [
+                m.start()
+                for m in re.finditer(
+                    re.escape(keyword),
+                    container,
+                    re.I,
+                )
+            ]
+
+            for pos in positions[:20]:
+
+                start = max(
+                    0,
+                    pos - 2000,
+                )
+
+                end = min(
+                    len(container),
+                    pos + 5000,
+                )
+
+                chunk = container[
+                    start:end
+                ]
+
+                json_candidates.append(
+                    chunk
+                )
+
+        if json_candidates:
+
+            save_debug(
+                f"product_container_{sku}_json_candidates.txt",
+                "\n\n"
+                + (
+                    "=" * 80
+                    + "\n"
+                ).join(
+                    json_candidates
+                ),
+            )
+
+            print(
+                "JSON кандидати:",
+                len(json_candidates),
+            )
+
+        # ----------------------------------------------------
+        # ВСИЧКИ ЧИСЛА
+        # ----------------------------------------------------
+
+        number_matches = re.findall(
+            r'\b\d+(?:\.\d+)?\b',
+            container,
+        )
+
+        unique_numbers = list(
+            dict.fromkeys(
+                number_matches
+            )
+        )
+
+        save_debug(
+            f"product_container_{sku}_numbers.txt",
+            "\n".join(
+                unique_numbers
+            ),
+        )
+
+        print(
+            "Уникални числа в контейнера:",
+            len(unique_numbers),
+        )
+
+        # ----------------------------------------------------
+        # ИЗВЕСТНИ VARIANT IDs
+        # ----------------------------------------------------
+
+        known_variants = [
+            "8617",
+            "8618",
+        ]
+
+        for variant_id in known_variants:
+
+            if variant_id in container:
+
+                print(
+                    "!!! НАМЕРЕН VARIANT ID:",
+                    variant_id,
+                )
+
+                context = extract_context(
+                    container,
+                    variant_id,
+                    radius=5000,
+                )
+
+                save_debug(
+                    f"variant_{variant_id}_context_{sku}.txt",
+                    context,
+                )
+
+        # ----------------------------------------------------
+        # QUANTITY
+        # ----------------------------------------------------
+
+        quantity_positions = [
+            m.start()
+            for m in re.finditer(
+                "quantity",
+                container,
+                re.I,
+            )
+        ]
+
+        print(
+            "Количество 'quantity' срещания:",
+            len(quantity_positions),
+        )
+
+        for q_index, pos in enumerate(
+            quantity_positions[:20],
+            1,
+        ):
+
+            start = max(
+                0,
+                pos - 1000,
+            )
+
+            end = min(
+                len(container),
+                pos + 3000,
+            )
+
+            save_debug(
+                f"quantity_{sku}_{q_index}.txt",
+                container[
+                    start:end
                 ],
-                "Accept": (
-                    "application/json,"
-                    "text/plain,*/*"
-                ),
-                "Accept-Language": (
-                    HEADERS[
-                        "Accept-Language"
-                    ]
-                ),
-                "Referer": BASE_URL + "/",
-                "X-Requested-With": (
-                    "XMLHttpRequest"
-                ),
-            }
-
-            r = session.get(
-                endpoint,
-                params=params,
-                headers=headers,
-                timeout=30,
             )
 
-            print(
-                "HTTP:",
-                r.status_code,
-            )
+        return container
 
-            print(
-                "Content-Type:",
-                r.headers.get(
-                    "Content-Type",
-                    "",
-                ),
-            )
-
-            print(
-                "Размер:",
-                len(r.text),
-                "bytes",
-            )
-
-            info = {
-                "test": test_name,
-                "params": params,
-                "url": r.url,
-                "status": r.status_code,
-                "content_type": r.headers.get(
-                    "Content-Type",
-                    "",
-                ),
-                "length": len(r.text),
-            }
-
-            try:
-
-                data = r.json()
-
-                save_debug(
-                    f"typesense_{sku}_{test_name}.json",
-                    data,
-                )
-
-                serialized = json.dumps(
-                    data,
-                    ensure_ascii=False,
-                )
-
-                found = (
-                    str(sku)
-                    in serialized
-                )
-
-                info[
-                    "sku_found"
-                ] = found
-
-                print(
-                    "JSON:",
-                    type(data).__name__,
-                )
-
-                print(
-                    "SKU намерено:",
-                    found,
-                )
-
-            except Exception as e:
-
-                info[
-                    "json_error"
-                ] = str(e)
-
-                save_debug(
-                    f"typesense_{sku}_{test_name}.txt",
-                    (
-                        f"URL: {r.url}\n"
-                        f"HTTP: {r.status_code}\n"
-                        f"Content-Type: "
-                        f"{r.headers.get('Content-Type', '')}\n"
-                        f"Size: {len(r.text)}\n\n"
-                        f"{r.text}"
-                    ),
-                )
-
-                print(
-                    "Не е JSON:",
-                    e,
-                )
-
-            summary.append(
-                info
-            )
-
-        except Exception as e:
-
-            print(
-                "TYPESENSE ERROR:",
-                e,
-            )
-
-            summary.append(
-                {
-                    "test": test_name,
-                    "params": params,
-                    "error": str(e),
-                }
-            )
-
-    save_debug(
-        f"typesense_summary_{sku}.json",
-        summary,
+    print(
+        "Не е намерен product container за:",
+        sku,
     )
 
+    return None
 
-def get_product_page(
-    product_url,
+
+# ============================================================
+# API SEARCH PARAMETER TESTS
+# ============================================================
+
+def test_api_search_variants(
+    session,
     sku,
 ):
-    if not product_url:
-
-        print(
-            "Няма Product URL."
-        )
-
-        return None
 
     print()
     print(
-        "PRODUCT PAGE:",
-        product_url,
+        "=" * 60
     )
+    print(
+        "API SEARCH PARAMETER TESTS"
+    )
+    print(
+        "=" * 60
+    )
+
+    base_url = (
+        BASE_URL
+        + "/api/search"
+    )
+
+    tests = {
+        "base": {},
+
+        "term_sku": {
+            "term": sku,
+        },
+
+        "term_variant": {
+            "term": f"{sku}",
+            "variant": sku,
+        },
+
+        "term_product": {
+            "term": sku,
+            "product": sku,
+        },
+
+        "term_id": {
+            "term": sku,
+            "id": sku,
+        },
+
+        "term_page": {
+            "term": sku,
+            "page": 1,
+        },
+
+        "term_limit": {
+            "term": sku,
+            "limit": 100,
+        },
+
+        "term_sku_product": {
+            "term": sku,
+            "sku": sku,
+            "product": sku,
+        },
+
+        "term_variant_product": {
+            "term": sku,
+            "variant": sku,
+            "product": sku,
+        },
+    }
+
+    summary = []
+
+    for name, params in tests.items():
+
+        try:
+
+            response = session.get(
+                base_url,
+                params=params,
+                timeout=30,
+            )
+
+            text = response.text
+
+            content_type = (
+                response.headers.get(
+                    "Content-Type",
+                    "",
+                )
+            )
+
+            print(
+                f"   {name}: "
+                f"HTTP {response.status_code}, "
+                f"{len(text):,} bytes, "
+                f"{content_type}"
+            )
+
+            filename = (
+                f"api_search_tests/"
+                f"{sku}_{name}.txt"
+            )
+
+            save_debug(
+                filename,
+                text,
+            )
+
+            # ----------------------------------------------
+            # Exact known values
+            # ----------------------------------------------
+
+            interesting = [
+                sku,
+                "946537",
+                "946534",
+                "8617",
+                "8618",
+                "3809909465340",
+                "variant",
+                "variants",
+                "quantity",
+                "price",
+                "stores",
+                "discountedPrice",
+                "maxQuantityByStores",
+            ]
+
+            found = []
+
+            for item in interesting:
+
+                if re.search(
+                    re.escape(item),
+                    text,
+                    re.I,
+                ):
+
+                    found.append(
+                        item
+                    )
+
+            print(
+                "      Interesting:",
+                ", ".join(found)
+                if found
+                else "NONE",
+            )
+
+            # ----------------------------------------------
+            # Exact contexts
+            # ----------------------------------------------
+
+            contexts = []
+
+            exact_values = [
+                sku,
+                "946537",
+                "946534",
+                "8617",
+                "8618",
+                "3809909465340",
+            ]
+
+            for value in exact_values:
+
+                context = extract_context(
+                    text,
+                    value,
+                    radius=3000,
+                )
+
+                if context:
+
+                    contexts.append(
+                        context
+                    )
+
+            if contexts:
+
+                save_debug(
+                    f"api_search_tests/"
+                    f"{sku}_{name}_exact_matches.txt",
+                    "\n".join(
+                        contexts
+                    ),
+                )
+
+            summary.append(
+                {
+                    "test": name,
+                    "status": response.status_code,
+                    "size": len(text),
+                    "content_type": content_type,
+                    "found": found,
+                }
+            )
+
+        except Exception as e:
+
+            print(
+                f"   {name}: ERROR {repr(e)}"
+            )
+
+            summary.append(
+                {
+                    "test": name,
+                    "error": repr(e),
+                }
+            )
+
+    save_debug(
+        f"api_search_tests/"
+        f"{sku}_summary.json",
+        json.dumps(
+            summary,
+            ensure_ascii=False,
+            indent=2,
+        ),
+    )
+
+    return summary
+
+
+# ============================================================
+# TYPESENSE
+# ============================================================
+
+def test_typesense_endpoint(
+    session,
+    sku,
+):
+
+    print()
+    print(
+        "=" * 60
+    )
+    print(
+        "TYPESENSE TESTS"
+    )
+    print(
+        "=" * 60
+    )
+
+    url = (
+        BASE_URL
+        + "/search-json-typesense"
+    )
+
+    tests = [
+        {
+            "q": sku,
+        },
+        {
+            "term": sku,
+        },
+        {
+            "query": sku,
+        },
+        {
+            "q": sku,
+            "query_by": "name",
+        },
+        {
+            "q": sku,
+            "query_by": "*",
+        },
+    ]
+
+    results = []
+
+    for index, params in enumerate(
+        tests,
+        1,
+    ):
+
+        try:
+
+            response = session.get(
+                url,
+                params=params,
+                timeout=30,
+            )
+
+            print(
+                f"   Test {index}: "
+                f"HTTP {response.status_code}, "
+                f"{len(response.text):,} bytes"
+            )
+
+            filename = (
+                f"typesense_{sku}_"
+                f"{index}.txt"
+            )
+
+            save_debug(
+                filename,
+                response.text,
+            )
+
+            results.append(
+                {
+                    "params": params,
+                    "status": response.status_code,
+                    "size": len(response.text),
+                }
+            )
+
+        except Exception as e:
+
+            print(
+                "   ❌ Typesense error:",
+                repr(e),
+            )
+
+            results.append(
+                {
+                    "params": params,
+                    "error": repr(e),
+                }
+            )
+
+    save_debug(
+        f"typesense_{sku}_summary.json",
+        json.dumps(
+            results,
+            ensure_ascii=False,
+            indent=2,
+        ),
+    )
+
+    return results
+
+
+# ============================================================
+# PRODUCT PAGE
+# ============================================================
+
+def get_product_page(
+    session,
+    product_url,
+    sku=None,
+):
+
+    if not product_url:
+        return None
 
     try:
 
-        r = session.get(
+        response = session.get(
             product_url,
             timeout=30,
         )
 
         print(
-            "Product HTTP:",
-            r.status_code,
+            f"   🌐 Product page → "
+            f"HTTP {response.status_code}, "
+            f"{len(response.text):,} bytes"
         )
 
-        print(
-            "Размер:",
-            len(r.text),
-            "bytes",
-        )
+        if sku:
 
-        save_debug(
-            f"product_{sku}.html",
-            r.text,
-        )
-
-        if r.status_code != 200:
-
-            print(
-                "Product page HTTP грешка:",
-                r.status_code,
+            save_debug(
+                f"product_page_{sku}.html",
+                response.text,
             )
 
-            return None
-
-        return r.text
+        return response.text
 
     except Exception as e:
 
         print(
-            "PRODUCT PAGE ERROR:",
-            e,
+            "   ❌ Product page error:",
+            repr(e),
         )
 
         return None
 
 
+# ============================================================
+# PRODUCT PAGE SCAN
+# ============================================================
+
 def scan_product_page(
     html,
     sku,
 ):
+
     if not html:
         return
 
     print()
-    print("=" * 60)
-    print("SCAN PRODUCT PAGE")
-    print("=" * 60)
+    print(
+        "=" * 60
+    )
+    print(
+        "PRODUCT PAGE SCAN"
+    )
+    print(
+        "=" * 60
+    )
 
     keywords = [
-        str(sku),
+        sku,
         "variants",
         "variant",
         "quantity",
+        "price",
         "discountedPrice",
         "discountedRetailPrice",
         "traderPrice",
         "stores",
         "maxQuantity",
-        "data-product-id",
-        "data-product-variant",
-        "add-variant-to-cart",
-        "getProductSerializeUrl",
+        "maxQuantityByStores",
+        "8617",
+        "8618",
+        "946534",
+        "946537",
+        "3809909465340",
         "get-serialize-product",
-        "search-json-typesense",
+        "getProductSerializeUrl",
+        "addToCartUrl",
     ]
 
-    matches = []
+    all_matches = []
 
     for keyword in keywords:
 
         context = extract_context(
             html,
             keyword,
-            radius=2500,
+            radius=3000,
         )
 
         if context:
 
             print(
-                "Намерено:",
+                "   Found:",
                 keyword,
             )
 
-            matches.append(
+            all_matches.append(
                 context
             )
 
-    if matches:
+    if all_matches:
 
         save_debug(
-            f"product_{sku}_matches.txt",
-            "\n".join(matches),
+            f"product_page_{sku}_matches.txt",
+            "\n".join(
+                all_matches
+            ),
         )
 
-    data_attributes = re.findall(
-        r'data-[a-zA-Z0-9_-]+=["\'][^"\']*["\']',
+    # --------------------------------------------------------
+    # Exact variant IDs
+    # --------------------------------------------------------
+
+    for variant_id in [
+        "8617",
+        "8618",
+    ]:
+
+        if variant_id in html:
+
+            print(
+                "   !!! Variant ID found:",
+                variant_id,
+            )
+
+            context = extract_context(
+                html,
+                variant_id,
+                radius=5000,
+            )
+
+            save_debug(
+                f"product_page_{sku}_variant_"
+                f"{variant_id}.txt",
+                context,
+            )
+
+
+# ============================================================
+# JAVASCRIPT URLS
+# ============================================================
+
+def extract_javascript_urls(
+    html
+):
+
+    if not html:
+        return []
+
+    urls = re.findall(
+        r'<script[^>]+src=["\']([^"\']+)["\']',
         html,
         re.I,
     )
 
-    if data_attributes:
+    result = []
 
-        unique_attributes = list(
-            dict.fromkeys(
-                data_attributes
-            )
+    for url in urls:
+
+        full_url = urljoin(
+            BASE_URL,
+            url,
         )
 
-        save_debug(
-            f"product_{sku}_data_attributes.txt",
-            "\n".join(
-                unique_attributes
-            ),
-        )
+        if full_url not in result:
 
-        print(
-            "Data attributes:",
-            len(unique_attributes),
-        )
-
-    json_blocks = re.findall(
-        r'<script[^>]*type=["\']application/json["\'][^>]*>'
-        r'(.*?)'
-        r'</script>',
-        html,
-        re.I | re.S,
-    )
-
-    print(
-        "JSON script блокове:",
-        len(json_blocks),
-    )
-
-    for index, block in enumerate(
-        json_blocks,
-        1,
-    ):
-
-        save_debug(
-            f"product_{sku}_json_{index}.txt",
-            block,
-        )
-
-    scripts = re.findall(
-        r'<script[^>]*>(.*?)</script>',
-        html,
-        re.I | re.S,
-    )
-
-    for index, script in enumerate(
-        scripts,
-        1,
-    ):
-
-        if any(
-            keyword.lower()
-            in script.lower()
-            for keyword in keywords
-        ):
-
-            save_debug(
-                f"product_{sku}_inline_script_{index}.js",
-                script,
+            result.append(
+                full_url
             )
 
-
-def extract_javascript_urls(html):
-    if not html:
-        return []
-
-    urls = []
-
-    patterns = [
-        r'<script[^>]+src=["\']([^"\']+)["\']',
-        r'<script[^>]+src=([^ >]+)',
-    ]
-
-    for pattern in patterns:
-
-        for src in re.findall(
-            pattern,
-            html,
-            re.I,
-        ):
-
-            src = (
-                src
-                .strip()
-                .strip("\"'")
-            )
-
-            if not src:
-                continue
-
-            full_url = urljoin(
-                BASE_URL + "/",
-                src,
-            )
-
-            if full_url not in urls:
-                urls.append(
-                    full_url
-                )
-
-    return urls
+    return result
 
 
-def scan_javascript(html):
+# ============================================================
+# JAVASCRIPT SCAN
+# ============================================================
+
+def scan_javascript(
+    session,
+    html,
+):
+
     print()
-    print("=" * 60)
-    print("JAVASCRIPT SCANNER")
-    print("=" * 60)
+    print(
+        "=" * 60
+    )
+    print(
+        "JAVASCRIPT SCAN"
+    )
+    print(
+        "=" * 60
+    )
 
-    js_urls = extract_javascript_urls(
+    urls = extract_javascript_urls(
         html
     )
 
     print(
-        "Намерени JS файлове:",
-        len(js_urls),
+        "JavaScript URLs:",
+        len(urls),
     )
 
     save_debug(
         "javascript_urls.txt",
-        "\n".join(js_urls),
+        "\n".join(urls),
     )
 
     keywords = [
@@ -1330,83 +1421,75 @@ def scan_javascript(html):
     all_matches = []
 
     for index, url in enumerate(
-        js_urls,
+        urls,
         1,
     ):
 
-        print()
         print(
-            f"JS {index}/{len(js_urls)}"
+            f"   JS {index}/{len(urls)}:",
+            url,
         )
-
-        print(url)
 
         try:
 
-            r = session.get(
+            response = session.get(
                 url,
                 timeout=30,
             )
 
             print(
-                "HTTP:",
-                r.status_code,
+                "      HTTP",
+                response.status_code,
+                "|",
+                len(response.text),
+                "bytes",
             )
 
-            if r.status_code != 200:
-                continue
-
-            js = r.text
+            js_text = response.text
 
             save_debug(
                 f"js_{index}.js",
-                js,
+                js_text,
             )
-
-            file_matches = []
 
             for keyword in keywords:
 
-                if (
-                    keyword.lower()
-                    not in js.lower()
-                ):
-                    continue
-
-                print(
-                    "Намерено:",
-                    keyword,
-                )
-
                 context = extract_context(
-                    js,
+                    js_text,
                     keyword,
                     radius=2500,
                 )
 
                 if context:
-                    file_matches.append(
-                        context
+
+                    print(
+                        "      Found:",
+                        keyword,
                     )
 
-            if file_matches:
+                    all_matches.append(
+                        f"\n\nURL: {url}\n"
+                        f"KEYWORD: {keyword}\n"
+                        f"{context}"
+                    )
 
-                save_debug(
-                    f"js_{index}_matches.txt",
-                    "\n".join(
-                        file_matches
-                    ),
-                )
-
-                all_matches.extend(
-                    file_matches
-                )
+                    save_debug(
+                        f"js_{index}_"
+                        f"matches.txt",
+                        (
+                            extract_context(
+                                js_text,
+                                keyword,
+                                radius=5000,
+                            )
+                        ),
+                    )
 
         except Exception as e:
 
             print(
-                "JS ERROR:",
-                e,
+                "      ERROR:",
+                repr(e),
             )
 
     if all_matches:
@@ -1419,40 +1502,124 @@ def scan_javascript(html):
         )
 
 
+# ============================================================
+# MAIN
+# ============================================================
+
 def main():
+
+    print()
+    print(
+        "=" * 70
+    )
+    print(
+        "FILSTAR DIAGNOSTIC SCRAPER"
+    )
+    print(
+        "=" * 70
+    )
+
     init_debug_folder()
-    init_csv()
 
     skus = read_skus()
 
     print(
-        "Общо SKU:",
-        len(skus),
+        f"🧾 Общо SKU: {len(skus)}"
     )
 
-    scanner_done = False
+    if not skus:
+        print(
+            "❌ Няма SKU."
+        )
+        return
 
-    # Диагностично тестваме само
-    # първите 3 SKU.
+    # --------------------------------------------------------
+    # Само първите 3 за диагностика
+    # --------------------------------------------------------
+
     test_skus = skus[:3]
 
     print(
-        "Диагностичен режим. SKU:",
-        test_skus,
+        "🧪 Тестови SKU:",
+        ", ".join(test_skus),
     )
 
-    for sku in test_skus:
+    session = requests.Session()
+
+    session.headers.update(
+        {
+            "User-Agent": (
+                "Mozilla/5.0 "
+                "(Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 "
+                "(KHTML, like Gecko) "
+                "Chrome/139.0.0.0 Safari/537.36"
+            ),
+            "Accept": (
+                "text/html,"
+                "application/xhtml+xml,"
+                "application/xml;q=0.9,"
+                "image/avif,"
+                "image/webp,"
+                "*/*;q=0.8"
+            ),
+            "Accept-Language":
+                "bg-BG,bg;q=0.9,en;q=0.8",
+        }
+    )
+
+    init_csv()
+
+    # --------------------------------------------------------
+    # JS scanner
+    # --------------------------------------------------------
+
+    first_html = None
+
+    if test_skus:
+
+        first_html = search_filstar(
+            session,
+            test_skus[0],
+        )
+
+        if first_html:
+
+            scan_javascript(
+                session,
+                first_html,
+            )
+
+    # --------------------------------------------------------
+    # SKUs
+    # --------------------------------------------------------
+
+    for index, sku in enumerate(
+        test_skus,
+        1,
+    ):
 
         print()
-        print("=" * 60)
         print(
-            "SKU:",
+            "=" * 70
+        )
+
+        print(
+            f"SKU {index}/{len(test_skus)}:",
             sku,
         )
-        print("=" * 60)
+
+        print(
+            "=" * 70
+        )
+
+        # ----------------------------------------------------
+        # Search
+        # ----------------------------------------------------
 
         html = search_filstar(
-            sku
+            session,
+            sku,
         )
 
         if not html:
@@ -1463,104 +1630,81 @@ def main():
 
             continue
 
-        context = extract_context(
+        # ----------------------------------------------------
+        # Inspect exact product container
+        # ----------------------------------------------------
+
+        inspect_product_container(
             html,
-            str(sku),
-            radius=3000,
+            sku,
         )
 
-        if context:
-
-            save_debug(
-                f"search_{sku}_sku_context.txt",
-                context,
-            )
-
-        if not scanner_done:
-
-            scan_javascript(
-                html
-            )
-
-            scanner_done = True
+        # ----------------------------------------------------
+        # Product ID
+        # ----------------------------------------------------
 
         product_id = extract_product_id(
             html
         )
 
-        if product_id:
-
-            print(
-                "Product ID:",
-                product_id,
-            )
-
-        else:
-
-            print(
-                "Product ID не е намерено."
-            )
+        # ----------------------------------------------------
+        # Product URL
+        # ----------------------------------------------------
 
         product_url = extract_product_url(
             html,
             sku,
         )
 
-        if product_url:
-
-            print(
-                "Product URL:",
-                product_url,
-            )
-
-        else:
-
-            print(
-                "Product URL не е намерено."
-            )
-
-        save_debug(
-            f"search_{sku}_all_urls.txt",
-            "\n".join(
-                extract_all_urls(
-                    html
-                )
-            ),
-        )
-
-        # --------------------------------------------------
-        # НОВ ТЕСТ
-        # Публичният /api/search endpoint
-        # с различни параметри.
-        # --------------------------------------------------
+        # ----------------------------------------------------
+        # API parameter tests
+        # ----------------------------------------------------
 
         test_api_search_variants(
-            sku
-        )
-
-        # --------------------------------------------------
-        # Старият Typesense тест
-        # --------------------------------------------------
-
-        test_typesense_endpoint(
-            sku
-        )
-
-        # --------------------------------------------------
-        # Публичната продуктова страница
-        # --------------------------------------------------
-
-        product_html = get_product_page(
-            product_url,
+            session,
             sku,
         )
 
-        if product_html:
+        # ----------------------------------------------------
+        # Typesense
+        # ----------------------------------------------------
 
-            scan_product_page(
-                product_html,
+        test_typesense_endpoint(
+            session,
+            sku,
+        )
+
+        # ----------------------------------------------------
+        # Product page
+        # ----------------------------------------------------
+
+        if product_url:
+
+            product_html = get_product_page(
+                session,
+                product_url,
                 sku,
             )
+
+            if product_html:
+
+                scan_product_page(
+                    product_html,
+                    sku,
+                )
+
+        # ----------------------------------------------------
+        # Serialize endpoint НЕ СЕ ИЗПОЛЗВА
+        # ----------------------------------------------------
+        #
+        # Нарочно не викаме:
+        #
+        # /get-serialize-product/{product_id}
+        #
+        # защото вече знаем, че от GitHub Actions
+        # връща HTTP 403.
+        #
+        # ----------------------------------------------------
 
         save_not_found(
             sku
@@ -1571,48 +1715,25 @@ def main():
         )
 
     print()
-    print("=" * 60)
     print(
-        "ДИАГНОСТИКАТА ПРИКЛЮЧИ"
+        "=" * 70
     )
-    print("=" * 60)
+    print(
+        "DIAGNOSTIC FINISHED"
+    )
+    print(
+        "=" * 70
+    )
 
     print(
-        "Debug:",
+        "Debug folder:",
         DEBUG_DIR,
     )
 
-    print(
-        "Results:",
-        RESULT_CSV,
-    )
 
-    print(
-        "Not found:",
-        NOT_FOUND_CSV,
-    )
-
-    print()
-    print(
-        "Тествахме само първите 3 SKU."
-    )
-
-    print(
-        "/get-serialize-product/ НЕ Е ИЗПОЛЗВАН."
-    )
-
-    print(
-        "/search-json-typesense е тестван."
-    )
-
-    print(
-        "/api/search е тестван с различни параметри."
-    )
-
-    print(
-        "Продуктовите страници са сканирани."
-    )
-
+# ============================================================
+# RUN
+# ============================================================
 
 if __name__ == "__main__":
     main()
