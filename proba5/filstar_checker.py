@@ -13,7 +13,10 @@ HEADERS = {
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/139.0.0.0 Safari/537.36"
     ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept": (
+        "text/html,application/xhtml+xml,application/xml;"
+        "q=0.9,image/avif,image/webp,*/*;q=0.8"
+    ),
     "Accept-Language": "bg-BG,bg;q=0.9,en-US;q=0.8,en;q=0.7",
 }
 
@@ -25,43 +28,39 @@ def separator(title):
     print("=" * 80)
 
 
-def request(method, url, **kwargs):
+def main():
 
-    print(f"\n{method.upper()} {url}")
+    sku = "946537"
+
+    separator("FILSTAR PRODUCT LIST-VIEW TEST")
+
+    url = f"{BASE_URL}/api/search?term={sku}"
+
+    print(f"\nGET: {url}")
 
     try:
-        response = requests.request(
-            method,
+        response = requests.get(
             url,
             headers=HEADERS,
-            timeout=30,
-            **kwargs
+            timeout=30
         )
-
-        print(f"STATUS: {response.status_code}")
-        print(
-            f"CONTENT-TYPE: "
-            f"{response.headers.get('Content-Type')}"
-        )
-        print(
-            f"SIZE: "
-            f"{len(response.text):,} bytes"
-        )
-
-        return response
-
     except Exception as e:
-
-        print(f"ERROR: {e}")
-        return None
-
-
-def analyze_response(response, label):
-
-    if response is None:
+        print(f"REQUEST ERROR: {e}")
         return
 
-    separator(f"ANALYSIS: {label}")
+    print(f"HTTP STATUS: {response.status_code}")
+    print(
+        f"CONTENT-TYPE: "
+        f"{response.headers.get('Content-Type')}"
+    )
+    print(
+        f"SIZE: {len(response.text):,} bytes"
+    )
+
+    if response.status_code != 200:
+        print("\nREQUEST FAILED")
+        print(response.text[:3000])
+        return
 
     soup = BeautifulSoup(
         response.text,
@@ -72,109 +71,257 @@ def analyze_response(response, label):
         ".product-item-wapper"
     )
 
+    separator("PRODUCT CONTAINERS")
+
     print(
-        f"PRODUCT CONTAINERS: "
-        f"{len(containers)}"
+        f"TOTAL: {len(containers)}"
     )
 
-    for index, container in enumerate(
+    for i, container in enumerate(
         containers,
         start=1
     ):
 
-        print()
         print(
-            f"--- PRODUCT #{index} ---"
+            f"\nPRODUCT #{i}"
         )
 
-        attrs = container.attrs
+        print(
+            f"CLASS: {container.get('class')}"
+        )
 
-        for key, value in attrs.items():
+        print(
+            f"SIZE: {len(str(container)):,}"
+        )
+
+        print(
+            f"PRODUCT ID: "
+            f"{container.get('data-product-id')}"
+        )
+
+        print(
+            f"PRODUCT NAME: "
+            f"{container.get('data-product-name')}"
+        )
+
+    # --------------------------------------------------
+    # ТЪРСИМ PRODUCT-LIST-VIEW
+    # --------------------------------------------------
+
+    separator("TARGET: PRODUCT-LIST-VIEW")
+
+    target = soup.select_one(
+        ".product-item-wapper.product-list-view"
+    )
+
+    if not target:
+        print(
+            "PRODUCT-LIST-VIEW NOT FOUND"
+        )
+        return
+
+    html = str(target)
+
+    print(
+        f"TARGET SIZE: {len(html):,} bytes"
+    )
+
+    # --------------------------------------------------
+    # ВСИЧКИ АТРИБУТИ НА ВЪТРЕШНИТЕ ЕЛЕМЕНТИ
+    # --------------------------------------------------
+
+    separator("ALL INTERESTING ATTRIBUTES")
+
+    for tag in target.find_all(True):
+
+        interesting = False
+
+        for key, value in tag.attrs.items():
+
+            key_lower = str(key).lower()
+            value_lower = str(value).lower()
 
             if (
-                key.startswith("data-")
-                or key == "class"
+                key_lower.startswith("data-")
+                or "sku" in key_lower
+                or "stock" in key_lower
+                or "variant" in key_lower
+                or "product" in key_lower
+                or "price" in key_lower
+                or "quantity" in key_lower
+                or "barcode" in key_lower
+                or "store" in key_lower
+                or "sku" in value_lower
+                or "946537" in value_lower
+                or "8617" in value_lower
+                or "8618" in value_lower
             ):
+                interesting = True
+
+        if interesting:
+
+            print(
+                f"\nTAG: <{tag.name}>"
+            )
+
+            for key, value in tag.attrs.items():
+
                 print(
                     f"{key} = {value}"
                 )
 
-        text = container.get_text(
-            " ",
-            strip=True
-        )
+    # --------------------------------------------------
+    # TEXT
+    # --------------------------------------------------
 
-        print(
-            f"TEXT: {text[:500]}"
-        )
+    separator("VISIBLE TEXT")
 
-        print(
-            f"HTML SIZE: "
-            f"{len(str(container)):,}"
-        )
+    text = target.get_text(
+        "\n",
+        strip=True
+    )
 
-    # Търсим конкретните SKU-та навсякъде
+    print(text)
+
+    # --------------------------------------------------
+    # КЛЮЧОВИ ДУМИ
+    # --------------------------------------------------
+
+    separator("KEYWORD COUNTS INSIDE TARGET")
+
     terms = [
         "946537",
         "946534",
         "946535",
-        "2557",
-    ]
 
-    print()
-    print("--- EXACT TERM COUNTS ---")
+        "8617",
+        "8618",
 
-    for term in terms:
-
-        count = response.text.count(term)
-
-        print(
-            f"{term}: {count}"
-        )
-
-    # Търсим възможни JSON / variant ключове
-    terms = [
+        "sku",
+        "stock",
         "variant",
         "variants",
-        "variantId",
-        "productId",
-        "product_id",
-        "sku",
+        "variantid",
+        "productid",
         "barcode",
+
         "quantity",
-        "stock",
         "price",
-        "discountedPrice",
-        "originalPrice",
-        "stores",
+        "discountedprice",
+        "originalprice",
+
         "store",
+        "stores",
+
+        "plovdiv",
+        "sofia",
     ]
 
-    print()
-    print("--- KEYWORD COUNTS ---")
-
-    lower = response.text.lower()
+    lower_html = html.lower()
 
     for term in terms:
 
-        count = lower.count(
+        count = lower_html.count(
             term.lower()
         )
 
         if count:
+
             print(
                 f"{term}: {count}"
             )
 
+    # --------------------------------------------------
+    # КОНТЕКСТ ОКОЛО SKU / STOCK
+    # --------------------------------------------------
 
-def save_response(response, filename):
+    separator(
+        "CONTEXT AROUND SKU / STOCK / VARIANT"
+    )
 
-    if response is None:
-        return
+    context_terms = [
+        "946537",
+        "sku",
+        "stock",
+        "variant",
+        "variantid",
+        "quantity",
+        "price",
+        "barcode",
+        "store",
+    ]
+
+    already = set()
+
+    for term in context_terms:
+
+        start = 0
+
+        while True:
+
+            pos = lower_html.find(
+                term.lower(),
+                start
+            )
+
+            if pos == -1:
+                break
+
+            context_start = max(
+                0,
+                pos - 800
+            )
+
+            context_end = min(
+                len(html),
+                pos + len(term) + 1500
+            )
+
+            context = html[
+                context_start:context_end
+            ]
+
+            key = (
+                term,
+                context_start
+            )
+
+            if key not in already:
+
+                print()
+                print(
+                    f"--- {term} "
+                    f"at {pos} ---"
+                )
+
+                print(context)
+
+                already.add(key)
+
+            start = pos + len(term)
+
+            # Не допускаме безкраен лог
+            if len(already) >= 25:
+                break
+
+        if len(already) >= 25:
+            break
+
+    # --------------------------------------------------
+    # ВЪТРЕШЕН HTML
+    # --------------------------------------------------
+
+    separator("FULL TARGET HTML")
+
+    print(html)
+
+    # --------------------------------------------------
+    # ЗАПИС
+    # --------------------------------------------------
 
     path = os.path.join(
         DEBUG_DIR,
-        filename
+        "product_list_view_946537.html"
     )
 
     with open(
@@ -183,265 +330,14 @@ def save_response(response, filename):
         encoding="utf-8"
     ) as f:
 
-        f.write(
-            response.text
-        )
+        f.write(html)
 
+    print()
     print(
-        f"Saved: {path}"
+        f"DEBUG FILE SAVED: {path}"
     )
 
-
-def main():
-
-    sku = "946537"
-    product_id = "2557"
-
-    separator(
-        "FILSTAR /api/search PARAMETER TEST"
-    )
-
-    # --------------------------------------------------
-    # 1. Стандартен GET
-    # --------------------------------------------------
-
-    response = request(
-        "GET",
-        f"{BASE_URL}/api/search",
-        params={
-            "term": sku
-        }
-    )
-
-    analyze_response(
-        response,
-        "GET term=946537"
-    )
-
-    save_response(
-        response,
-        "api_test_01_term.html"
-    )
-
-    # --------------------------------------------------
-    # 2. GET с page
-    # --------------------------------------------------
-
-    response = request(
-        "GET",
-        f"{BASE_URL}/api/search",
-        params={
-            "term": sku,
-            "page": 1
-        }
-    )
-
-    analyze_response(
-        response,
-        "GET term + page=1"
-    )
-
-    # --------------------------------------------------
-    # 3. GET с limit
-    # --------------------------------------------------
-
-    response = request(
-        "GET",
-        f"{BASE_URL}/api/search",
-        params={
-            "term": sku,
-            "limit": 100
-        }
-    )
-
-    analyze_response(
-        response,
-        "GET term + limit=100"
-    )
-
-    # --------------------------------------------------
-    # 4. GET с per_page
-    # --------------------------------------------------
-
-    response = request(
-        "GET",
-        f"{BASE_URL}/api/search",
-        params={
-            "term": sku,
-            "per_page": 100
-        }
-    )
-
-    analyze_response(
-        response,
-        "GET term + per_page=100"
-    )
-
-    # --------------------------------------------------
-    # 5. GET с product
-    # --------------------------------------------------
-
-    response = request(
-        "GET",
-        f"{BASE_URL}/api/search",
-        params={
-            "term": sku,
-            "product": product_id
-        }
-    )
-
-    analyze_response(
-        response,
-        "GET term + product=2557"
-    )
-
-    # --------------------------------------------------
-    # 6. GET с product_id
-    # --------------------------------------------------
-
-    response = request(
-        "GET",
-        f"{BASE_URL}/api/search",
-        params={
-            "term": sku,
-            "product_id": product_id
-        }
-    )
-
-    analyze_response(
-        response,
-        "GET term + product_id=2557"
-    )
-
-    # --------------------------------------------------
-    # 7. GET с variant
-    # --------------------------------------------------
-
-    response = request(
-        "GET",
-        f"{BASE_URL}/api/search",
-        params={
-            "term": sku,
-            "variant": sku
-        }
-    )
-
-    analyze_response(
-        response,
-        "GET term + variant=946537"
-    )
-
-    # --------------------------------------------------
-    # 8. GET с sku
-    # --------------------------------------------------
-
-    response = request(
-        "GET",
-        f"{BASE_URL}/api/search",
-        params={
-            "term": sku,
-            "sku": sku
-        }
-    )
-
-    analyze_response(
-        response,
-        "GET term + sku=946537"
-    )
-
-    # --------------------------------------------------
-    # 9. GET само SKU параметър
-    # --------------------------------------------------
-
-    response = request(
-        "GET",
-        f"{BASE_URL}/api/search",
-        params={
-            "sku": sku
-        }
-    )
-
-    analyze_response(
-        response,
-        "GET sku=946537"
-    )
-
-    # --------------------------------------------------
-    # 10. GET само product_id
-    # --------------------------------------------------
-
-    response = request(
-        "GET",
-        f"{BASE_URL}/api/search",
-        params={
-            "product_id": product_id
-        }
-    )
-
-    analyze_response(
-        response,
-        "GET product_id=2557"
-    )
-
-    # --------------------------------------------------
-    # 11. POST form
-    # --------------------------------------------------
-
-    response = request(
-        "POST",
-        f"{BASE_URL}/api/search",
-        data={
-            "term": sku
-        }
-    )
-
-    analyze_response(
-        response,
-        "POST form term=946537"
-    )
-
-    # --------------------------------------------------
-    # 12. POST JSON
-    # --------------------------------------------------
-
-    response = request(
-        "POST",
-        f"{BASE_URL}/api/search",
-        json={
-            "term": sku
-        }
-    )
-
-    analyze_response(
-        response,
-        "POST JSON term=946537"
-    )
-
-    separator(
-        "END OF PARAMETER TEST"
-    )
-
-    print(
-        """
-Тестирахме:
-
-1. term
-2. page
-3. limit
-4. per_page
-5. product
-6. product_id
-7. variant
-8. sku
-9. само sku
-10. само product_id
-11. POST form
-12. POST JSON
-
-Търсим дали някой от вариантите ще върне различен
-HTML или конкретните данни за SKU 946537.
-"""
-    )
+    separator("END OF TEST")
 
 
 if __name__ == "__main__":
