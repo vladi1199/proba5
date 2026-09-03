@@ -1,0 +1,1347 @@
+
+
+================================================================================
+MATCH #1: autocomplete
+================================================================================
+[da];ha.Ea!=="7"&&C.push(bK(ha,c,e))}}else{if(k.email){var ka=
+cK(u.elements);x=$J(ka,h);y=dK(x);ka.length>10&&(v="3")}!g&&y&&(x=[y]);for(var ya=0;ya<x.length;ya++)C.push(bK(x[ya],c,e));C=C.slice(0,10)}y&&(z=bK(y,c,e));var Ma={elements:C,Xh:z,status:v};m[p]={timestamp:Ub(),result:Ma};var ja;(Ma.elements.some(function(ia){return ia.Th})||((ja=Ma.Xh)==null?0:ja.Th))&&mC(fC.X.dj);return Ma},ZJ=function(a){var b=a.filter(function(u){return u.Ea==="7"}),c=a.filter(function(u){return u.Ea==="3"});if(a.filter(function(u){return u.Ea==="4"}).length===0&&c.length===0)for(var d=
+0;d<b.length;d++){var e=b[d],f=e.Da.split(" ");f.length>1&&a.push({Da:f[0],Ea:"3",element:e.element,Kc:e.Kc},{Da:f.slice(1).join(" "),Ea:"4",element:e.element,Kc:e.Kc})}for(var g,h=0,k,m=function(u){return u.Ea==="2"&&u.Da.length>=3&&u.Da.length<=4},p=0;p<a.length;p++){var q=a[p];if(m(q)&&g&&q.element.parentElement===g&&h<3){if(h+=1,k+=q.Da,h===3){var r=p-h+1;if(k=fK["2"].oa(k))a[r].Da=k}}else if(h=0,k="",g=void 0,m(q)){h++;k=q.Da;var t=void 0;g=(t=q.element.parentElement)!=null?t:void 0}}return a.filter(function(u){return!m(u)})},
+jK=function(a,b){if(a.value&&gK.indexOf((a.type||"text").toLowerCase())!==-1){var c=a.autocomplete;if(c)for(var d=c.split(" "),e=0;e<d.length;e++){var f=hK(a.value,b,d[e]);if(f)return f}var g,h=[a.name,a.id,(g=a.ariaLabel)!=null?g:void 0,a.placeholder],k=a.parentElement;k&&k.tagName==="LABEL"&&h.push(k.innerText);var m=a.previousElementSibling;m&&m.tagName==="LABEL"&&!m.htmlFor&&h.push(m.innerText);if(a.id){var p=[];try{p=document.body.querySelectorAll('label[for="'+a.id+'"]')}catch(D){}for(var q=
+0;q<p.length;q++)h.push(p[q].innerText)}h=h.filter(function(D){return D&&D.trim()});for(var r,t=0,u=0;u<h.length;u++){var v=iK(a,b,h[u]);if(v){var x=v,y=x.Da,z=x.Ea,C=x.vt;C>t&&(t=C,r={Da:y,Ea:z})}}return r}},iK=function(a,b,c){for(var d=0;d<b.length;d++){var e=b[d];if(fK[e].be){var f=fK[e].be.exec(c.trim());if(f){var g=a,h=[],k=g.value.trim();k&&h.push(k);if(g.tagName==="SELECT")try{var m=g.querySelector('[value="'+g.value+'"]'),p=m&&m.innerText.trim();p&&h.push(p)}catch(u){}for(var q=h,r=void 0,
+t=0;t<q.length&&!r;t++)r=fK[e].oa(q[t]);if(r)return{Ea:e,Da:r,vt:f[0].length/c.trim().length}}}}},hK=function(a,b,c){for(var d=0;d<b.length;d++){var e=b[d];if(fK[e].autocomplete&&fK[e].autocomplete.indexOf(c)>=0){var f=fK[e].oa(a.trim());if(f)return{Ea:e,Da:f}}}},XJ=function(a){var b=[];a.em
+
+================================================================================
+MATCH #2: autocomplete
+================================================================================
+(function(u){return!m(u)})},
+jK=function(a,b){if(a.value&&gK.indexOf((a.type||"text").toLowerCase())!==-1){var c=a.autocomplete;if(c)for(var d=c.split(" "),e=0;e<d.length;e++){var f=hK(a.value,b,d[e]);if(f)return f}var g,h=[a.name,a.id,(g=a.ariaLabel)!=null?g:void 0,a.placeholder],k=a.parentElement;k&&k.tagName==="LABEL"&&h.push(k.innerText);var m=a.previousElementSibling;m&&m.tagName==="LABEL"&&!m.htmlFor&&h.push(m.innerText);if(a.id){var p=[];try{p=document.body.querySelectorAll('label[for="'+a.id+'"]')}catch(D){}for(var q=
+0;q<p.length;q++)h.push(p[q].innerText)}h=h.filter(function(D){return D&&D.trim()});for(var r,t=0,u=0;u<h.length;u++){var v=iK(a,b,h[u]);if(v){var x=v,y=x.Da,z=x.Ea,C=x.vt;C>t&&(t=C,r={Da:y,Ea:z})}}return r}},iK=function(a,b,c){for(var d=0;d<b.length;d++){var e=b[d];if(fK[e].be){var f=fK[e].be.exec(c.trim());if(f){var g=a,h=[],k=g.value.trim();k&&h.push(k);if(g.tagName==="SELECT")try{var m=g.querySelector('[value="'+g.value+'"]'),p=m&&m.innerText.trim();p&&h.push(p)}catch(u){}for(var q=h,r=void 0,
+t=0;t<q.length&&!r;t++)r=fK[e].oa(q[t]);if(r)return{Ea:e,Da:r,vt:f[0].length/c.trim().length}}}}},hK=function(a,b,c){for(var d=0;d<b.length;d++){var e=b[d];if(fK[e].autocomplete&&fK[e].autocomplete.indexOf(c)>=0){var f=fK[e].oa(a.trim());if(f)return{Ea:e,Da:f}}}},XJ=function(a){var b=[];a.email&&b.push("1");a.phone&&b.push("2");a.address&&b.push("3","4","5","6","7");return b},YJ=function(a,b){for(var c=[],d=0;d<a.length;d++){var e=a[d],f=e.element,g=e.Kc,h;a:{var k=f,m=b,p=k.innerHTML;kK.indexOf(k.tagName)>=
+0&&(p=k.value||p);if(p){var q;b:{for(var r=p,t=m,u=0;u<t.length;u++){var v=t[u];if(!fK[v].ae){var x=fK[v].oa(r.trim());if(x){q={Ea:v,Da:x};break b}}}q=void 0}if(q){h=q;break a}if(kK.indexOf(k.tagName)!==-1){h=jK(k,m);break a}}h=void 0}var y=h;if(y){var z=y;c.push({Da:z.Da,Ea:z.Ea,element:f,Kc:g})}}return c},aK=function(a){function b(d){var e=a.filter(function(f){return f.Ea===d});e.length!==0&&(d==="1"&&(e=lK(e,function(f){return!mK.test(f.Da)}),e=lK(e,function(f){return f.element.tagName.toUpperCase()===
+"INPUT"}),e=lK(e,function(f){return!bG(f.element)})),c.push(e[0]))}var c=[];if(a.length===0)return c;b("1");b("2");b("3");b("4");b("5");b("6");b("7");b("8");b("9");b("10");return c},bK=function(a,b,c){var d=a.element,e=a.Kc,f={Da:a.Da,type:a.Ea,tagName:d.tagName};if(b){var g,h=nK(d);if(g=(e?e+"|"+h:h).slice(0,oK))f.querySelector=g}c&&(f.isVisible=!bG
+
+================================================================================
+MATCH #3: autocomplete
+================================================================================
+m(u)})},
+jK=function(a,b){if(a.value&&gK.indexOf((a.type||"text").toLowerCase())!==-1){var c=a.autocomplete;if(c)for(var d=c.split(" "),e=0;e<d.length;e++){var f=hK(a.value,b,d[e]);if(f)return f}var g,h=[a.name,a.id,(g=a.ariaLabel)!=null?g:void 0,a.placeholder],k=a.parentElement;k&&k.tagName==="LABEL"&&h.push(k.innerText);var m=a.previousElementSibling;m&&m.tagName==="LABEL"&&!m.htmlFor&&h.push(m.innerText);if(a.id){var p=[];try{p=document.body.querySelectorAll('label[for="'+a.id+'"]')}catch(D){}for(var q=
+0;q<p.length;q++)h.push(p[q].innerText)}h=h.filter(function(D){return D&&D.trim()});for(var r,t=0,u=0;u<h.length;u++){var v=iK(a,b,h[u]);if(v){var x=v,y=x.Da,z=x.Ea,C=x.vt;C>t&&(t=C,r={Da:y,Ea:z})}}return r}},iK=function(a,b,c){for(var d=0;d<b.length;d++){var e=b[d];if(fK[e].be){var f=fK[e].be.exec(c.trim());if(f){var g=a,h=[],k=g.value.trim();k&&h.push(k);if(g.tagName==="SELECT")try{var m=g.querySelector('[value="'+g.value+'"]'),p=m&&m.innerText.trim();p&&h.push(p)}catch(u){}for(var q=h,r=void 0,
+t=0;t<q.length&&!r;t++)r=fK[e].oa(q[t]);if(r)return{Ea:e,Da:r,vt:f[0].length/c.trim().length}}}}},hK=function(a,b,c){for(var d=0;d<b.length;d++){var e=b[d];if(fK[e].autocomplete&&fK[e].autocomplete.indexOf(c)>=0){var f=fK[e].oa(a.trim());if(f)return{Ea:e,Da:f}}}},XJ=function(a){var b=[];a.email&&b.push("1");a.phone&&b.push("2");a.address&&b.push("3","4","5","6","7");return b},YJ=function(a,b){for(var c=[],d=0;d<a.length;d++){var e=a[d],f=e.element,g=e.Kc,h;a:{var k=f,m=b,p=k.innerHTML;kK.indexOf(k.tagName)>=
+0&&(p=k.value||p);if(p){var q;b:{for(var r=p,t=m,u=0;u<t.length;u++){var v=t[u];if(!fK[v].ae){var x=fK[v].oa(r.trim());if(x){q={Ea:v,Da:x};break b}}}q=void 0}if(q){h=q;break a}if(kK.indexOf(k.tagName)!==-1){h=jK(k,m);break a}}h=void 0}var y=h;if(y){var z=y;c.push({Da:z.Da,Ea:z.Ea,element:f,Kc:g})}}return c},aK=function(a){function b(d){var e=a.filter(function(f){return f.Ea===d});e.length!==0&&(d==="1"&&(e=lK(e,function(f){return!mK.test(f.Da)}),e=lK(e,function(f){return f.element.tagName.toUpperCase()===
+"INPUT"}),e=lK(e,function(f){return!bG(f.element)})),c.push(e[0]))}var c=[];if(a.length===0)return c;b("1");b("2");b("3");b("4");b("5");b("6");b("7");b("8");b("9");b("10");return c},bK=function(a,b,c){var d=a.element,e=a.Kc,f={Da:a.Da,type:a.Ea,tagName:d.tagName};if(b){var g,h=nK(d);if(g=(e?e+"|"+h:h).slice(0,oK))f.querySelector=g}c&&(f.isVisible=!bG(d));e&&(f.Th=!0);re
+
+================================================================================
+MATCH #4: autocomplete
+================================================================================
+an","i"),xK=RegExp("last.*name|lname|surname(?!\\d)|last$|secondname|family.*name|nachname|apellidos?|famille|^nom(?![a-zA-Z])|cognome|\u59d3|apelidos|surename|sobrenome|\u0424\u0430\u043c\u0438\u043b\u0438\u044f|\u0646\u0627\u0645.*\u062e\u0627\u0646\u0648\u0627\u062f\u06af\u06cc|\u0909\u092a\u0928\u093e\u092e|\u0d2e\u0d31\u0d41\u0d2a\u0d47\u0d30\u0d4d|(\\b|_|\\*)(soyisim|soyad(i|\u0131|iniz|\u0131n\u0131z)?)(\\b|_|\\*)|\\b\uc131(?:[^\uba85]|\\b)|nama belakang",
+"i"),yK=RegExp("country|countries|pa\u00eds|pais|(\\b|_)land(\\b|_)(?!.*(mark.*))|(^|[^(\u5165|\u51fa)])\u56fd|\u56fd\u5bb6|\uad6d\uac00|\ub098\ub77c|(\\b|_)(\u00fclke|ulce|ulke)(\\b|_)|\u06a9\u0634\u0648\u0631|negara","i"),zK=RegExp("(^|[^.])zip|postal|post.*code|pcode|pin.?code|postleitzahl|\\bcp\\b|\\bcdp\\b|\\bcap\\b|\u90f5\u4fbf\u756a\u53f7|codigo|codpos|\\bcep\\b|\u041f\u043e\u0447\u0442\u043e\u0432\u044b\u0439.?\u0418\u043d\u0434\u0435\u043a\u0441|\u092a\u093f\u0928.?\u0915\u094b\u0921|\u0d2a\u0d3f\u0d28\u0d4d\u200d\u0d15\u0d4b\u0d21\u0d4d|\u90ae\u653f\u7f16\u7801|\u90ae\u7f16|\u90f5\u905e\u5340\u865f|(\\b|_)posta kodu(\\b|_)|\uc6b0\ud3b8.?\ubc88\ud638|kode.?pos",
+"i"),AK={},fK=(AK["1"]={ae:!1,oa:$D},AK["2"]={ae:!0,autocomplete:["tel","tel-national","tel-local"],be:uK,oa:function(a){return UD(a,!0)}},AK["7"]={ae:!0,autocomplete:["name","cc-name"],be:vK,oa:bE},AK["3"]={ae:!0,autocomplete:["given-name","cc-given-name"],be:wK,oa:bE},AK["4"]={ae:!0,autocomplete:["family-name","cc-family-name"],be:xK,oa:bE},AK["5"]={ae:!0,autocomplete:["country","country-name"],be:yK,oa:bE},AK["6"]={ae:!0,autocomplete:["postal-code"],be:zK,oa:WD},AK);function BK(a){var b;N(this,"detect_user_provided_data","auto");var c=B(a)||{},d=eK({includeSelector:!!c.includeSelector,includeVisibility:!!c.includeVisibility,excludeElementSelectors:c.excludeElementSelectors,fieldFilters:c.fieldFilters,selectMultipleElements:!!c.selectMultipleElements});b=new kb;var e=new Id;b.set("elements",e);for(var f=d.elements,g=0;g<f.length;g++)e.push(CK(f[g]));d.Xh!==void 0&&b.set("preferredEmailElement",
+CK(d.Xh));b.set("status",d.status);if(c.readFromDataLayer){DK(e,c);var h=dE(),k=h.Jt;b.set("dataLayerSearchTime",h.Kt);b.set("dataLayerSearchCount",k)}return b}
+var EK=function(a){switch(a){case "1":return"email";case "2":return"phone_number";case "3":return"first_name";case "4":return"last_name";case "8":return"street";case "9":return"city";case "10":
+
+================================================================================
+MATCH #5: autocomplete
+================================================================================
+famille|^nom(?![a-zA-Z])|cognome|\u59d3|apelidos|surename|sobrenome|\u0424\u0430\u043c\u0438\u043b\u0438\u044f|\u0646\u0627\u0645.*\u062e\u0627\u0646\u0648\u0627\u062f\u06af\u06cc|\u0909\u092a\u0928\u093e\u092e|\u0d2e\u0d31\u0d41\u0d2a\u0d47\u0d30\u0d4d|(\\b|_|\\*)(soyisim|soyad(i|\u0131|iniz|\u0131n\u0131z)?)(\\b|_|\\*)|\\b\uc131(?:[^\uba85]|\\b)|nama belakang",
+"i"),yK=RegExp("country|countries|pa\u00eds|pais|(\\b|_)land(\\b|_)(?!.*(mark.*))|(^|[^(\u5165|\u51fa)])\u56fd|\u56fd\u5bb6|\uad6d\uac00|\ub098\ub77c|(\\b|_)(\u00fclke|ulce|ulke)(\\b|_)|\u06a9\u0634\u0648\u0631|negara","i"),zK=RegExp("(^|[^.])zip|postal|post.*code|pcode|pin.?code|postleitzahl|\\bcp\\b|\\bcdp\\b|\\bcap\\b|\u90f5\u4fbf\u756a\u53f7|codigo|codpos|\\bcep\\b|\u041f\u043e\u0447\u0442\u043e\u0432\u044b\u0439.?\u0418\u043d\u0434\u0435\u043a\u0441|\u092a\u093f\u0928.?\u0915\u094b\u0921|\u0d2a\u0d3f\u0d28\u0d4d\u200d\u0d15\u0d4b\u0d21\u0d4d|\u90ae\u653f\u7f16\u7801|\u90ae\u7f16|\u90f5\u905e\u5340\u865f|(\\b|_)posta kodu(\\b|_)|\uc6b0\ud3b8.?\ubc88\ud638|kode.?pos",
+"i"),AK={},fK=(AK["1"]={ae:!1,oa:$D},AK["2"]={ae:!0,autocomplete:["tel","tel-national","tel-local"],be:uK,oa:function(a){return UD(a,!0)}},AK["7"]={ae:!0,autocomplete:["name","cc-name"],be:vK,oa:bE},AK["3"]={ae:!0,autocomplete:["given-name","cc-given-name"],be:wK,oa:bE},AK["4"]={ae:!0,autocomplete:["family-name","cc-family-name"],be:xK,oa:bE},AK["5"]={ae:!0,autocomplete:["country","country-name"],be:yK,oa:bE},AK["6"]={ae:!0,autocomplete:["postal-code"],be:zK,oa:WD},AK);function BK(a){var b;N(this,"detect_user_provided_data","auto");var c=B(a)||{},d=eK({includeSelector:!!c.includeSelector,includeVisibility:!!c.includeVisibility,excludeElementSelectors:c.excludeElementSelectors,fieldFilters:c.fieldFilters,selectMultipleElements:!!c.selectMultipleElements});b=new kb;var e=new Id;b.set("elements",e);for(var f=d.elements,g=0;g<f.length;g++)e.push(CK(f[g]));d.Xh!==void 0&&b.set("preferredEmailElement",
+CK(d.Xh));b.set("status",d.status);if(c.readFromDataLayer){DK(e,c);var h=dE(),k=h.Jt;b.set("dataLayerSearchTime",h.Kt);b.set("dataLayerSearchCount",k)}return b}
+var EK=function(a){switch(a){case "1":return"email";case "2":return"phone_number";case "3":return"first_name";case "4":return"last_name";case "8":return"street";case "9":return"city";case "10":return"region";case "6":return"postal_code";case "5":return"country"}},FK=function(a){var b=new kb,c=E
+
+================================================================================
+MATCH #6: autocomplete
+================================================================================
+brenome|\u0424\u0430\u043c\u0438\u043b\u0438\u044f|\u0646\u0627\u0645.*\u062e\u0627\u0646\u0648\u0627\u062f\u06af\u06cc|\u0909\u092a\u0928\u093e\u092e|\u0d2e\u0d31\u0d41\u0d2a\u0d47\u0d30\u0d4d|(\\b|_|\\*)(soyisim|soyad(i|\u0131|iniz|\u0131n\u0131z)?)(\\b|_|\\*)|\\b\uc131(?:[^\uba85]|\\b)|nama belakang",
+"i"),yK=RegExp("country|countries|pa\u00eds|pais|(\\b|_)land(\\b|_)(?!.*(mark.*))|(^|[^(\u5165|\u51fa)])\u56fd|\u56fd\u5bb6|\uad6d\uac00|\ub098\ub77c|(\\b|_)(\u00fclke|ulce|ulke)(\\b|_)|\u06a9\u0634\u0648\u0631|negara","i"),zK=RegExp("(^|[^.])zip|postal|post.*code|pcode|pin.?code|postleitzahl|\\bcp\\b|\\bcdp\\b|\\bcap\\b|\u90f5\u4fbf\u756a\u53f7|codigo|codpos|\\bcep\\b|\u041f\u043e\u0447\u0442\u043e\u0432\u044b\u0439.?\u0418\u043d\u0434\u0435\u043a\u0441|\u092a\u093f\u0928.?\u0915\u094b\u0921|\u0d2a\u0d3f\u0d28\u0d4d\u200d\u0d15\u0d4b\u0d21\u0d4d|\u90ae\u653f\u7f16\u7801|\u90ae\u7f16|\u90f5\u905e\u5340\u865f|(\\b|_)posta kodu(\\b|_)|\uc6b0\ud3b8.?\ubc88\ud638|kode.?pos",
+"i"),AK={},fK=(AK["1"]={ae:!1,oa:$D},AK["2"]={ae:!0,autocomplete:["tel","tel-national","tel-local"],be:uK,oa:function(a){return UD(a,!0)}},AK["7"]={ae:!0,autocomplete:["name","cc-name"],be:vK,oa:bE},AK["3"]={ae:!0,autocomplete:["given-name","cc-given-name"],be:wK,oa:bE},AK["4"]={ae:!0,autocomplete:["family-name","cc-family-name"],be:xK,oa:bE},AK["5"]={ae:!0,autocomplete:["country","country-name"],be:yK,oa:bE},AK["6"]={ae:!0,autocomplete:["postal-code"],be:zK,oa:WD},AK);function BK(a){var b;N(this,"detect_user_provided_data","auto");var c=B(a)||{},d=eK({includeSelector:!!c.includeSelector,includeVisibility:!!c.includeVisibility,excludeElementSelectors:c.excludeElementSelectors,fieldFilters:c.fieldFilters,selectMultipleElements:!!c.selectMultipleElements});b=new kb;var e=new Id;b.set("elements",e);for(var f=d.elements,g=0;g<f.length;g++)e.push(CK(f[g]));d.Xh!==void 0&&b.set("preferredEmailElement",
+CK(d.Xh));b.set("status",d.status);if(c.readFromDataLayer){DK(e,c);var h=dE(),k=h.Jt;b.set("dataLayerSearchTime",h.Kt);b.set("dataLayerSearchCount",k)}return b}
+var EK=function(a){switch(a){case "1":return"email";case "2":return"phone_number";case "3":return"first_name";case "4":return"last_name";case "8":return"street";case "9":return"city";case "10":return"region";case "6":return"postal_code";case "5":return"country"}},FK=function(a){var b=new kb,c=EK(a.Ea);c!==void 0&&b.set("type",c);b.set("userData",a.Da);b
+
+================================================================================
+MATCH #7: autocomplete
+================================================================================
+u062e\u0627\u0646\u0648\u0627\u062f\u06af\u06cc|\u0909\u092a\u0928\u093e\u092e|\u0d2e\u0d31\u0d41\u0d2a\u0d47\u0d30\u0d4d|(\\b|_|\\*)(soyisim|soyad(i|\u0131|iniz|\u0131n\u0131z)?)(\\b|_|\\*)|\\b\uc131(?:[^\uba85]|\\b)|nama belakang",
+"i"),yK=RegExp("country|countries|pa\u00eds|pais|(\\b|_)land(\\b|_)(?!.*(mark.*))|(^|[^(\u5165|\u51fa)])\u56fd|\u56fd\u5bb6|\uad6d\uac00|\ub098\ub77c|(\\b|_)(\u00fclke|ulce|ulke)(\\b|_)|\u06a9\u0634\u0648\u0631|negara","i"),zK=RegExp("(^|[^.])zip|postal|post.*code|pcode|pin.?code|postleitzahl|\\bcp\\b|\\bcdp\\b|\\bcap\\b|\u90f5\u4fbf\u756a\u53f7|codigo|codpos|\\bcep\\b|\u041f\u043e\u0447\u0442\u043e\u0432\u044b\u0439.?\u0418\u043d\u0434\u0435\u043a\u0441|\u092a\u093f\u0928.?\u0915\u094b\u0921|\u0d2a\u0d3f\u0d28\u0d4d\u200d\u0d15\u0d4b\u0d21\u0d4d|\u90ae\u653f\u7f16\u7801|\u90ae\u7f16|\u90f5\u905e\u5340\u865f|(\\b|_)posta kodu(\\b|_)|\uc6b0\ud3b8.?\ubc88\ud638|kode.?pos",
+"i"),AK={},fK=(AK["1"]={ae:!1,oa:$D},AK["2"]={ae:!0,autocomplete:["tel","tel-national","tel-local"],be:uK,oa:function(a){return UD(a,!0)}},AK["7"]={ae:!0,autocomplete:["name","cc-name"],be:vK,oa:bE},AK["3"]={ae:!0,autocomplete:["given-name","cc-given-name"],be:wK,oa:bE},AK["4"]={ae:!0,autocomplete:["family-name","cc-family-name"],be:xK,oa:bE},AK["5"]={ae:!0,autocomplete:["country","country-name"],be:yK,oa:bE},AK["6"]={ae:!0,autocomplete:["postal-code"],be:zK,oa:WD},AK);function BK(a){var b;N(this,"detect_user_provided_data","auto");var c=B(a)||{},d=eK({includeSelector:!!c.includeSelector,includeVisibility:!!c.includeVisibility,excludeElementSelectors:c.excludeElementSelectors,fieldFilters:c.fieldFilters,selectMultipleElements:!!c.selectMultipleElements});b=new kb;var e=new Id;b.set("elements",e);for(var f=d.elements,g=0;g<f.length;g++)e.push(CK(f[g]));d.Xh!==void 0&&b.set("preferredEmailElement",
+CK(d.Xh));b.set("status",d.status);if(c.readFromDataLayer){DK(e,c);var h=dE(),k=h.Jt;b.set("dataLayerSearchTime",h.Kt);b.set("dataLayerSearchCount",k)}return b}
+var EK=function(a){switch(a){case "1":return"email";case "2":return"phone_number";case "3":return"first_name";case "4":return"last_name";case "8":return"street";case "9":return"city";case "10":return"region";case "6":return"postal_code";case "5":return"country"}},FK=function(a){var b=new kb,c=EK(a.Ea);c!==void 0&&b.set("type",c);b.set("userData",a.Da);b.set("tagName","DLYR");return b},DK=function(a,b){var c=eE();if(P(568)){
+
+================================================================================
+MATCH #8: autocomplete
+================================================================================
+092e|\u0d2e\u0d31\u0d41\u0d2a\u0d47\u0d30\u0d4d|(\\b|_|\\*)(soyisim|soyad(i|\u0131|iniz|\u0131n\u0131z)?)(\\b|_|\\*)|\\b\uc131(?:[^\uba85]|\\b)|nama belakang",
+"i"),yK=RegExp("country|countries|pa\u00eds|pais|(\\b|_)land(\\b|_)(?!.*(mark.*))|(^|[^(\u5165|\u51fa)])\u56fd|\u56fd\u5bb6|\uad6d\uac00|\ub098\ub77c|(\\b|_)(\u00fclke|ulce|ulke)(\\b|_)|\u06a9\u0634\u0648\u0631|negara","i"),zK=RegExp("(^|[^.])zip|postal|post.*code|pcode|pin.?code|postleitzahl|\\bcp\\b|\\bcdp\\b|\\bcap\\b|\u90f5\u4fbf\u756a\u53f7|codigo|codpos|\\bcep\\b|\u041f\u043e\u0447\u0442\u043e\u0432\u044b\u0439.?\u0418\u043d\u0434\u0435\u043a\u0441|\u092a\u093f\u0928.?\u0915\u094b\u0921|\u0d2a\u0d3f\u0d28\u0d4d\u200d\u0d15\u0d4b\u0d21\u0d4d|\u90ae\u653f\u7f16\u7801|\u90ae\u7f16|\u90f5\u905e\u5340\u865f|(\\b|_)posta kodu(\\b|_)|\uc6b0\ud3b8.?\ubc88\ud638|kode.?pos",
+"i"),AK={},fK=(AK["1"]={ae:!1,oa:$D},AK["2"]={ae:!0,autocomplete:["tel","tel-national","tel-local"],be:uK,oa:function(a){return UD(a,!0)}},AK["7"]={ae:!0,autocomplete:["name","cc-name"],be:vK,oa:bE},AK["3"]={ae:!0,autocomplete:["given-name","cc-given-name"],be:wK,oa:bE},AK["4"]={ae:!0,autocomplete:["family-name","cc-family-name"],be:xK,oa:bE},AK["5"]={ae:!0,autocomplete:["country","country-name"],be:yK,oa:bE},AK["6"]={ae:!0,autocomplete:["postal-code"],be:zK,oa:WD},AK);function BK(a){var b;N(this,"detect_user_provided_data","auto");var c=B(a)||{},d=eK({includeSelector:!!c.includeSelector,includeVisibility:!!c.includeVisibility,excludeElementSelectors:c.excludeElementSelectors,fieldFilters:c.fieldFilters,selectMultipleElements:!!c.selectMultipleElements});b=new kb;var e=new Id;b.set("elements",e);for(var f=d.elements,g=0;g<f.length;g++)e.push(CK(f[g]));d.Xh!==void 0&&b.set("preferredEmailElement",
+CK(d.Xh));b.set("status",d.status);if(c.readFromDataLayer){DK(e,c);var h=dE(),k=h.Jt;b.set("dataLayerSearchTime",h.Kt);b.set("dataLayerSearchCount",k)}return b}
+var EK=function(a){switch(a){case "1":return"email";case "2":return"phone_number";case "3":return"first_name";case "4":return"last_name";case "8":return"street";case "9":return"city";case "10":return"region";case "6":return"postal_code";case "5":return"country"}},FK=function(a){var b=new kb,c=EK(a.Ea);c!==void 0&&b.set("type",c);b.set("userData",a.Da);b.set("tagName","DLYR");return b},DK=function(a,b){var c=eE();if(P(568)){var d=new Set(a.fc().map(function(t){return t.get("type")})),e=n(c),f=e.ne
+
+================================================================================
+MATCH #9: autocomplete
+================================================================================
+soyad(i|\u0131|iniz|\u0131n\u0131z)?)(\\b|_|\\*)|\\b\uc131(?:[^\uba85]|\\b)|nama belakang",
+"i"),yK=RegExp("country|countries|pa\u00eds|pais|(\\b|_)land(\\b|_)(?!.*(mark.*))|(^|[^(\u5165|\u51fa)])\u56fd|\u56fd\u5bb6|\uad6d\uac00|\ub098\ub77c|(\\b|_)(\u00fclke|ulce|ulke)(\\b|_)|\u06a9\u0634\u0648\u0631|negara","i"),zK=RegExp("(^|[^.])zip|postal|post.*code|pcode|pin.?code|postleitzahl|\\bcp\\b|\\bcdp\\b|\\bcap\\b|\u90f5\u4fbf\u756a\u53f7|codigo|codpos|\\bcep\\b|\u041f\u043e\u0447\u0442\u043e\u0432\u044b\u0439.?\u0418\u043d\u0434\u0435\u043a\u0441|\u092a\u093f\u0928.?\u0915\u094b\u0921|\u0d2a\u0d3f\u0d28\u0d4d\u200d\u0d15\u0d4b\u0d21\u0d4d|\u90ae\u653f\u7f16\u7801|\u90ae\u7f16|\u90f5\u905e\u5340\u865f|(\\b|_)posta kodu(\\b|_)|\uc6b0\ud3b8.?\ubc88\ud638|kode.?pos",
+"i"),AK={},fK=(AK["1"]={ae:!1,oa:$D},AK["2"]={ae:!0,autocomplete:["tel","tel-national","tel-local"],be:uK,oa:function(a){return UD(a,!0)}},AK["7"]={ae:!0,autocomplete:["name","cc-name"],be:vK,oa:bE},AK["3"]={ae:!0,autocomplete:["given-name","cc-given-name"],be:wK,oa:bE},AK["4"]={ae:!0,autocomplete:["family-name","cc-family-name"],be:xK,oa:bE},AK["5"]={ae:!0,autocomplete:["country","country-name"],be:yK,oa:bE},AK["6"]={ae:!0,autocomplete:["postal-code"],be:zK,oa:WD},AK);function BK(a){var b;N(this,"detect_user_provided_data","auto");var c=B(a)||{},d=eK({includeSelector:!!c.includeSelector,includeVisibility:!!c.includeVisibility,excludeElementSelectors:c.excludeElementSelectors,fieldFilters:c.fieldFilters,selectMultipleElements:!!c.selectMultipleElements});b=new kb;var e=new Id;b.set("elements",e);for(var f=d.elements,g=0;g<f.length;g++)e.push(CK(f[g]));d.Xh!==void 0&&b.set("preferredEmailElement",
+CK(d.Xh));b.set("status",d.status);if(c.readFromDataLayer){DK(e,c);var h=dE(),k=h.Jt;b.set("dataLayerSearchTime",h.Kt);b.set("dataLayerSearchCount",k)}return b}
+var EK=function(a){switch(a){case "1":return"email";case "2":return"phone_number";case "3":return"first_name";case "4":return"last_name";case "8":return"street";case "9":return"city";case "10":return"region";case "6":return"postal_code";case "5":return"country"}},FK=function(a){var b=new kb,c=EK(a.Ea);c!==void 0&&b.set("type",c);b.set("userData",a.Da);b.set("tagName","DLYR");return b},DK=function(a,b){var c=eE();if(P(568)){var d=new Set(a.fc().map(function(t){return t.get("type")})),e=n(c),f=e.next(),
+g;try{for(;!f.done;f=e.next()){var h=n(f.value),k=h.next().val
+
+
+================================================================================
+MATCH #1: quantity
+================================================================================
+w_feed_language"],[52,"aC","items"],[52,"aD","aw_merchant_id"],[52,"aE","aw_basket_type"],[52,"aF","client_id"],[52,"aG","conversion_cookie_prefix"],[52,"aH","conversion_id"],[52,"aI","conversion_linker"],[52,"aJ","conversion_api"],[52,"aK","cookie_expires"],[52,"aL","cookie_prefix"],[52,"aM","cookie_update"],[52,"aN","country"],[52,"aO","currency"],[52,"aP","customer_lifetime_value"],[52,"aQ","customer_type"],[52,"aR","debug_mode"],[52,"aS","shipping"],[52,"aT","engagement_time_msec"],[52,"aU","estimated_delivery_date"],[52,"aV","event_developer_id_string"],[52,"aW","event_id"],[52,"aX","event"],[52,"aY","event_timeout"],[52,"aZ","ext_client_id"],[52,"bA","first_party_collection"],[52,"bB","match_id"],[52,"bC","_gt_metadata"],[52,"bD","google_analysis_params"],[52,"bE","_google_ng"],[52,"bF","_ono"],[52,"bG","gpp_sid"],[52,"bH","gpp_string"],[52,"bI","gsa_experiment_id"],[52,"bJ","ignore_referrer"],[52,"bK","is_passthrough"],[52,"bL","merchant_feed_label"],[52,"bM","merchant_feed_language"],[52,"bN","merchant_id"],[52,"bO","new_customer"],[52,"bP","page_hostname"],[52,"bQ","page_path"],[52,"bR","page_referrer"],[52,"bS","page_title"],[52,"bT","_platinum_request_status"],[52,"bU","quantity"],[52,"bV","restricted_data_processing"],[52,"bW","send_page_view"],[52,"bX","server_container_3p_enrichment"],[52,"bY","server_container_url"],[52,"bZ","session_duration"],[52,"cA","session_engaged_time"],[52,"cB","session_id"],[52,"cC","_shared_user_id"],[52,"cD","delivery_postal_code"],[52,"cE","testonly"],[52,"cF","topmost_url"],[52,"cG","transaction_id"],[52,"cH","transaction_id_source"],[52,"cI","transport_url"],[52,"cJ","update"],[52,"cK","user_data"],[52,"cL","user_data_auto_latency"],[52,"cM","user_data_auto_meta"],[52,"cN","user_data_auto_multi"],[52,"cO","user_data_auto_selectors"],[52,"cP","user_data_auto_status"],[52,"cQ","user_data_mode"],[52,"cR","user_id"],[52,"cS","user_properties"],[52,"cT","value"],[52,"cU","_fpm_parameters"],[52,"cV","_host_name"],[52,"cW","_in_page_command"],[52,"cX","_measurement_type"],[52,"cY","conversion_label"],[52,"cZ","page_location"],[52,"dA","_extracted_data"],[52,"dB","global_developer_id_string"],[36,[8,"B",[15,"b"],"C",[15,"c"],"F",[15,"d"],"I",[15,"e"],"J",[15,"f"],"K",[15,"g"],"L",[15,"h"],"M",[15,"i"],"N",[15,"j"],"P",[15,"k"],"AB",[15,"l"],"AG",[15,"m"],"AH",[15,"n"],"AI",[15,"o"],"AK",[15,"p"],"AL",[15,"q"],"AN",[15,"r"],"AR",
+
+================================================================================
+MATCH #2: quantity
+================================================================================
+e:"gac_wbraid",ol:"gac_wbraid_multiple_conversions",Lp:"ga_restrict_domain",pl:"ga_temp_client_id",Mp:"ga_temp_ecid",Ce:"gdpr_applies",mh:"_gt_metadata",ql:"geo_granularity",Jf:"value_callback",Kf:"value_key",fb:"google_analysis_params",De:"_google_ng",Np:"_ono",Lf:"google_signals",Op:"google_tld",nh:"gpp_sid",
+oh:"gpp_string",Ld:"groups",rl:"gsa_experiment_id",Mf:"gtag_event_feature_usage",sl:"gtm_up",Ee:"iframe_state",Nf:"ignore_referrer",tl:"internal_traffic_results",wl:"_is_fpm",Uc:"is_legacy_converted",Vc:"is_legacy_loaded",Bi:"is_passthrough",Of:"_lps",ub:"language",Ci:"legacy_developer_id_string",Eb:"linker",Pf:"accept_incoming",uc:"decorate_forms",za:"domains",Wc:"url_position",Md:"merchant_feed_label",Nd:"merchant_feed_language",Od:"merchant_id",xl:"method",Pp:"name",yl:"navigation_type",Fe:"new_customer",
+Di:"non_interaction",Qp:"optimize_id",zl:"page_hostname",Qf:"page_path",Wa:"page_referrer",Pb:"page_title",Rp:"passengers",Al:"phone_conversion_callback",Sp:"phone_conversion_country_code",Bl:"phone_conversion_css_class",Tp:"phone_conversion_ids",Cl:"phone_conversion_number",Dl:"phone_conversion_options",Up:"_platinum_request_status",Vp:"_protected_audience_enabled",ph:"quantity",qh:"redact_device_info",El:"referral_exclusion_definition",yu:"_request_start_time",wb:"restricted_data_processing",Wp:"retoken",
+Xp:"sample_rate",Ei:"screen_name",Xc:"screen_resolution",Fl:"_script_source",Yp:"search_term",Pd:"send_page_view",Zb:"send_to",Fi:"server_container_3p_enrichment",Yc:"server_container_url",Zp:"session_attributes_encoded",rh:"session_duration",sh:"session_engaged",Gi:"session_engaged_time",vc:"session_id",th:"session_number",Rf:"_shared_user_id",Qd:"delivery_postal_code",zu:"_tag_firing_delay",Au:"_tag_firing_time",Bu:"temporary_client_id",Gl:"testonly",aq:"_timezone",He:"topmost_url",uh:"tracking_id",
+Hi:"traffic_type",Pa:"transaction_id",Hl:"transaction_id_source",wc:"transport_url",bq:"trip_type",Rd:"update",xc:"url_passthrough",Il:"uptgs",Sf:"_user_agent_architecture",Tf:"_user_agent_bitness",Uf:"_user_agent_full_version_list",Vf:"_user_agent_mobile",Wf:"_user_agent_model",Xf:"_user_agent_platform",Yf:"_user_agent_platform_version",Zf:"_user_agent_wow64",Zc:"user_data",Jl:"user_data_auto_latency",Kl:"user_data_auto_meta",Ll:"user_data_auto_multi",Ml:"user_data_auto_selectors",Nl:"user_data_auto_status",
+yc:"user_data_mode",Ol:"user_data_settings",hb
+
+================================================================================
+MATCH #3: quantity
+================================================================================
+id",ei[H.A.Md]="fcntr",ei[H.A.Nd]="flng",ei[H.A.Od]="mid",ei[H.A.Fe]=void 0,ei[H.A.Pb]="tiba",ei[H.A.wb]="rdp",ei[H.A.vc]="ecsid",ei[H.A.Rf]="ga_uid",ei[H.A.Qd]="delopc",ei[H.A.Ge]="gdpr_consent",
+ei[H.A.Pa]="oid",ei[H.A.Hl]="oidsrc",ei[H.A.Il]="uptgs",ei[H.A.Sf]="uaa",ei[H.A.Tf]="uab",ei[H.A.Uf]="uafvl",ei[H.A.Vf]="uamb",ei[H.A.Wf]="uam",ei[H.A.Xf]="uap",ei[H.A.Yf]="uapv",ei[H.A.Zf]="uaw",ei[H.A.Jl]="ec_lat",ei[H.A.Kl]="ec_meta",ei[H.A.Ll]="ec_m",ei[H.A.Ml]="ec_sel",ei[H.A.Nl]="ec_s",ei[H.A.yc]="ec_mode",ei[H.A.hb]="userId",ei[H.A.cg]="us_privacy",ei[H.A.Qa]="value",ei[H.A.Ql]="mcov",ei[H.A.Mi]="hn",ei[H.A.zm]="gtm_ee",ei[H.A.Oi]="uip",ei[H.A.Eh]="mt",ei[H.A.Wd]="npa",ei[H.A.Jq]="sg_uc",ei[H.A.li]=
+null,ei[H.A.Xc]=null,ei[H.A.ub]=null,ei[H.A.Ha]=null,ei[H.A.Aa]=null,ei[H.A.Wa]=null,ei[H.A.He]=null,ei[H.A.ad]=null,ei[H.A.mh]=null,ei[H.A.zd]=null,ei[H.A.Ad]=null,ei[H.A.Wg]=null,ei[H.A.Xg]=null,ei[H.A.fb]=null,ei[H.A.Tc]=null,ei);function gi(a,b){if(a){var c=a.split("x");c.length===2&&(hi(b,"u_w",c[0]),hi(b,"u_h",c[1]))}}function ii(a){var b=ji;b=b===void 0?ki:b;return li(mi(a,b))}function li(a){return(a||[]).filter(function(b){return!!b}).map(function(b){return"("+[ni(b.value),ni(b.quantity),ni(b.item_id),ni(b.start_date),ni(b.end_date)].join("*")+")"}).join("")}
+function mi(a,b){return(a||[]).filter(function(c){return!!c}).map(function(c){return{item_id:b(c),quantity:c.quantity,value:c.price,start_date:c.start_date,end_date:c.end_date}})}function ki(a){return[a.item_id,a.id,a.item_name].find(function(b){return b!=null})}function oi(a){if(a&&a.length)return a.map(function(b){return b&&b.estimated_delivery_date?b.estimated_delivery_date:""}).join(",")}function hi(a,b,c){c===void 0||c===null||c===""&&!qg[b]||(a[b]=c)}
+function ni(a){return typeof a!=="number"&&typeof a!=="string"?"":a.toString()};function pi(){this.blockSize=-1};function qi(a,b){this.blockSize=-1;this.blockSize=64;this.M=Qa.Uint8Array?new Uint8Array(this.blockSize):Array(this.blockSize);this.U=this.J=0;this.D=[];this.fa=a;this.aa=b;this.la=Qa.Int32Array?new Int32Array(64):Array(64);ri===void 0&&(Qa.Int32Array?ri=new Int32Array(si):ri=si);this.reset()}Ra(qi,pi);for(var ti=[],ui=0;ui<63;ui++)ti[ui]=0;var vi=[].concat(128,ti);
+qi.prototype.reset=function(){this.U=this.J=0;var a;if(Qa.Int32Array)a=new Int32Array(this.aa);else{var b=this.aa,c=b.length;if(c>0){for(var d=Array(c),e=0;e<c;e++)d[e]=b[e];a=d}els
+
+================================================================================
+MATCH #4: quantity
+================================================================================
+"gdpr_consent",
+ei[H.A.Pa]="oid",ei[H.A.Hl]="oidsrc",ei[H.A.Il]="uptgs",ei[H.A.Sf]="uaa",ei[H.A.Tf]="uab",ei[H.A.Uf]="uafvl",ei[H.A.Vf]="uamb",ei[H.A.Wf]="uam",ei[H.A.Xf]="uap",ei[H.A.Yf]="uapv",ei[H.A.Zf]="uaw",ei[H.A.Jl]="ec_lat",ei[H.A.Kl]="ec_meta",ei[H.A.Ll]="ec_m",ei[H.A.Ml]="ec_sel",ei[H.A.Nl]="ec_s",ei[H.A.yc]="ec_mode",ei[H.A.hb]="userId",ei[H.A.cg]="us_privacy",ei[H.A.Qa]="value",ei[H.A.Ql]="mcov",ei[H.A.Mi]="hn",ei[H.A.zm]="gtm_ee",ei[H.A.Oi]="uip",ei[H.A.Eh]="mt",ei[H.A.Wd]="npa",ei[H.A.Jq]="sg_uc",ei[H.A.li]=
+null,ei[H.A.Xc]=null,ei[H.A.ub]=null,ei[H.A.Ha]=null,ei[H.A.Aa]=null,ei[H.A.Wa]=null,ei[H.A.He]=null,ei[H.A.ad]=null,ei[H.A.mh]=null,ei[H.A.zd]=null,ei[H.A.Ad]=null,ei[H.A.Wg]=null,ei[H.A.Xg]=null,ei[H.A.fb]=null,ei[H.A.Tc]=null,ei);function gi(a,b){if(a){var c=a.split("x");c.length===2&&(hi(b,"u_w",c[0]),hi(b,"u_h",c[1]))}}function ii(a){var b=ji;b=b===void 0?ki:b;return li(mi(a,b))}function li(a){return(a||[]).filter(function(b){return!!b}).map(function(b){return"("+[ni(b.value),ni(b.quantity),ni(b.item_id),ni(b.start_date),ni(b.end_date)].join("*")+")"}).join("")}
+function mi(a,b){return(a||[]).filter(function(c){return!!c}).map(function(c){return{item_id:b(c),quantity:c.quantity,value:c.price,start_date:c.start_date,end_date:c.end_date}})}function ki(a){return[a.item_id,a.id,a.item_name].find(function(b){return b!=null})}function oi(a){if(a&&a.length)return a.map(function(b){return b&&b.estimated_delivery_date?b.estimated_delivery_date:""}).join(",")}function hi(a,b,c){c===void 0||c===null||c===""&&!qg[b]||(a[b]=c)}
+function ni(a){return typeof a!=="number"&&typeof a!=="string"?"":a.toString()};function pi(){this.blockSize=-1};function qi(a,b){this.blockSize=-1;this.blockSize=64;this.M=Qa.Uint8Array?new Uint8Array(this.blockSize):Array(this.blockSize);this.U=this.J=0;this.D=[];this.fa=a;this.aa=b;this.la=Qa.Int32Array?new Int32Array(64):Array(64);ri===void 0&&(Qa.Int32Array?ri=new Int32Array(si):ri=si);this.reset()}Ra(qi,pi);for(var ti=[],ui=0;ui<63;ui++)ti[ui]=0;var vi=[].concat(128,ti);
+qi.prototype.reset=function(){this.U=this.J=0;var a;if(Qa.Int32Array)a=new Int32Array(this.aa);else{var b=this.aa,c=b.length;if(c>0){for(var d=Array(c),e=0;e<c;e++)d[e]=b[e];a=d}else a=[]}this.D=a};
+var wi=function(a){for(var b=a.M,c=a.la,d=0,e=0;e<b.length;)c[d++]=b[e]<<24|b[e+1]<<16|b[e+2]<<8|b[e+3],e=d*4;for(var f=16;f<64;f++){var g=c[f-15]|0,h=c[f-2]|0;c[f
+
+================================================================================
+MATCH #5: quantity
+================================================================================
+nt",
+ei[H.A.Pa]="oid",ei[H.A.Hl]="oidsrc",ei[H.A.Il]="uptgs",ei[H.A.Sf]="uaa",ei[H.A.Tf]="uab",ei[H.A.Uf]="uafvl",ei[H.A.Vf]="uamb",ei[H.A.Wf]="uam",ei[H.A.Xf]="uap",ei[H.A.Yf]="uapv",ei[H.A.Zf]="uaw",ei[H.A.Jl]="ec_lat",ei[H.A.Kl]="ec_meta",ei[H.A.Ll]="ec_m",ei[H.A.Ml]="ec_sel",ei[H.A.Nl]="ec_s",ei[H.A.yc]="ec_mode",ei[H.A.hb]="userId",ei[H.A.cg]="us_privacy",ei[H.A.Qa]="value",ei[H.A.Ql]="mcov",ei[H.A.Mi]="hn",ei[H.A.zm]="gtm_ee",ei[H.A.Oi]="uip",ei[H.A.Eh]="mt",ei[H.A.Wd]="npa",ei[H.A.Jq]="sg_uc",ei[H.A.li]=
+null,ei[H.A.Xc]=null,ei[H.A.ub]=null,ei[H.A.Ha]=null,ei[H.A.Aa]=null,ei[H.A.Wa]=null,ei[H.A.He]=null,ei[H.A.ad]=null,ei[H.A.mh]=null,ei[H.A.zd]=null,ei[H.A.Ad]=null,ei[H.A.Wg]=null,ei[H.A.Xg]=null,ei[H.A.fb]=null,ei[H.A.Tc]=null,ei);function gi(a,b){if(a){var c=a.split("x");c.length===2&&(hi(b,"u_w",c[0]),hi(b,"u_h",c[1]))}}function ii(a){var b=ji;b=b===void 0?ki:b;return li(mi(a,b))}function li(a){return(a||[]).filter(function(b){return!!b}).map(function(b){return"("+[ni(b.value),ni(b.quantity),ni(b.item_id),ni(b.start_date),ni(b.end_date)].join("*")+")"}).join("")}
+function mi(a,b){return(a||[]).filter(function(c){return!!c}).map(function(c){return{item_id:b(c),quantity:c.quantity,value:c.price,start_date:c.start_date,end_date:c.end_date}})}function ki(a){return[a.item_id,a.id,a.item_name].find(function(b){return b!=null})}function oi(a){if(a&&a.length)return a.map(function(b){return b&&b.estimated_delivery_date?b.estimated_delivery_date:""}).join(",")}function hi(a,b,c){c===void 0||c===null||c===""&&!qg[b]||(a[b]=c)}
+function ni(a){return typeof a!=="number"&&typeof a!=="string"?"":a.toString()};function pi(){this.blockSize=-1};function qi(a,b){this.blockSize=-1;this.blockSize=64;this.M=Qa.Uint8Array?new Uint8Array(this.blockSize):Array(this.blockSize);this.U=this.J=0;this.D=[];this.fa=a;this.aa=b;this.la=Qa.Int32Array?new Int32Array(64):Array(64);ri===void 0&&(Qa.Int32Array?ri=new Int32Array(si):ri=si);this.reset()}Ra(qi,pi);for(var ti=[],ui=0;ui<63;ui++)ti[ui]=0;var vi=[].concat(128,ti);
+qi.prototype.reset=function(){this.U=this.J=0;var a;if(Qa.Int32Array)a=new Int32Array(this.aa);else{var b=this.aa,c=b.length;if(c>0){for(var d=Array(c),e=0;e<c;e++)d[e]=b[e];a=d}else a=[]}this.D=a};
+var wi=function(a){for(var b=a.M,c=a.la,d=0,e=0;e<b.length;)c[d++]=b[e]<<24|b[e+1]<<16|b[e+2]<<8|b[e+3],e=d*4;for(var f=16;f<64;f++){var g=c[f-15]|0,h=c[f-2]|0;c[f]=((c[f-16]
+
+
+================================================================================
+MATCH #1: search-json-typesense
+================================================================================
+rch-suggestions" @click="containerOnClick($event)" v-if="!!term && isDropdownVisible">
+            <div class="search-suggestions-item" v-for="product in results">
+                <a :href="product.url">
+                    <img :src="product.image" :alt="product.name" class="img-fluid">
+                    [[ product.name ]] [[ product.year ]]
+                </a>
+            </div>
+            <a :href="fullSearchUrl" v-if="results.length && results.length >= 5 && moreResultCount > 0"
+               class="more-results">
+                Виж още [[moreResultCount]] резултата
+            </a>
+            <div v-else-if="!results.length" class="no-results">
+                <div v-if="isLoading" class="spinner-border text-center mx-auto d-table" role="status">
+                    <span class="sr-only text-center">Loading...</span>
+                </div>
+                <span v-else-if="request" class="alert alert-info d-block">
+                    Няма намерени резултати
+                </span>
+            </div>
+        </div>
+    </form>
+</script>                            <search-autocomplete search-page-url="/search"
+                                                 search-url="/search-json-typesense"
+                                                 locale="bg"
+                                                 currency="EUR"></search-autocomplete>
+                        
+                        <div class="collapse navbar-collapse d-xl-flex d-none" id="">
+                            <ul class="navbar-nav ml-auto align-items-center">
+                                <li class="nav-item active"><a href="https://blog.filstar.com/" class="nav-link"
+                                                               target="_blank">Блог</a>
+                                </li>
+                                <li class="nav-item"><a href="/distributors"
+                                                        class="nav-link">Дилъри</a>
+                                </li>
+                                <li class="nav-item"><a href="/catalogs"
+                                                        class="nav-link">Каталози</a>
+                                </li>
+                                <li class="nav-item"><a href="/za-nas"
+                                                        class="nav-link">За нас</a>
+                                </li>
+                                
+
+
+================================================================================
+MATCH #1: Typesense
+================================================================================
+ons" @click="containerOnClick($event)" v-if="!!term && isDropdownVisible">
+            <div class="search-suggestions-item" v-for="product in results">
+                <a :href="product.url">
+                    <img :src="product.image" :alt="product.name" class="img-fluid">
+                    [[ product.name ]] [[ product.year ]]
+                </a>
+            </div>
+            <a :href="fullSearchUrl" v-if="results.length && results.length >= 5 && moreResultCount > 0"
+               class="more-results">
+                Виж още [[moreResultCount]] резултата
+            </a>
+            <div v-else-if="!results.length" class="no-results">
+                <div v-if="isLoading" class="spinner-border text-center mx-auto d-table" role="status">
+                    <span class="sr-only text-center">Loading...</span>
+                </div>
+                <span v-else-if="request" class="alert alert-info d-block">
+                    Няма намерени резултати
+                </span>
+            </div>
+        </div>
+    </form>
+</script>                            <search-autocomplete search-page-url="/search"
+                                                 search-url="/search-json-typesense"
+                                                 locale="bg"
+                                                 currency="EUR"></search-autocomplete>
+                        
+                        <div class="collapse navbar-collapse d-xl-flex d-none" id="">
+                            <ul class="navbar-nav ml-auto align-items-center">
+                                <li class="nav-item active"><a href="https://blog.filstar.com/" class="nav-link"
+                                                               target="_blank">Блог</a>
+                                </li>
+                                <li class="nav-item"><a href="/distributors"
+                                                        class="nav-link">Дилъри</a>
+                                </li>
+                                <li class="nav-item"><a href="/catalogs"
+                                                        class="nav-link">Каталози</a>
+                                </li>
+                                <li class="nav-item"><a href="/za-nas"
+                                                        class="nav-link">За нас</a>
+                                </li>
+                                
+
+
+================================================================================
+MATCH #1: typesense
+================================================================================
+ons" @click="containerOnClick($event)" v-if="!!term && isDropdownVisible">
+            <div class="search-suggestions-item" v-for="product in results">
+                <a :href="product.url">
+                    <img :src="product.image" :alt="product.name" class="img-fluid">
+                    [[ product.name ]] [[ product.year ]]
+                </a>
+            </div>
+            <a :href="fullSearchUrl" v-if="results.length && results.length >= 5 && moreResultCount > 0"
+               class="more-results">
+                Виж още [[moreResultCount]] резултата
+            </a>
+            <div v-else-if="!results.length" class="no-results">
+                <div v-if="isLoading" class="spinner-border text-center mx-auto d-table" role="status">
+                    <span class="sr-only text-center">Loading...</span>
+                </div>
+                <span v-else-if="request" class="alert alert-info d-block">
+                    Няма намерени резултати
+                </span>
+            </div>
+        </div>
+    </form>
+</script>                            <search-autocomplete search-page-url="/search"
+                                                 search-url="/search-json-typesense"
+                                                 locale="bg"
+                                                 currency="EUR"></search-autocomplete>
+                        
+                        <div class="collapse navbar-collapse d-xl-flex d-none" id="">
+                            <ul class="navbar-nav ml-auto align-items-center">
+                                <li class="nav-item active"><a href="https://blog.filstar.com/" class="nav-link"
+                                                               target="_blank">Блог</a>
+                                </li>
+                                <li class="nav-item"><a href="/distributors"
+                                                        class="nav-link">Дилъри</a>
+                                </li>
+                                <li class="nav-item"><a href="/catalogs"
+                                                        class="nav-link">Каталози</a>
+                                </li>
+                                <li class="nav-item"><a href="/za-nas"
+                                                        class="nav-link">За нас</a>
+                                </li>
+                                
+
+
+================================================================================
+MATCH #1: search-url
+================================================================================
+iv class="search-suggestions" @click="containerOnClick($event)" v-if="!!term && isDropdownVisible">
+            <div class="search-suggestions-item" v-for="product in results">
+                <a :href="product.url">
+                    <img :src="product.image" :alt="product.name" class="img-fluid">
+                    [[ product.name ]] [[ product.year ]]
+                </a>
+            </div>
+            <a :href="fullSearchUrl" v-if="results.length && results.length >= 5 && moreResultCount > 0"
+               class="more-results">
+                Виж още [[moreResultCount]] резултата
+            </a>
+            <div v-else-if="!results.length" class="no-results">
+                <div v-if="isLoading" class="spinner-border text-center mx-auto d-table" role="status">
+                    <span class="sr-only text-center">Loading...</span>
+                </div>
+                <span v-else-if="request" class="alert alert-info d-block">
+                    Няма намерени резултати
+                </span>
+            </div>
+        </div>
+    </form>
+</script>                            <search-autocomplete search-page-url="/search"
+                                                 search-url="/search-json-typesense"
+                                                 locale="bg"
+                                                 currency="EUR"></search-autocomplete>
+                        
+                        <div class="collapse navbar-collapse d-xl-flex d-none" id="">
+                            <ul class="navbar-nav ml-auto align-items-center">
+                                <li class="nav-item active"><a href="https://blog.filstar.com/" class="nav-link"
+                                                               target="_blank">Блог</a>
+                                </li>
+                                <li class="nav-item"><a href="/distributors"
+                                                        class="nav-link">Дилъри</a>
+                                </li>
+                                <li class="nav-item"><a href="/catalogs"
+                                                        class="nav-link">Каталози</a>
+                                </li>
+                                <li class="nav-item"><a href="/za-nas"
+                                                        class="nav-link">За нас</a>
+                                </li>
+        
+
+
+================================================================================
+MATCH #1: searchUrl
+================================================================================
+                     src="/build/images/icons/mobile_menu.svg" alt=""
+                                            class="menu-icon"/></span>
+
+                            </button>
+                        </div>
+                                                    <script type="text/x-template" id="search-autocomplete">
+    <form action="/search" method="get" class="form-inline only-for-desktop">
+        <input @click="inputOnClick($event)" @focus="onFocus" autocomplete="off" required="required"
+               @input="onInput"
+               @keydown.enter="onEnter" v-model="term" type="text" name="term"
+               placeholder="Какво търсите днес?"/>
+        <button class="search-button"><img src="/build/images/icons/search-icon.svg" alt=""/></button>
+        <div class="search-suggestions" @click="containerOnClick($event)" v-if="!!term && isDropdownVisible">
+            <div class="search-suggestions-item" v-for="product in results">
+                <a :href="product.url">
+                    <img :src="product.image" :alt="product.name" class="img-fluid">
+                    [[ product.name ]] [[ product.year ]]
+                </a>
+            </div>
+            <a :href="fullSearchUrl" v-if="results.length && results.length >= 5 && moreResultCount > 0"
+               class="more-results">
+                Виж още [[moreResultCount]] резултата
+            </a>
+            <div v-else-if="!results.length" class="no-results">
+                <div v-if="isLoading" class="spinner-border text-center mx-auto d-table" role="status">
+                    <span class="sr-only text-center">Loading...</span>
+                </div>
+                <span v-else-if="request" class="alert alert-info d-block">
+                    Няма намерени резултати
+                </span>
+            </div>
+        </div>
+    </form>
+</script>                            <search-autocomplete search-page-url="/search"
+                                                 search-url="/search-json-typesense"
+                                                 locale="bg"
+                                                 currency="EUR"></search-autocomplete>
+                        
+                        <div class="collapse navbar-collapse d-xl-flex d-none" id="">
+                            <ul class="navbar-nav ml-auto align-items-center">
+                                <li class="nav-item active"><
+
+
+================================================================================
+MATCH #1: autocomplete
+================================================================================
+ \u043b\u0432. \/ 75.00 \u20ac \u0434\u043e \u0431\u0435\u0437\u043f\u043b\u0430\u0442\u043d\u0430 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0430.&quot;,&quot;deliveryToBeConfirmed&quot;:false,&quot;amountForFreeShipping&quot;:75,&quot;formattedTaxPrice&quot;:null,&quot;taxPrice&quot;:0,&quot;canSeeOrderProcessingTax&quot;:false,&quot;canSeeDeliveryFee&quot;:false,&quot;calculateTaxInNextStep&quot;:true,&quot;rows&quot;:[],&quot;quantity&quot;:0}"></cart-widget>
+                                                        <button class="navbar-toggler open-mobile-menu" type="button" data-toggle="collapse"
+                                    aria-controls="openMobileNavbar" data-target="#openMobileNavbar"
+                                    aria-expanded="false" aria-label="Toggle navigation">
+                                <span class="navbar-toggler-icon"><img
+                                            src="/build/images/icons/mobile_menu.svg" alt=""
+                                            class="menu-icon"/></span>
+
+                            </button>
+                        </div>
+                                                    <script type="text/x-template" id="search-autocomplete">
+    <form action="/search" method="get" class="form-inline only-for-desktop">
+        <input @click="inputOnClick($event)" @focus="onFocus" autocomplete="off" required="required"
+               @input="onInput"
+               @keydown.enter="onEnter" v-model="term" type="text" name="term"
+               placeholder="Какво търсите днес?"/>
+        <button class="search-button"><img src="/build/images/icons/search-icon.svg" alt=""/></button>
+        <div class="search-suggestions" @click="containerOnClick($event)" v-if="!!term && isDropdownVisible">
+            <div class="search-suggestions-item" v-for="product in results">
+                <a :href="product.url">
+                    <img :src="product.image" :alt="product.name" class="img-fluid">
+                    [[ product.name ]] [[ product.year ]]
+                </a>
+            </div>
+            <a :href="fullSearchUrl" v-if="results.length && results.length >= 5 && moreResultCount > 0"
+               class="more-results">
+                Виж още [[moreResultCount]] резултата
+            </a>
+            <div v-else-if="!results.length" class="no-results">
+                <div v-if="isLoading" class="spinner-border text-
+
+================================================================================
+MATCH #2: autocomplete
+================================================================================
+&quot;deliveryToBeConfirmed&quot;:false,&quot;amountForFreeShipping&quot;:75,&quot;formattedTaxPrice&quot;:null,&quot;taxPrice&quot;:0,&quot;canSeeOrderProcessingTax&quot;:false,&quot;canSeeDeliveryFee&quot;:false,&quot;calculateTaxInNextStep&quot;:true,&quot;rows&quot;:[],&quot;quantity&quot;:0}"></cart-widget>
+                                                        <button class="navbar-toggler open-mobile-menu" type="button" data-toggle="collapse"
+                                    aria-controls="openMobileNavbar" data-target="#openMobileNavbar"
+                                    aria-expanded="false" aria-label="Toggle navigation">
+                                <span class="navbar-toggler-icon"><img
+                                            src="/build/images/icons/mobile_menu.svg" alt=""
+                                            class="menu-icon"/></span>
+
+                            </button>
+                        </div>
+                                                    <script type="text/x-template" id="search-autocomplete">
+    <form action="/search" method="get" class="form-inline only-for-desktop">
+        <input @click="inputOnClick($event)" @focus="onFocus" autocomplete="off" required="required"
+               @input="onInput"
+               @keydown.enter="onEnter" v-model="term" type="text" name="term"
+               placeholder="Какво търсите днес?"/>
+        <button class="search-button"><img src="/build/images/icons/search-icon.svg" alt=""/></button>
+        <div class="search-suggestions" @click="containerOnClick($event)" v-if="!!term && isDropdownVisible">
+            <div class="search-suggestions-item" v-for="product in results">
+                <a :href="product.url">
+                    <img :src="product.image" :alt="product.name" class="img-fluid">
+                    [[ product.name ]] [[ product.year ]]
+                </a>
+            </div>
+            <a :href="fullSearchUrl" v-if="results.length && results.length >= 5 && moreResultCount > 0"
+               class="more-results">
+                Виж още [[moreResultCount]] резултата
+            </a>
+            <div v-else-if="!results.length" class="no-results">
+                <div v-if="isLoading" class="spinner-border text-center mx-auto d-table" role="status">
+                    <span class="sr-only text-center">Loading...</span>
+                </div>
+                <span
+
+================================================================================
+MATCH #3: autocomplete
+================================================================================
+arch-button"><img src="/build/images/icons/search-icon.svg" alt=""/></button>
+        <div class="search-suggestions" @click="containerOnClick($event)" v-if="!!term && isDropdownVisible">
+            <div class="search-suggestions-item" v-for="product in results">
+                <a :href="product.url">
+                    <img :src="product.image" :alt="product.name" class="img-fluid">
+                    [[ product.name ]] [[ product.year ]]
+                </a>
+            </div>
+            <a :href="fullSearchUrl" v-if="results.length && results.length >= 5 && moreResultCount > 0"
+               class="more-results">
+                Виж още [[moreResultCount]] резултата
+            </a>
+            <div v-else-if="!results.length" class="no-results">
+                <div v-if="isLoading" class="spinner-border text-center mx-auto d-table" role="status">
+                    <span class="sr-only text-center">Loading...</span>
+                </div>
+                <span v-else-if="request" class="alert alert-info d-block">
+                    Няма намерени резултати
+                </span>
+            </div>
+        </div>
+    </form>
+</script>                            <search-autocomplete search-page-url="/search"
+                                                 search-url="/search-json-typesense"
+                                                 locale="bg"
+                                                 currency="EUR"></search-autocomplete>
+                        
+                        <div class="collapse navbar-collapse d-xl-flex d-none" id="">
+                            <ul class="navbar-nav ml-auto align-items-center">
+                                <li class="nav-item active"><a href="https://blog.filstar.com/" class="nav-link"
+                                                               target="_blank">Блог</a>
+                                </li>
+                                <li class="nav-item"><a href="/distributors"
+                                                        class="nav-link">Дилъри</a>
+                                </li>
+                                <li class="nav-item"><a href="/catalogs"
+                                                        class="nav-link">Каталози</a>
+                                </li>
+                                <li class="nav-item"><a href="/za-nas"
+                                            
+
+================================================================================
+MATCH #4: autocomplete
+================================================================================
+ults">
+                <a :href="product.url">
+                    <img :src="product.image" :alt="product.name" class="img-fluid">
+                    [[ product.name ]] [[ product.year ]]
+                </a>
+            </div>
+            <a :href="fullSearchUrl" v-if="results.length && results.length >= 5 && moreResultCount > 0"
+               class="more-results">
+                Виж още [[moreResultCount]] резултата
+            </a>
+            <div v-else-if="!results.length" class="no-results">
+                <div v-if="isLoading" class="spinner-border text-center mx-auto d-table" role="status">
+                    <span class="sr-only text-center">Loading...</span>
+                </div>
+                <span v-else-if="request" class="alert alert-info d-block">
+                    Няма намерени резултати
+                </span>
+            </div>
+        </div>
+    </form>
+</script>                            <search-autocomplete search-page-url="/search"
+                                                 search-url="/search-json-typesense"
+                                                 locale="bg"
+                                                 currency="EUR"></search-autocomplete>
+                        
+                        <div class="collapse navbar-collapse d-xl-flex d-none" id="">
+                            <ul class="navbar-nav ml-auto align-items-center">
+                                <li class="nav-item active"><a href="https://blog.filstar.com/" class="nav-link"
+                                                               target="_blank">Блог</a>
+                                </li>
+                                <li class="nav-item"><a href="/distributors"
+                                                        class="nav-link">Дилъри</a>
+                                </li>
+                                <li class="nav-item"><a href="/catalogs"
+                                                        class="nav-link">Каталози</a>
+                                </li>
+                                <li class="nav-item"><a href="/za-nas"
+                                                        class="nav-link">За нас</a>
+                                </li>
+                                <li class="nav-item"><a href="/contacts"
+                                                        class="nav-link">Контакти</a>
+                     
+
+
+================================================================================
+MATCH #1: quantity
+================================================================================
+                                 width="20">
+
+                                                    ελληνικά
+                                                </a>
+                                                                                                                        </div>
+                                </div>
+                            </div>
+
+                                
+                                    <a href="/login"><img width="32px" class="user-icn" src="/build/images/icons/user.svg" alt="user icon"/></a>
+
+                                
+
+
+                            <script type="text/x-template" id="cart-widget">
+    <div class="d-xl-block d-inline-block" style="vertical-align: middle">
+        <div class="d-flex align-items-center">
+            <div class="cart-image">
+                <a class="d-xl-block d-none" href="javascript:;">
+                    <img class="d-xl-inline d-none" src="/build/images/icons/shopping-cart.svg" alt="cart icon"/>
+                    <img src="/build/images/icons/mobile_cart.svg" alt=""
+                         class="mobile_cart d-xl-none"/>
+                    <span class="products-counter" v-text="selectedStoreRowsQuantity"></span>
+                </a>
+                <a class="d-xl-none" href="/cart">
+                    <img class="d-xl-inline d-none" src="/build/images/icons/shopping-cart.svg" alt="cart icon"/>
+                    <img src="/build/images/icons/mobile_cart.svg" alt=""
+                         class="mobile_cart d-xl-none"/>
+                    <span class="products-counter" v-text="selectedStoreRowsQuantity"></span>
+                </a>
+            </div>
+            <a class="cart-text d-xl-block d-none" href="javascript:;">Моята количка</a>
+        </div>
+        <div class="modal-cart">
+            <div class="modal-cart-header d-flex align-items-center" v-if="cart.canSelectStore">
+                <p>Поръчка от склад:</p>
+                <div class="warehouses">
+                    <a @click="selectStore(store)" href="#" :class="{active: (selectedStore && store.id === selectedStore.id)}"  v-for="store in stores">
+                        <span>[[ store.name ]]</span>
+                    </a>
+                </div>
+            </div>
+                        <div class="modal-cart-body">
+                <div class="product d-flex align-items-center" v-if="!cart.quantity && !loadin
+
+================================================================================
+MATCH #2: quantity
+================================================================================
+                    <a href="/login"><img width="32px" class="user-icn" src="/build/images/icons/user.svg" alt="user icon"/></a>
+
+                                
+
+
+                            <script type="text/x-template" id="cart-widget">
+    <div class="d-xl-block d-inline-block" style="vertical-align: middle">
+        <div class="d-flex align-items-center">
+            <div class="cart-image">
+                <a class="d-xl-block d-none" href="javascript:;">
+                    <img class="d-xl-inline d-none" src="/build/images/icons/shopping-cart.svg" alt="cart icon"/>
+                    <img src="/build/images/icons/mobile_cart.svg" alt=""
+                         class="mobile_cart d-xl-none"/>
+                    <span class="products-counter" v-text="selectedStoreRowsQuantity"></span>
+                </a>
+                <a class="d-xl-none" href="/cart">
+                    <img class="d-xl-inline d-none" src="/build/images/icons/shopping-cart.svg" alt="cart icon"/>
+                    <img src="/build/images/icons/mobile_cart.svg" alt=""
+                         class="mobile_cart d-xl-none"/>
+                    <span class="products-counter" v-text="selectedStoreRowsQuantity"></span>
+                </a>
+            </div>
+            <a class="cart-text d-xl-block d-none" href="javascript:;">Моята количка</a>
+        </div>
+        <div class="modal-cart">
+            <div class="modal-cart-header d-flex align-items-center" v-if="cart.canSelectStore">
+                <p>Поръчка от склад:</p>
+                <div class="warehouses">
+                    <a @click="selectStore(store)" href="#" :class="{active: (selectedStore && store.id === selectedStore.id)}"  v-for="store in stores">
+                        <span>[[ store.name ]]</span>
+                    </a>
+                </div>
+            </div>
+                        <div class="modal-cart-body">
+                <div class="product d-flex align-items-center" v-if="!cart.quantity && !loading">
+                    Все още не сте добавили продукти.
+                </div>
+                <div class="product d-flex align-items-center" v-if="!loading" v-for="row in selectedStoreRows">
+                    <div class="delete">
+                        <div @click="removeRow(row.id, removeCartRowUrl)" class="product-remove">
+                            <img src="/build/images/icons/DeleteIcon.svg" alt=
+
+================================================================================
+MATCH #3: quantity
+================================================================================
+edStoreRowsQuantity"></span>
+                </a>
+                <a class="d-xl-none" href="/cart">
+                    <img class="d-xl-inline d-none" src="/build/images/icons/shopping-cart.svg" alt="cart icon"/>
+                    <img src="/build/images/icons/mobile_cart.svg" alt=""
+                         class="mobile_cart d-xl-none"/>
+                    <span class="products-counter" v-text="selectedStoreRowsQuantity"></span>
+                </a>
+            </div>
+            <a class="cart-text d-xl-block d-none" href="javascript:;">Моята количка</a>
+        </div>
+        <div class="modal-cart">
+            <div class="modal-cart-header d-flex align-items-center" v-if="cart.canSelectStore">
+                <p>Поръчка от склад:</p>
+                <div class="warehouses">
+                    <a @click="selectStore(store)" href="#" :class="{active: (selectedStore && store.id === selectedStore.id)}"  v-for="store in stores">
+                        <span>[[ store.name ]]</span>
+                    </a>
+                </div>
+            </div>
+                        <div class="modal-cart-body">
+                <div class="product d-flex align-items-center" v-if="!cart.quantity && !loading">
+                    Все още не сте добавили продукти.
+                </div>
+                <div class="product d-flex align-items-center" v-if="!loading" v-for="row in selectedStoreRows">
+                    <div class="delete">
+                        <div @click="removeRow(row.id, removeCartRowUrl)" class="product-remove">
+                            <img src="/build/images/icons/DeleteIcon.svg" alt="delete icon"/>
+                        </div>
+                    </div>
+                    <div class="image">
+
+                        <a :href="row.href">
+                            <img :src="row.image" :alt="row.name"/>
+                        </a>
+                    </div>
+                    <div class="name-price">
+                        <h5>
+                            <a class="product-title" :href="row.href">[[row.name]] [[row.year]]</a>
+                        </h5>
+                        <strike v-if="row.originalPrice !== row.price" v-text="formattedPrice(row.originalPrice, '', true)"></strike>
+                       <div class="d-md-flex mt-1">
+                           <h6 v-text="formattedPrice(row.price)"></h6>
+                       </div>
+  
+
+================================================================================
+MATCH #4: quantity
+================================================================================
+align-items-center" v-if="!loading" v-for="row in selectedStoreRows">
+                    <div class="delete">
+                        <div @click="removeRow(row.id, removeCartRowUrl)" class="product-remove">
+                            <img src="/build/images/icons/DeleteIcon.svg" alt="delete icon"/>
+                        </div>
+                    </div>
+                    <div class="image">
+
+                        <a :href="row.href">
+                            <img :src="row.image" :alt="row.name"/>
+                        </a>
+                    </div>
+                    <div class="name-price">
+                        <h5>
+                            <a class="product-title" :href="row.href">[[row.name]] [[row.year]]</a>
+                        </h5>
+                        <strike v-if="row.originalPrice !== row.price" v-text="formattedPrice(row.originalPrice, '', true)"></strike>
+                       <div class="d-md-flex mt-1">
+                           <h6 v-text="formattedPrice(row.price)"></h6>
+                       </div>
+                    </div>
+                    <div class="count d-flex align-items-center">
+                        <a @click="decrementQuantity(row)">
+                            <img src="/build/images/icons/minus.png" alt="" class=""/>
+                        </a>
+                        <input type="number" readonly="readonly" v-model="row.quantity">
+                        <a @click="incrementRowQuantity(row)">
+                            <img src="/build/images/icons/plus1.png" alt="" class=""/>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-cart-footer" v-if="cart.quantity && !loading">
+                <div class="p-2 text-center" v-if="cart.freeShippingLabel">[[ cart.freeShippingLabel ]]</div>
+                <div class="total-price-holder">
+                    <div class="info-content d-flex align-items-center" v-if="cart.quantity">
+                        <p>Общо:</p>
+                        <div class="d-flex">
+                            <p class="big-number" v-text="total"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="go-to-cart-box">
+                    <a href="/cart" class="main-button normal premier">Виж количката</a>
+                </div>
+            </div>
+
+================================================================================
+MATCH #5: quantity
+================================================================================
+                           <img src="/build/images/icons/DeleteIcon.svg" alt="delete icon"/>
+                        </div>
+                    </div>
+                    <div class="image">
+
+                        <a :href="row.href">
+                            <img :src="row.image" :alt="row.name"/>
+                        </a>
+                    </div>
+                    <div class="name-price">
+                        <h5>
+                            <a class="product-title" :href="row.href">[[row.name]] [[row.year]]</a>
+                        </h5>
+                        <strike v-if="row.originalPrice !== row.price" v-text="formattedPrice(row.originalPrice, '', true)"></strike>
+                       <div class="d-md-flex mt-1">
+                           <h6 v-text="formattedPrice(row.price)"></h6>
+                       </div>
+                    </div>
+                    <div class="count d-flex align-items-center">
+                        <a @click="decrementQuantity(row)">
+                            <img src="/build/images/icons/minus.png" alt="" class=""/>
+                        </a>
+                        <input type="number" readonly="readonly" v-model="row.quantity">
+                        <a @click="incrementRowQuantity(row)">
+                            <img src="/build/images/icons/plus1.png" alt="" class=""/>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-cart-footer" v-if="cart.quantity && !loading">
+                <div class="p-2 text-center" v-if="cart.freeShippingLabel">[[ cart.freeShippingLabel ]]</div>
+                <div class="total-price-holder">
+                    <div class="info-content d-flex align-items-center" v-if="cart.quantity">
+                        <p>Общо:</p>
+                        <div class="d-flex">
+                            <p class="big-number" v-text="total"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="go-to-cart-box">
+                    <a href="/cart" class="main-button normal premier">Виж количката</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</script>                                                            <cart-widget remove-cart-row-url="/cart/remove"
+                                             :exchange-rate="1.955
+
+================================================================================
+MATCH #6: quantity
+================================================================================
+eleteIcon.svg" alt="delete icon"/>
+                        </div>
+                    </div>
+                    <div class="image">
+
+                        <a :href="row.href">
+                            <img :src="row.image" :alt="row.name"/>
+                        </a>
+                    </div>
+                    <div class="name-price">
+                        <h5>
+                            <a class="product-title" :href="row.href">[[row.name]] [[row.year]]</a>
+                        </h5>
+                        <strike v-if="row.originalPrice !== row.price" v-text="formattedPrice(row.originalPrice, '', true)"></strike>
+                       <div class="d-md-flex mt-1">
+                           <h6 v-text="formattedPrice(row.price)"></h6>
+                       </div>
+                    </div>
+                    <div class="count d-flex align-items-center">
+                        <a @click="decrementQuantity(row)">
+                            <img src="/build/images/icons/minus.png" alt="" class=""/>
+                        </a>
+                        <input type="number" readonly="readonly" v-model="row.quantity">
+                        <a @click="incrementRowQuantity(row)">
+                            <img src="/build/images/icons/plus1.png" alt="" class=""/>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-cart-footer" v-if="cart.quantity && !loading">
+                <div class="p-2 text-center" v-if="cart.freeShippingLabel">[[ cart.freeShippingLabel ]]</div>
+                <div class="total-price-holder">
+                    <div class="info-content d-flex align-items-center" v-if="cart.quantity">
+                        <p>Общо:</p>
+                        <div class="d-flex">
+                            <p class="big-number" v-text="total"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="go-to-cart-box">
+                    <a href="/cart" class="main-button normal premier">Виж количката</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</script>                                                            <cart-widget remove-cart-row-url="/cart/remove"
+                                             :exchange-rate="1.95583"
+                                             :exchange
+
+================================================================================
+MATCH #7: quantity
+================================================================================
+               </a>
+                    </div>
+                    <div class="name-price">
+                        <h5>
+                            <a class="product-title" :href="row.href">[[row.name]] [[row.year]]</a>
+                        </h5>
+                        <strike v-if="row.originalPrice !== row.price" v-text="formattedPrice(row.originalPrice, '', true)"></strike>
+                       <div class="d-md-flex mt-1">
+                           <h6 v-text="formattedPrice(row.price)"></h6>
+                       </div>
+                    </div>
+                    <div class="count d-flex align-items-center">
+                        <a @click="decrementQuantity(row)">
+                            <img src="/build/images/icons/minus.png" alt="" class=""/>
+                        </a>
+                        <input type="number" readonly="readonly" v-model="row.quantity">
+                        <a @click="incrementRowQuantity(row)">
+                            <img src="/build/images/icons/plus1.png" alt="" class=""/>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-cart-footer" v-if="cart.quantity && !loading">
+                <div class="p-2 text-center" v-if="cart.freeShippingLabel">[[ cart.freeShippingLabel ]]</div>
+                <div class="total-price-holder">
+                    <div class="info-content d-flex align-items-center" v-if="cart.quantity">
+                        <p>Общо:</p>
+                        <div class="d-flex">
+                            <p class="big-number" v-text="total"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="go-to-cart-box">
+                    <a href="/cart" class="main-button normal premier">Виж количката</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</script>                                                            <cart-widget remove-cart-row-url="/cart/remove"
+                                             :exchange-rate="1.95583"
+                                             :exchange-rate-mode="1"
+                                             :convert-mode="1"
+                                             decrement-url="/cart/decrease"
+                                             increment-url="/cart/product/add-variant-to-cart"
+       
+
+================================================================================
+MATCH #8: quantity
+================================================================================
+          <strike v-if="row.originalPrice !== row.price" v-text="formattedPrice(row.originalPrice, '', true)"></strike>
+                       <div class="d-md-flex mt-1">
+                           <h6 v-text="formattedPrice(row.price)"></h6>
+                       </div>
+                    </div>
+                    <div class="count d-flex align-items-center">
+                        <a @click="decrementQuantity(row)">
+                            <img src="/build/images/icons/minus.png" alt="" class=""/>
+                        </a>
+                        <input type="number" readonly="readonly" v-model="row.quantity">
+                        <a @click="incrementRowQuantity(row)">
+                            <img src="/build/images/icons/plus1.png" alt="" class=""/>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-cart-footer" v-if="cart.quantity && !loading">
+                <div class="p-2 text-center" v-if="cart.freeShippingLabel">[[ cart.freeShippingLabel ]]</div>
+                <div class="total-price-holder">
+                    <div class="info-content d-flex align-items-center" v-if="cart.quantity">
+                        <p>Общо:</p>
+                        <div class="d-flex">
+                            <p class="big-number" v-text="total"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="go-to-cart-box">
+                    <a href="/cart" class="main-button normal premier">Виж количката</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</script>                                                            <cart-widget remove-cart-row-url="/cart/remove"
+                                             :exchange-rate="1.95583"
+                                             :exchange-rate-mode="1"
+                                             :convert-mode="1"
+                                             decrement-url="/cart/decrease"
+                                             increment-url="/cart/product/add-variant-to-cart"
+                                             change-store-url="/cart/change-store"
+                                             :stores="[{&quot;id&quot;:1,&quot;name&quot;:&quot;\u041f\u043b\u043e\u0432\u0434\u0438\u0432&quot;,&quot;isDefault&quot;:true},{&quot;id&quot;:
+
+================================================================================
+MATCH #9: quantity
+================================================================================
+FreeDelivery&quot;:false,&quot;canSaveMoneyForOrderProcessing&quot;:false,&quot;hasSavedMoneyForOrderProcessing&quot;:false,&quot;canSelectStore&quot;:false,&quot;canSeeFreeDeliveryLabel&quot;:true,&quot;labelForCartPage&quot;:&quot;\u041f\u0430\u0437\u0430\u0440\u0443\u0432\u0430\u0439\u0442\u0435 \u0437\u0430 \u043e\u0449\u0435 146.69 \u043b\u0432. \/ 75.00 \u20ac \u0432 \u0442\u0435\u043a\u0443\u0449\u0430\u0442\u0430 \u043f\u043e\u0440\u044a\u0447\u043a\u0430 \u0438 \u0449\u0435 \u043f\u043e\u043b\u0443\u0447\u0438\u0442\u0435 \u0431\u0435\u0437\u043f\u043b\u0430\u0442\u043d\u0430 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0430.&quot;,&quot;freeShippingLabel&quot;:&quot;\u041e\u0441\u0442\u0430\u0432\u0430\u0442 \u0432\u0438 \u043e\u0449\u0435 146.69 \u043b\u0432. \/ 75.00 \u20ac \u0434\u043e \u0431\u0435\u0437\u043f\u043b\u0430\u0442\u043d\u0430 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0430.&quot;,&quot;deliveryToBeConfirmed&quot;:false,&quot;amountForFreeShipping&quot;:75,&quot;formattedTaxPrice&quot;:null,&quot;taxPrice&quot;:0,&quot;canSeeOrderProcessingTax&quot;:false,&quot;canSeeDeliveryFee&quot;:false,&quot;calculateTaxInNextStep&quot;:true,&quot;rows&quot;:[],&quot;quantity&quot;:0}"></cart-widget>
+                                                        <button class="navbar-toggler open-mobile-menu" type="button" data-toggle="collapse"
+                                    aria-controls="openMobileNavbar" data-target="#openMobileNavbar"
+                                    aria-expanded="false" aria-label="Toggle navigation">
+                                <span class="navbar-toggler-icon"><img
+                                            src="/build/images/icons/mobile_menu.svg" alt=""
+                                            class="menu-icon"/></span>
+
+                            </button>
+                        </div>
+                                                    <script type="text/x-template" id="search-autocomplete">
+    <form action="/search" method="get" class="form-inline only-for-desktop">
+        <input @click="inputOnClick($event)" @focus="onFocus" autocomplete="off" required="required"
+               @input="onInput"
+               @keydown.enter="onEnter" v-model="term" type="text" name="term"
+               placeholder="Какво търсите днес?"/>
+        <button class="search-button"><img src="/build/images/icons/search-icon.svg" al
+
+================================================================================
+MATCH #10: quantity
+================================================================================
+                                                   class="mr-2"
+                                                             width="20">
+
+                                                        ελληνικά
+                                                    </a>
+                                                                                                                                    </div>
+                                    </div>
+                                </li>
+                                <li class="nav-item cart d-xl-flex d-none" id="myCart">
+                                    <script type="text/x-template" id="cart-widget">
+    <div class="d-xl-block d-inline-block" style="vertical-align: middle">
+        <div class="d-flex align-items-center">
+            <div class="cart-image">
+                <a class="d-xl-block d-none" href="javascript:;">
+                    <img class="d-xl-inline d-none" src="/build/images/icons/shopping-cart.svg" alt="cart icon"/>
+                    <img src="/build/images/icons/mobile_cart.svg" alt=""
+                         class="mobile_cart d-xl-none"/>
+                    <span class="products-counter" v-text="selectedStoreRowsQuantity"></span>
+                </a>
+                <a class="d-xl-none" href="/cart">
+                    <img class="d-xl-inline d-none" src="/build/images/icons/shopping-cart.svg" alt="cart icon"/>
+                    <img src="/build/images/icons/mobile_cart.svg" alt=""
+                         class="mobile_cart d-xl-none"/>
+                    <span class="products-counter" v-text="selectedStoreRowsQuantity"></span>
+                </a>
+            </div>
+            <a class="cart-text d-xl-block d-none" href="javascript:;">Моята количка</a>
+        </div>
+        <div class="modal-cart">
+            <div class="modal-cart-header d-flex align-items-center" v-if="cart.canSelectStore">
+                <p>Поръчка от склад:</p>
+                <div class="warehouses">
+                    <a @click="selectStore(store)" href="#" :class="{active: (selectedStore && store.id === selectedStore.id)}"  v-for="store in stores">
+                        <span>[[ store.name ]]</span>
+                    </a>
+                </div>
+            </div>
+                        <div class="modal-cart-body">
+                <div class="product d-flex align-items-center" v-if="!cart.quantity && !loadin
+
+================================================================================
+MATCH #11: quantity
+================================================================================
+                        </div>
+                                </li>
+                                <li class="nav-item cart d-xl-flex d-none" id="myCart">
+                                    <script type="text/x-template" id="cart-widget">
+    <div class="d-xl-block d-inline-block" style="vertical-align: middle">
+        <div class="d-flex align-items-center">
+            <div class="cart-image">
+                <a class="d-xl-block d-none" href="javascript:;">
+                    <img class="d-xl-inline d-none" src="/build/images/icons/shopping-cart.svg" alt="cart icon"/>
+                    <img src="/build/images/icons/mobile_cart.svg" alt=""
+                         class="mobile_cart d-xl-none"/>
+                    <span class="products-counter" v-text="selectedStoreRowsQuantity"></span>
+                </a>
+                <a class="d-xl-none" href="/cart">
+                    <img class="d-xl-inline d-none" src="/build/images/icons/shopping-cart.svg" alt="cart icon"/>
+                    <img src="/build/images/icons/mobile_cart.svg" alt=""
+                         class="mobile_cart d-xl-none"/>
+                    <span class="products-counter" v-text="selectedStoreRowsQuantity"></span>
+                </a>
+            </div>
+            <a class="cart-text d-xl-block d-none" href="javascript:;">Моята количка</a>
+        </div>
+        <div class="modal-cart">
+            <div class="modal-cart-header d-flex align-items-center" v-if="cart.canSelectStore">
+                <p>Поръчка от склад:</p>
+                <div class="warehouses">
+                    <a @click="selectStore(store)" href="#" :class="{active: (selectedStore && store.id === selectedStore.id)}"  v-for="store in stores">
+                        <span>[[ store.name ]]</span>
+                    </a>
+                </div>
+            </div>
+                        <div class="modal-cart-body">
+                <div class="product d-flex align-items-center" v-if="!cart.quantity && !loading">
+                    Все още не сте добавили продукти.
+                </div>
+                <div class="product d-flex align-items-center" v-if="!loading" v-for="row in selectedStoreRows">
+                    <div class="delete">
+                        <div @click="removeRow(row.id, removeCartRowUrl)" class="product-remove">
+                            <img src="/build/images/icons/DeleteIcon.svg" alt=
+
+================================================================================
+MATCH #12: quantity
+================================================================================
+edStoreRowsQuantity"></span>
+                </a>
+                <a class="d-xl-none" href="/cart">
+                    <img class="d-xl-inline d-none" src="/build/images/icons/shopping-cart.svg" alt="cart icon"/>
+                    <img src="/build/images/icons/mobile_cart.svg" alt=""
+                         class="mobile_cart d-xl-none"/>
+                    <span class="products-counter" v-text="selectedStoreRowsQuantity"></span>
+                </a>
+            </div>
+            <a class="cart-text d-xl-block d-none" href="javascript:;">Моята количка</a>
+        </div>
+        <div class="modal-cart">
+            <div class="modal-cart-header d-flex align-items-center" v-if="cart.canSelectStore">
+                <p>Поръчка от склад:</p>
+                <div class="warehouses">
+                    <a @click="selectStore(store)" href="#" :class="{active: (selectedStore && store.id === selectedStore.id)}"  v-for="store in stores">
+                        <span>[[ store.name ]]</span>
+                    </a>
+                </div>
+            </div>
+                        <div class="modal-cart-body">
+                <div class="product d-flex align-items-center" v-if="!cart.quantity && !loading">
+                    Все още не сте добавили продукти.
+                </div>
+                <div class="product d-flex align-items-center" v-if="!loading" v-for="row in selectedStoreRows">
+                    <div class="delete">
+                        <div @click="removeRow(row.id, removeCartRowUrl)" class="product-remove">
+                            <img src="/build/images/icons/DeleteIcon.svg" alt="delete icon"/>
+                        </div>
+                    </div>
+                    <div class="image">
+
+                        <a :href="row.href">
+                            <img :src="row.image" :alt="row.name"/>
+                        </a>
+                    </div>
+                    <div class="name-price">
+                        <h5>
+                            <a class="product-title" :href="row.href">[[row.name]] [[row.year]]</a>
+                        </h5>
+                        <strike v-if="row.originalPrice !== row.price" v-text="formattedPrice(row.originalPrice, '', true)"></strike>
+                       <div class="d-md-flex mt-1">
+                           <h6 v-text="formattedPrice(row.price)"></h6>
+                       </div>
+  
+
+================================================================================
+MATCH #13: quantity
+================================================================================
+align-items-center" v-if="!loading" v-for="row in selectedStoreRows">
+                    <div class="delete">
+                        <div @click="removeRow(row.id, removeCartRowUrl)" class="product-remove">
+                            <img src="/build/images/icons/DeleteIcon.svg" alt="delete icon"/>
+                        </div>
+                    </div>
+                    <div class="image">
+
+                        <a :href="row.href">
+                            <img :src="row.image" :alt="row.name"/>
+                        </a>
+                    </div>
+                    <div class="name-price">
+                        <h5>
+                            <a class="product-title" :href="row.href">[[row.name]] [[row.year]]</a>
+                        </h5>
+                        <strike v-if="row.originalPrice !== row.price" v-text="formattedPrice(row.originalPrice, '', true)"></strike>
+                       <div class="d-md-flex mt-1">
+                           <h6 v-text="formattedPrice(row.price)"></h6>
+                       </div>
+                    </div>
+                    <div class="count d-flex align-items-center">
+                        <a @click="decrementQuantity(row)">
+                            <img src="/build/images/icons/minus.png" alt="" class=""/>
+                        </a>
+                        <input type="number" readonly="readonly" v-model="row.quantity">
+                        <a @click="incrementRowQuantity(row)">
+                            <img src="/build/images/icons/plus1.png" alt="" class=""/>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-cart-footer" v-if="cart.quantity && !loading">
+                <div class="p-2 text-center" v-if="cart.freeShippingLabel">[[ cart.freeShippingLabel ]]</div>
+                <div class="total-price-holder">
+                    <div class="info-content d-flex align-items-center" v-if="cart.quantity">
+                        <p>Общо:</p>
+                        <div class="d-flex">
+                            <p class="big-number" v-text="total"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="go-to-cart-box">
+                    <a href="/cart" class="main-button normal premier">Виж количката</a>
+                </div>
+            </div>
+
+================================================================================
+MATCH #14: quantity
+================================================================================
+                           <img src="/build/images/icons/DeleteIcon.svg" alt="delete icon"/>
+                        </div>
+                    </div>
+                    <div class="image">
+
+                        <a :href="row.href">
+                            <img :src="row.image" :alt="row.name"/>
+                        </a>
+                    </div>
+                    <div class="name-price">
+                        <h5>
+                            <a class="product-title" :href="row.href">[[row.name]] [[row.year]]</a>
+                        </h5>
+                        <strike v-if="row.originalPrice !== row.price" v-text="formattedPrice(row.originalPrice, '', true)"></strike>
+                       <div class="d-md-flex mt-1">
+                           <h6 v-text="formattedPrice(row.price)"></h6>
+                       </div>
+                    </div>
+                    <div class="count d-flex align-items-center">
+                        <a @click="decrementQuantity(row)">
+                            <img src="/build/images/icons/minus.png" alt="" class=""/>
+                        </a>
+                        <input type="number" readonly="readonly" v-model="row.quantity">
+                        <a @click="incrementRowQuantity(row)">
+                            <img src="/build/images/icons/plus1.png" alt="" class=""/>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-cart-footer" v-if="cart.quantity && !loading">
+                <div class="p-2 text-center" v-if="cart.freeShippingLabel">[[ cart.freeShippingLabel ]]</div>
+                <div class="total-price-holder">
+                    <div class="info-content d-flex align-items-center" v-if="cart.quantity">
+                        <p>Общо:</p>
+                        <div class="d-flex">
+                            <p class="big-number" v-text="total"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="go-to-cart-box">
+                    <a href="/cart" class="main-button normal premier">Виж количката</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</script>                                                                            <cart-widget remove-cart-row-url="/cart/remove"
+                                                  
+
+================================================================================
+MATCH #15: quantity
+================================================================================
+eleteIcon.svg" alt="delete icon"/>
+                        </div>
+                    </div>
+                    <div class="image">
+
+                        <a :href="row.href">
+                            <img :src="row.image" :alt="row.name"/>
+                        </a>
+                    </div>
+                    <div class="name-price">
+                        <h5>
+                            <a class="product-title" :href="row.href">[[row.name]] [[row.year]]</a>
+                        </h5>
+                        <strike v-if="row.originalPrice !== row.price" v-text="formattedPrice(row.originalPrice, '', true)"></strike>
+                       <div class="d-md-flex mt-1">
+                           <h6 v-text="formattedPrice(row.price)"></h6>
+                       </div>
+                    </div>
+                    <div class="count d-flex align-items-center">
+                        <a @click="decrementQuantity(row)">
+                            <img src="/build/images/icons/minus.png" alt="" class=""/>
+                        </a>
+                        <input type="number" readonly="readonly" v-model="row.quantity">
+                        <a @click="incrementRowQuantity(row)">
+                            <img src="/build/images/icons/plus1.png" alt="" class=""/>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-cart-footer" v-if="cart.quantity && !loading">
+                <div class="p-2 text-center" v-if="cart.freeShippingLabel">[[ cart.freeShippingLabel ]]</div>
+                <div class="total-price-holder">
+                    <div class="info-content d-flex align-items-center" v-if="cart.quantity">
+                        <p>Общо:</p>
+                        <div class="d-flex">
+                            <p class="big-number" v-text="total"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="go-to-cart-box">
+                    <a href="/cart" class="main-button normal premier">Виж количката</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</script>                                                                            <cart-widget remove-cart-row-url="/cart/remove"
+                                                     :exchange-rate="1.95583"
+                              
+
+================================================================================
+MATCH #16: quantity
+================================================================================
+               </a>
+                    </div>
+                    <div class="name-price">
+                        <h5>
+                            <a class="product-title" :href="row.href">[[row.name]] [[row.year]]</a>
+                        </h5>
+                        <strike v-if="row.originalPrice !== row.price" v-text="formattedPrice(row.originalPrice, '', true)"></strike>
+                       <div class="d-md-flex mt-1">
+                           <h6 v-text="formattedPrice(row.price)"></h6>
+                       </div>
+                    </div>
+                    <div class="count d-flex align-items-center">
+                        <a @click="decrementQuantity(row)">
+                            <img src="/build/images/icons/minus.png" alt="" class=""/>
+                        </a>
+                        <input type="number" readonly="readonly" v-model="row.quantity">
+                        <a @click="incrementRowQuantity(row)">
+                            <img src="/build/images/icons/plus1.png" alt="" class=""/>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-cart-footer" v-if="cart.quantity && !loading">
+                <div class="p-2 text-center" v-if="cart.freeShippingLabel">[[ cart.freeShippingLabel ]]</div>
+                <div class="total-price-holder">
+                    <div class="info-content d-flex align-items-center" v-if="cart.quantity">
+                        <p>Общо:</p>
+                        <div class="d-flex">
+                            <p class="big-number" v-text="total"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="go-to-cart-box">
+                    <a href="/cart" class="main-button normal premier">Виж количката</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</script>                                                                            <cart-widget remove-cart-row-url="/cart/remove"
+                                                     :exchange-rate="1.95583"
+                                                     :exchange-rate-mode="1"
+                                                     :convert-mode="1"
+                                                     decrement-url="/cart/decrease"
+                                                     i
+
+================================================================================
+MATCH #17: quantity
+================================================================================
+          <strike v-if="row.originalPrice !== row.price" v-text="formattedPrice(row.originalPrice, '', true)"></strike>
+                       <div class="d-md-flex mt-1">
+                           <h6 v-text="formattedPrice(row.price)"></h6>
+                       </div>
+                    </div>
+                    <div class="count d-flex align-items-center">
+                        <a @click="decrementQuantity(row)">
+                            <img src="/build/images/icons/minus.png" alt="" class=""/>
+                        </a>
+                        <input type="number" readonly="readonly" v-model="row.quantity">
+                        <a @click="incrementRowQuantity(row)">
+                            <img src="/build/images/icons/plus1.png" alt="" class=""/>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-cart-footer" v-if="cart.quantity && !loading">
+                <div class="p-2 text-center" v-if="cart.freeShippingLabel">[[ cart.freeShippingLabel ]]</div>
+                <div class="total-price-holder">
+                    <div class="info-content d-flex align-items-center" v-if="cart.quantity">
+                        <p>Общо:</p>
+                        <div class="d-flex">
+                            <p class="big-number" v-text="total"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="go-to-cart-box">
+                    <a href="/cart" class="main-button normal premier">Виж количката</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</script>                                                                            <cart-widget remove-cart-row-url="/cart/remove"
+                                                     :exchange-rate="1.95583"
+                                                     :exchange-rate-mode="1"
+                                                     :convert-mode="1"
+                                                     decrement-url="/cart/decrease"
+                                                     increment-url="/cart/product/add-variant-to-cart"
+                                                     change-store-url="/cart/change-store"
+                                                     :stores="[{&quot;id&quot;:1,&quot;name&quot;:&quot;\u041f\u043b\u043e\u0
+
+================================================================================
+MATCH #18: quantity
+================================================================================
+FreeDelivery&quot;:false,&quot;canSaveMoneyForOrderProcessing&quot;:false,&quot;hasSavedMoneyForOrderProcessing&quot;:false,&quot;canSelectStore&quot;:false,&quot;canSeeFreeDeliveryLabel&quot;:true,&quot;labelForCartPage&quot;:&quot;\u041f\u0430\u0437\u0430\u0440\u0443\u0432\u0430\u0439\u0442\u0435 \u0437\u0430 \u043e\u0449\u0435 146.69 \u043b\u0432. \/ 75.00 \u20ac \u0432 \u0442\u0435\u043a\u0443\u0449\u0430\u0442\u0430 \u043f\u043e\u0440\u044a\u0447\u043a\u0430 \u0438 \u0449\u0435 \u043f\u043e\u043b\u0443\u0447\u0438\u0442\u0435 \u0431\u0435\u0437\u043f\u043b\u0430\u0442\u043d\u0430 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0430.&quot;,&quot;freeShippingLabel&quot;:&quot;\u041e\u0441\u0442\u0430\u0432\u0430\u0442 \u0432\u0438 \u043e\u0449\u0435 146.69 \u043b\u0432. \/ 75.00 \u20ac \u0434\u043e \u0431\u0435\u0437\u043f\u043b\u0430\u0442\u043d\u0430 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0430.&quot;,&quot;deliveryToBeConfirmed&quot;:false,&quot;amountForFreeShipping&quot;:75,&quot;formattedTaxPrice&quot;:null,&quot;taxPrice&quot;:0,&quot;canSeeOrderProcessingTax&quot;:false,&quot;canSeeDeliveryFee&quot;:false,&quot;calculateTaxInNextStep&quot;:true,&quot;rows&quot;:[],&quot;quantity&quot;:0}"></cart-widget>
+                                                                    </li>
+                            </ul>
+
+
+                        </div>
+                    </nav>
+                </div>
+
+
+                                                                                                                                                                                                                                                                                                                                                                
+                                                                                
+
+                                                                                                                                                                                                                                                                                                                                                                
+                                                                                                                                                                
+
+                               
