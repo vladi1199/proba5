@@ -6,6 +6,11 @@ import csv
 import requests
 from bs4 import BeautifulSoup
 
+
+# ============================================================
+# CONFIG
+# ============================================================
+
 BASE_URL = "https://filstar.com"
 CSV_FILE = "sku_list_filstar.csv"
 DEBUG_DIR = "debug_html"
@@ -15,6 +20,8 @@ TEST_SKUS = [
     "946534",
     "946535",
 ]
+
+WAIT = 2
 
 HEADERS = {
     "User-Agent": (
@@ -32,12 +39,18 @@ HEADERS = {
 
 
 # ============================================================
-# SAVE
+# DEBUG DIRECTORY
+# ============================================================
+
+def prepare_debug_folder():
+    os.makedirs(DEBUG_DIR, exist_ok=True)
+
+
+# ============================================================
+# SAVE TEXT
 # ============================================================
 
 def save_text(filename, content):
-    os.makedirs(DEBUG_DIR, exist_ok=True)
-
     path = os.path.join(DEBUG_DIR, filename)
 
     with open(path, "w", encoding="utf-8") as f:
@@ -47,82 +60,66 @@ def save_text(filename, content):
 
 
 # ============================================================
-# EXACT OCCURRENCES
+# API SEARCH
 # ============================================================
 
-def find_occurrences(text, sku):
-    positions = []
+def api_search(session, term, filename_prefix):
+    """
+    Единствено /api/search се използва в този тест.
+    """
 
-    start = 0
+    url = f"{BASE_URL}/api/search"
 
-    while True:
-        pos = text.find(sku, start)
+    try:
+        response = session.get(
+            url,
+            params={"term": term},
+            headers=HEADERS,
+            timeout=30
+        )
 
-        if pos == -1:
-            break
+    except Exception as e:
 
-        positions.append(pos)
-        start = pos + len(sku)
+        print(f"   ❌ ERROR: {e}")
 
-    return positions
+        return None
 
-
-# ============================================================
-# TAG AROUND SKU
-# ============================================================
-
-def get_tag(text, position):
-    left = text.rfind("<", 0, position)
-    right = text.find(">", position)
-
-    if left == -1 or right == -1:
-        return ""
-
-    tag = text[left:right + 1]
-
-    if len(tag) > 5000:
-        tag = tag[:5000] + "\n...[TRUNCATED]..."
-
-    return tag
-
-
-# ============================================================
-# ATTRIBUTES
-# ============================================================
-
-def extract_attributes(tag):
-    result = {}
-
-    match = re.match(
-        r"<\s*([a-zA-Z0-9:_-]+)",
-        tag
+    print(
+        f"   🔎 /api/search?term={term}"
+        f" → HTTP {response.status_code}"
     )
 
-    if match:
-        result["_tag"] = match.group(1)
-
-    attributes = re.findall(
-        r'([a-zA-Z_:][a-zA-Z0-9_:.-]*)\s*=\s*["\']([^"\']*)["\']',
-        tag
+    print(
+        f"   Content-Type: "
+        f"{response.headers.get('Content-Type', '')}"
     )
 
-    for key, value in attributes:
-        result[key] = html.unescape(value)
+    print(
+        f"   Размер: "
+        f"{len(response.content):,} bytes"
+    )
 
-    return result
+    path = save_text(
+        f"{filename_prefix}.html",
+        response.text
+    )
+
+    print(
+        f"   💾 Raw HTML: {path}"
+    )
+
+    return response.text
 
 
 # ============================================================
-# PRODUCT CONTAINERS
+# EXTRACT PRODUCT CONTAINERS
 # ============================================================
 
 def find_product_containers(source):
-    """
-    Намира product-item-wapper блоков.
-    """
 
     pattern = re.compile(
-        r'<div\b[^>]*class\s*=\s*["\'][^"\']*product-item-wapper[^"\']*["\'][^>]*>',
+        r'<div\b[^>]*class\s*=\s*["\'][^"\']*'
+        r'product-item-wapper[^"\']*["\'][^>]*>',
         re.I
     )
 
@@ -131,10 +128,8 @@ def find_product_containers(source):
     for match in pattern.finditer(source):
 
         start = match.start()
-        opening_tag = match.group(0)
 
         depth = 0
-        pos = start
 
         tag_pattern = re.compile(
             r"</?div\b[^>]*>",
@@ -166,12 +161,9 @@ def find_product_containers(source):
 
                     end = tag_match.end()
 
-                    containers.append({
-                        "start": start,
-                        "end": end,
-                        "html": source[start:end],
-                        "opening_tag": opening_tag
-                    })
+                    containers.append(
+                        source[start:end]
+                    )
 
                     break
 
@@ -179,15 +171,36 @@ def find_product_containers(source):
 
 
 # ============================================================
-# PRODUCT CONTAINER ANALYSIS
+# EXTRACT DATA ATTRIBUTES
 # ============================================================
 
-def analyze_product_containers(source, sku):
+def extract_data_attributes(container):
+
+    attributes = {}
+
+    matches = re.findall(
+        r'(data-[a-zA-Z0-9:_-]+)\s*=\s*["\']([^"\']*)["\']',
+        container,
+        re.I
+    )
+
+    for key, value in matches:
+
+        attributes[key] = html.unescape(value)
+
+    return attributes
+
+
+# ============================================================
+# PRODUCT CONTAINER SUMMARY
+# ============================================================
+
+def analyze_containers(source, label):
 
     print()
-    print("=" * 60)
-    print("PRODUCT CONTAINERS")
-    print("=" * 60)
+    print("=" * 70)
+    print(f"PRODUCT CONTAINERS: {label}")
+    print("=" * 70)
 
     containers = find_product_containers(source)
 
@@ -195,14 +208,12 @@ def analyze_product_containers(source, sku):
         f"Product containers: {len(containers)}"
     )
 
-    output = []
+    summary = []
 
     for index, container in enumerate(
         containers,
         start=1
     ):
-
-        container_html = container["html"]
 
         print()
         print(
@@ -210,11 +221,11 @@ def analyze_product_containers(source, sku):
         )
 
         print(
-            f"Size: {len(container_html):,} bytes"
+            f"Size: {len(container):,} bytes"
         )
 
-        attrs = extract_attributes(
-            container["opening_tag"]
+        attrs = extract_data_attributes(
+            container
         )
 
         print(
@@ -233,14 +244,18 @@ def analyze_product_containers(source, sku):
         )
 
         print(
+            f"Brand: "
+            f"{attrs.get('data-product-brand', 'N/A')}"
+        )
+
+        print(
             f"Category: "
             f"{attrs.get('data-product-category', 'N/A')}"
         )
 
-        # HREFs
         hrefs = re.findall(
             r'href\s*=\s*["\']([^"\']+)["\']',
-            container_html,
+            container,
             re.I
         )
 
@@ -248,309 +263,240 @@ def analyze_product_containers(source, sku):
             f"HREFs: {hrefs[:10]}"
         )
 
-        # Всички data-* атрибути
-        data_attrs = {}
-
-        for key, value in re.findall(
-            r'(data-[a-zA-Z0-9:_-]+)\s*=\s*["\']([^"\']*)["\']',
-            container_html
-        ):
-            data_attrs[key] = html.unescape(value)
-
-        print("Data attributes:")
-
-        for key, value in data_attrs.items():
-            print(
-                f"   {key} = {value}"
-            )
-
-        # SKU occurrences
-        occurrences = find_occurrences(
-            container_html,
-            sku
+        # Save each container
+        save_text(
+            f"{label}_container_{index}.html",
+            container
         )
 
-        print(
-            f"SKU {sku} occurrences: "
-            f"{len(occurrences)}"
-        )
-
-        # price
-        price_matches = re.findall(
-            r'.{0,300}(?:price|цена).{0,500}',
-            container_html,
-            re.I | re.S
-        )
-
-        # quantity
-        quantity_matches = re.findall(
-            r'.{0,300}(?:quantity|количество|наличност).{0,500}',
-            container_html,
-            re.I | re.S
-        )
-
-        # variant
-        variant_matches = re.findall(
-            r'.{0,300}variant.{0,500}',
-            container_html,
-            re.I | re.S
-        )
-
-        output.append({
-            "container_number": index,
-            "size": len(container_html),
-            "attributes": attrs,
-            "data_attributes": data_attrs,
+        summary.append({
+            "number": index,
+            "size": len(container),
+            "data_attributes": attrs,
             "hrefs": hrefs,
-            "sku_occurrences": occurrences,
-            "price_matches": price_matches,
-            "quantity_matches": quantity_matches,
-            "variant_matches": variant_matches,
-            "html": container_html
+            "html": container
         })
 
-        # ----------------------------------------------------
-        # SAVE CONTAINER
-        # ----------------------------------------------------
+    return summary
 
-        save_text(
-            f"search_{sku}_container_{index}.html",
-            container_html
+
+# ============================================================
+# SEARCH FOR EXACT TERM
+# ============================================================
+
+def exact_occurrences(source, term):
+
+    positions = []
+
+    start = 0
+
+    while True:
+
+        position = source.find(
+            term,
+            start
         )
 
-    return output
+        if position == -1:
+            break
+
+        positions.append(position)
+
+        start = position + len(term)
+
+    return positions
 
 
 # ============================================================
-# SKU CONTEXT
+# CONTEXT AROUND TERM
 # ============================================================
 
-def analyze_sku_occurrences(source, sku):
+def get_contexts(source, term, radius=1500):
 
-    print()
-    print("=" * 60)
-    print(f"ALL SKU OCCURRENCES: {sku}")
-    print("=" * 60)
-
-    positions = find_occurrences(
+    positions = exact_occurrences(
         source,
-        sku
+        term
     )
 
-    print(
-        f"Exact occurrences: {len(positions)}"
-    )
-
-    output = []
+    contexts = []
 
     for index, position in enumerate(
         positions,
         start=1
     ):
 
-        tag = get_tag(
-            source,
-            position
-        )
-
-        attrs = extract_attributes(tag)
-
         start = max(
             0,
-            position - 2000
+            position - radius
         )
 
         end = min(
             len(source),
-            position + len(sku) + 2000
+            position + len(term) + radius
         )
 
-        context = source[start:end]
-
-        print()
-        print(
-            f"#{index}"
-        )
-
-        print(
-            f"Position: {position:,}"
-        )
-
-        print(
-            f"Tag: {tag[:1000]}"
-        )
-
-        print(
-            f"Attributes: "
-            f"{json.dumps(attrs, ensure_ascii=False)}"
-        )
-
-        output.append({
-            "occurrence": index,
+        contexts.append({
+            "number": index,
             "position": position,
-            "tag": tag,
-            "attributes": attrs,
-            "context": context
+            "context": source[start:end]
         })
 
-    # --------------------------------------------------------
-    # SAVE SUMMARY
-    # --------------------------------------------------------
+    return contexts
 
-    summary = []
 
-    for item in output:
+# ============================================================
+# TERM ANALYSIS
+# ============================================================
 
-        summary.append(
+def analyze_term(source, term, label):
+
+    positions = exact_occurrences(
+        source,
+        term
+    )
+
+    print(
+        f"   {term}: "
+        f"{len(positions)} occurrence(s)"
+    )
+
+    contexts = get_contexts(
+        source,
+        term
+    )
+
+    output = []
+
+    for item in contexts:
+
+        output.append(
             "=" * 100
         )
 
-        summary.append(
-            f"OCCURRENCE #{item['occurrence']}"
+        output.append(
+            f"OCCURRENCE #{item['number']}"
         )
 
-        summary.append(
+        output.append(
             f"Position: {item['position']}"
         )
 
-        summary.append(
-            f"Tag:\n{item['tag']}"
-        )
-
-        summary.append(
-            "Attributes:"
-        )
-
-        summary.append(
-            json.dumps(
-                item["attributes"],
-                ensure_ascii=False,
-                indent=2
-            )
-        )
-
-        summary.append(
-            "Context:"
-        )
-
-        summary.append(
+        output.append(
             item["context"]
         )
 
-        summary.append("")
+        output.append("")
 
     save_text(
-        f"search_{sku}_occurrences.txt",
-        "\n".join(summary)
+        f"{label}_{term}_contexts.txt",
+        "\n".join(output)
     )
 
-    return output
+    return len(positions)
 
 
 # ============================================================
-# SEARCH PAGE
+# EXTRACT PRODUCT IDS
 # ============================================================
 
-def test_search_page(session, sku):
+def extract_product_ids(source):
+
+    ids = re.findall(
+        r'data-product-id\s*=\s*["\']([^"\']+)["\']',
+        source,
+        re.I
+    )
+
+    unique = []
+
+    for value in ids:
+
+        if value not in unique:
+            unique.append(value)
+
+    return unique
+
+
+# ============================================================
+# EXTRACT PRODUCT NAMES
+# ============================================================
+
+def extract_product_names(source):
+
+    names = re.findall(
+        r'data-product-name\s*=\s*["\']([^"\']*)["\']',
+        source,
+        re.I
+    )
+
+    unique = []
+
+    for value in names:
+
+        value = html.unescape(value)
+
+        if value not in unique:
+            unique.append(value)
+
+    return unique
+
+
+# ============================================================
+# EXTRACT HREFS
+# ============================================================
+
+def extract_hrefs(source):
+
+    hrefs = re.findall(
+        r'href\s*=\s*["\']([^"\']+)["\']',
+        source,
+        re.I
+    )
+
+    unique = []
+
+    for href in hrefs:
+
+        if href not in unique:
+            unique.append(href)
+
+    return unique
+
+
+# ============================================================
+# KEYWORD ANALYSIS
+# ============================================================
+
+def keyword_analysis(source, label):
 
     print()
     print("=" * 70)
-    print(f"SEARCH PAGE: {sku}")
+    print(f"KEYWORD ANALYSIS: {label}")
     print("=" * 70)
-
-    url = f"{BASE_URL}/search"
-
-    try:
-
-        response = session.get(
-            url,
-            params={"term": sku},
-            headers=HEADERS,
-            timeout=30
-        )
-
-    except Exception as e:
-
-        print(
-            f"❌ ERROR: {e}"
-        )
-
-        return
-
-    print(
-        f"URL: {response.url}"
-    )
-
-    print(
-        f"HTTP: {response.status_code}"
-    )
-
-    print(
-        f"Content-Type: "
-        f"{response.headers.get('Content-Type', '')}"
-    )
-
-    print(
-        f"Size: {len(response.content):,} bytes"
-    )
-
-    source = response.text
-
-    # --------------------------------------------------------
-    # SAVE RAW
-    # --------------------------------------------------------
-
-    raw_path = save_text(
-        f"search_page_{sku}.html",
-        source
-    )
-
-    print(
-        f"💾 Raw HTML: {raw_path}"
-    )
-
-    # --------------------------------------------------------
-    # SEARCH SKU
-    # --------------------------------------------------------
-
-    occurrences = analyze_sku_occurrences(
-        source,
-        sku
-    )
-
-    # --------------------------------------------------------
-    # PRODUCT CONTAINERS
-    # --------------------------------------------------------
-
-    containers = analyze_product_containers(
-        source,
-        sku
-    )
-
-    # --------------------------------------------------------
-    # GLOBAL KEYWORD SEARCH
-    # --------------------------------------------------------
-
-    print()
-    print("=" * 60)
-    print("GLOBAL KEYWORD SEARCH")
-    print("=" * 60)
 
     keywords = [
-        "product-item-wapper",
-        "data-product-id",
-        "data-product-variant",
+        "variant",
+        "variants",
         "quantity",
         "price",
-        "variant",
+        "discountedPrice",
+        "productId",
+        "variantId",
+        "sku",
+        "barcode",
+        "stores",
+        "defaultVariant",
+        "add-variant-to-cart",
+        "search-autocomplete",
         "search-json-typesense",
-        "autocomplete",
+        "serialize",
         "946537",
         "946534",
         "946535",
+        "2557",
     ]
 
-    keyword_summary = {}
+    result = {}
 
     lower_source = source.lower()
 
@@ -560,29 +506,122 @@ def test_search_page(session, sku):
             keyword.lower()
         )
 
-        keyword_summary[keyword] = count
+        result[keyword] = count
 
         print(
-            f"{keyword}: {count}"
+            f"   {keyword}: {count}"
         )
 
     save_text(
-        f"search_page_{sku}_keywords.json",
+        f"{label}_keywords.json",
         json.dumps(
-            keyword_summary,
+            result,
             ensure_ascii=False,
             indent=2
         )
     )
 
+    return result
+
+
+# ============================================================
+# SEARCH RESULT SUMMARY
+# ============================================================
+
+def create_summary(source, label):
+
+    product_ids = extract_product_ids(
+        source
+    )
+
+    product_names = extract_product_names(
+        source
+    )
+
+    hrefs = extract_hrefs(
+        source
+    )
+
+    summary = {
+        "label": label,
+        "size": len(source),
+        "product_ids": product_ids,
+        "product_names": product_names,
+        "hrefs": hrefs,
+        "exact_terms": {
+            "946537": len(
+                exact_occurrences(
+                    source,
+                    "946537"
+                )
+            ),
+            "946534": len(
+                exact_occurrences(
+                    source,
+                    "946534"
+                )
+            ),
+            "946535": len(
+                exact_occurrences(
+                    source,
+                    "946535"
+                )
+            ),
+            "2557": len(
+                exact_occurrences(
+                    source,
+                    "2557"
+                )
+            )
+        }
+    }
+
+    save_text(
+        f"{label}_summary.json",
+        json.dumps(
+            summary,
+            ensure_ascii=False,
+            indent=2
+        )
+    )
+
+    return summary
+
+
+# ============================================================
+# RUN ONE TEST
+# ============================================================
+
+def run_test(
+    session,
+    term,
+    label
+):
+
+    print()
+    print("=" * 70)
+    print(f"TEST: {label}")
+    print(
+        f"TERM: {term}"
+    )
+    print("=" * 70)
+
+    source = api_search(
+        session,
+        term,
+        label
+    )
+
+    if source is None:
+        return
+
     # --------------------------------------------------------
-    # LOOK FOR ALL PRODUCT IDs
+    # BASIC SUMMARY
     # --------------------------------------------------------
 
-    product_ids = re.findall(
-        r'data-product-id\s*=\s*["\']([^"\']+)["\']',
+    summary = create_summary(
         source,
-        re.I
+        label
     )
 
     print()
@@ -590,52 +629,112 @@ def test_search_page(session, sku):
         "Product IDs:"
     )
 
-    unique_product_ids = []
+    if summary["product_ids"]:
 
-    for product_id in product_ids:
+        for value in summary["product_ids"]:
+            print(
+                f"   {value}"
+            )
 
-        if product_id not in unique_product_ids:
-            unique_product_ids.append(product_id)
+    else:
 
-    for product_id in unique_product_ids:
         print(
-            f"   {product_id}"
+            "   няма"
         )
 
-    save_text(
-        f"search_page_{sku}_product_ids.txt",
-        "\n".join(unique_product_ids)
+    print()
+    print(
+        "Product names:"
+    )
+
+    if summary["product_names"]:
+
+        for value in summary["product_names"]:
+
+            print(
+                f"   {value}"
+            )
+
+    else:
+
+        print(
+            "   няма"
+        )
+
+    # --------------------------------------------------------
+    # PRODUCT CONTAINERS
+    # --------------------------------------------------------
+
+    containers = analyze_containers(
+        source,
+        label
     )
 
     # --------------------------------------------------------
-    # LOOK FOR ALL HREFs TO PRODUCT
+    # IMPORTANT TERMS
     # --------------------------------------------------------
 
-    product_hrefs = []
+    print()
+    print("=" * 70)
+    print(f"EXACT TERM ANALYSIS: {label}")
+    print("=" * 70)
 
-    for href in re.findall(
-        r'href\s*=\s*["\']([^"\']+)["\']',
+    terms = [
+        "946537",
+        "946534",
+        "946535",
+        "2557",
+        "Комплект мухи за булдо FilStar тип C",
+    ]
+
+    for test_term in terms:
+
+        analyze_term(
+            source,
+            test_term,
+            label
+        )
+
+    # --------------------------------------------------------
+    # KEYWORDS
+    # --------------------------------------------------------
+
+    keyword_analysis(
         source,
-        re.I
-    ):
+        label
+    )
 
-        if href not in product_hrefs:
-            product_hrefs.append(href)
+    # --------------------------------------------------------
+    # HREFS
+    # --------------------------------------------------------
 
-    relevant_hrefs = [
+    hrefs = extract_hrefs(
+        source
+    )
+
+    product_hrefs = [
         href
-        for href in product_hrefs
-        if href.startswith("/")
+        for href in hrefs
+        if (
+            href.startswith("/")
+            and href not in [
+                "/",
+                "/search"
+            ]
+        )
     ]
 
     save_text(
-        f"search_page_{sku}_hrefs.txt",
-        "\n".join(relevant_hrefs)
+        f"{label}_hrefs.txt",
+        "\n".join(
+            product_hrefs
+        )
     )
 
     print()
     print(
-        f"Internal HREFs: {len(relevant_hrefs)}"
+        f"Internal HREFs saved: "
+        f"{len(product_hrefs)}"
     )
 
 
@@ -645,69 +744,28 @@ def test_search_page(session, sku):
 
 def main():
 
+    prepare_debug_folder()
+
     print("=" * 70)
-    print("FILSTAR /search?term=SKU DIAGNOSTIC")
+    print("FILSTAR /api/search PRODUCT RELATION DIAGNOSTIC")
     print("=" * 70)
-
-    os.makedirs(
-        DEBUG_DIR,
-        exist_ok=True
-    )
-
-    session = requests.Session()
-
-    session.headers.update(
-        HEADERS
-    )
-
-    for index, sku in enumerate(
-        TEST_SKUS,
-        start=1
-    ):
-
-        print()
-        print("=" * 70)
-
-        print(
-            f"SKU {index}/{len(TEST_SKUS)}: {sku}"
-        )
-
-        print("=" * 70)
-
-        test_search_page(
-            session,
-            sku
-        )
 
     print()
-    print("=" * 70)
-    print("DIAGNOSTIC FINISHED")
-    print("=" * 70)
+    print(
+        "Този тест използва САМО:"
+    )
 
     print(
-        f"Debug folder: {DEBUG_DIR}"
+        "   /api/search"
     )
 
     print()
     print(
-        "Проверени са:"
+        "НЕ се използват:"
     )
 
     print(
-        "   /search?term=946537"
-    )
-
-    print(
-        "   /search?term=946534"
-    )
-
-    print(
-        "   /search?term=946535"
-    )
-
-    print()
-    print(
-        "НЕ са използвани:"
+        "   - /search"
     )
 
     print(
@@ -728,6 +786,101 @@ def main():
 
     print(
         "   - Cloudflare bypass"
+    )
+
+    session = requests.Session()
+
+    session.headers.update(
+        HEADERS
+    )
+
+    # ========================================================
+    # TEST 1 — SKU 946537
+    # ========================================================
+
+    run_test(
+        session,
+        "946537",
+        "api_sku_946537"
+    )
+
+    # ========================================================
+    # TEST 2 — SKU 946534
+    # ========================================================
+
+    run_test(
+        session,
+        "946534",
+        "api_sku_946534"
+    )
+
+    # ========================================================
+    # TEST 3 — SKU 946535
+    # ========================================================
+
+    run_test(
+        session,
+        "946535",
+        "api_sku_946535"
+    )
+
+    # ========================================================
+    # TEST 4 — PRODUCT ID
+    # ========================================================
+
+    run_test(
+        session,
+        "2557",
+        "api_product_2557"
+    )
+
+    # ========================================================
+    # TEST 5 — PRODUCT NAME
+    # ========================================================
+
+    run_test(
+        session,
+        "Комплект мухи за булдо FilStar тип C",
+        "api_product_name"
+    )
+
+    # ========================================================
+    # FINISHED
+    # ========================================================
+
+    print()
+    print("=" * 70)
+    print("DIAGNOSTIC FINISHED")
+    print("=" * 70)
+
+    print()
+    print(
+        f"Debug folder: {DEBUG_DIR}"
+    )
+
+    print()
+    print(
+        "Създадени са отделни резултати за:"
+    )
+
+    print(
+        "   1. SKU 946537"
+    )
+
+    print(
+        "   2. SKU 946534"
+    )
+
+    print(
+        "   3. SKU 946535"
+    )
+
+    print(
+        "   4. Product ID 2557"
+    )
+
+    print(
+        "   5. Името на продукта"
     )
 
 
