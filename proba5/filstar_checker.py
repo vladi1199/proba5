@@ -1,8 +1,8 @@
 import os
 import re
 import json
+import hashlib
 import html
-import csv
 import requests
 from bs4 import BeautifulSoup
 
@@ -12,14 +12,8 @@ from bs4 import BeautifulSoup
 # ============================================================
 
 BASE_URL = "https://filstar.com"
-CSV_FILE = "sku_list_filstar.csv"
-DEBUG_DIR = "debug_html"
 
-TEST_SKUS = [
-    "946537",
-    "946534",
-    "946535",
-]
+DEBUG_DIR = "debug_html"
 
 WAIT = 2
 
@@ -38,253 +32,579 @@ HEADERS = {
 }
 
 
+TESTS = [
+    ("946537", "sku_946537"),
+    ("946534", "sku_946534"),
+    ("946535", "sku_946535"),
+    ("2557", "product_2557"),
+    (
+        "Комплект мухи за булдо FilStar тип C",
+        "product_name"
+    ),
+]
+
+
 # ============================================================
-# DEBUG DIRECTORY
+# HELPERS
 # ============================================================
 
-def prepare_debug_folder():
+def save_file(filename, content):
+
     os.makedirs(DEBUG_DIR, exist_ok=True)
 
+    path = os.path.join(
+        DEBUG_DIR,
+        filename
+    )
 
-# ============================================================
-# SAVE TEXT
-# ============================================================
+    with open(
+        path,
+        "w",
+        encoding="utf-8"
+    ) as f:
 
-def save_text(filename, content):
-    path = os.path.join(DEBUG_DIR, filename)
-
-    with open(path, "w", encoding="utf-8") as f:
         f.write(content)
 
     return path
+
+
+def sha256_text(text):
+
+    return hashlib.sha256(
+        text.encode("utf-8")
+    ).hexdigest()
+
+
+def normalize_html(source):
+
+    """
+    Премахва динамични неща, които могат да пречат
+    на сравнението между две заявки.
+    """
+
+    normalized = source
+
+    # Премахваме търсените термини от URL/meta местата.
+    normalized = re.sub(
+        r'term=[^"&<> ]+',
+        'term=REMOVED',
+        normalized,
+        flags=re.I
+    )
+
+    # Премахваме nonce стойности.
+    normalized = re.sub(
+        r'nonce=["\'][^"\']+["\']',
+        'nonce="REMOVED"',
+        normalized,
+        flags=re.I
+    )
+
+    # Премахваме whitespace.
+    normalized = re.sub(
+        r'\s+',
+        ' ',
+        normalized
+    )
+
+    return normalized.strip()
 
 
 # ============================================================
 # API SEARCH
 # ============================================================
 
-def api_search(session, term, filename_prefix):
-    """
-    Единствено /api/search се използва в този тест.
-    """
+def api_search(
+    session,
+    term,
+    label
+):
+
+    print()
+    print("=" * 80)
+    print(f"REQUEST: {label}")
+    print("=" * 80)
 
     url = f"{BASE_URL}/api/search"
 
     try:
+
         response = session.get(
             url,
-            params={"term": term},
+            params={
+                "term": term
+            },
             headers=HEADERS,
             timeout=30
         )
 
     except Exception as e:
 
-        print(f"   ❌ ERROR: {e}")
+        print(
+            f"❌ Request error: {e}"
+        )
 
         return None
 
     print(
-        f"   🔎 /api/search?term={term}"
-        f" → HTTP {response.status_code}"
+        f"URL: {response.url}"
     )
 
     print(
-        f"   Content-Type: "
+        f"HTTP: {response.status_code}"
+    )
+
+    print(
+        f"Content-Type: "
         f"{response.headers.get('Content-Type', '')}"
     )
 
     print(
-        f"   Размер: "
+        f"Size: "
         f"{len(response.content):,} bytes"
     )
 
-    path = save_text(
-        f"{filename_prefix}.html",
+    raw_hash = sha256_text(
         response.text
     )
 
-    print(
-        f"   💾 Raw HTML: {path}"
-    )
-
-    return response.text
-
-
-# ============================================================
-# EXTRACT PRODUCT CONTAINERS
-# ============================================================
-
-def find_product_containers(source):
-
-    pattern = re.compile(
-        r'<div\b[^>]*class\s*=\s*["\'][^"\']*'
-        r'product-item-wapper[^"\']*["\'][^>]*>',
-        re.I
-    )
-
-    containers = []
-
-    for match in pattern.finditer(source):
-
-        start = match.start()
-
-        depth = 0
-
-        tag_pattern = re.compile(
-            r"</?div\b[^>]*>",
-            re.I
+    normalized_hash = sha256_text(
+        normalize_html(
+            response.text
         )
+    )
 
-        for tag_match in tag_pattern.finditer(
-            source,
-            start
-        ):
+    print(
+        f"SHA256 raw: "
+        f"{raw_hash}"
+    )
 
-            tag = tag_match.group(0)
+    print(
+        f"SHA256 normalized: "
+        f"{normalized_hash}"
+    )
 
-            if re.match(
-                r"<div\b",
-                tag,
-                re.I
-            ):
-                depth += 1
+    save_file(
+        f"{label}.html",
+        response.text
+    )
 
-            elif re.match(
-                r"</div",
-                tag,
-                re.I
-            ):
-                depth -= 1
+    return {
+        "term": term,
+        "label": label,
+        "status": response.status_code,
+        "content_type": response.headers.get(
+            "Content-Type",
+            ""
+        ),
+        "size": len(response.content),
+        "raw_hash": raw_hash,
+        "normalized_hash": normalized_hash,
+        "source": response.text,
+    }
 
-                if depth == 0:
 
-                    end = tag_match.end()
+# ============================================================
+# PRODUCT CONTAINERS
+# ============================================================
 
-                    containers.append(
-                        source[start:end]
-                    )
+def get_product_containers(source):
 
-                    break
+    soup = BeautifulSoup(
+        source,
+        "html.parser"
+    )
+
+    containers = soup.select(
+        ".product-item-wapper"
+    )
 
     return containers
 
 
 # ============================================================
-# EXTRACT DATA ATTRIBUTES
+# CONTAINER ANALYSIS
 # ============================================================
 
-def extract_data_attributes(container):
+def analyze_container(container):
 
-    attributes = {}
+    result = {}
 
-    matches = re.findall(
-        r'(data-[a-zA-Z0-9:_-]+)\s*=\s*["\']([^"\']*)["\']',
-        container,
-        re.I
+    for attribute in [
+        "data-product-id",
+        "data-product-name",
+        "data-product-variant",
+        "data-product-brand",
+        "data-product-category",
+    ]:
+
+        result[attribute] = (
+            container.get(attribute)
+        )
+
+    result["hrefs"] = []
+
+    for a in container.find_all(
+        "a",
+        href=True
+    ):
+
+        href = a.get(
+            "href"
+        )
+
+        if href not in result["hrefs"]:
+
+            result["hrefs"].append(
+                href
+            )
+
+    result["images"] = []
+
+    for img in container.find_all(
+        "img"
+    ):
+
+        for attribute in [
+            "src",
+            "data-src",
+            "data-original",
+        ]:
+
+            value = img.get(
+                attribute
+            )
+
+            if value and value not in result["images"]:
+
+                result["images"].append(
+                    value
+                )
+
+    result["text"] = " ".join(
+        container.stripped_strings
     )
 
-    for key, value in matches:
-
-        attributes[key] = html.unescape(value)
-
-    return attributes
+    return result
 
 
 # ============================================================
-# PRODUCT CONTAINER SUMMARY
+# PRODUCT ANALYSIS
 # ============================================================
 
-def analyze_containers(source, label):
+def analyze_products(result):
+
+    source = result["source"]
+
+    containers = get_product_containers(
+        source
+    )
 
     print()
-    print("=" * 70)
-    print(f"PRODUCT CONTAINERS: {label}")
-    print("=" * 70)
-
-    containers = find_product_containers(source)
-
     print(
-        f"Product containers: {len(containers)}"
+        f"Product containers: "
+        f"{len(containers)}"
     )
 
-    summary = []
+    products = []
 
     for index, container in enumerate(
         containers,
         start=1
     ):
 
+        data = analyze_container(
+            container
+        )
+
+        products.append(
+            data
+        )
+
         print()
         print(
-            f"Container #{index}"
-        )
-
-        print(
-            f"Size: {len(container):,} bytes"
-        )
-
-        attrs = extract_data_attributes(
-            container
+            f"--- Container #{index} ---"
         )
 
         print(
             f"Product ID: "
-            f"{attrs.get('data-product-id', 'N/A')}"
+            f"{data.get('data-product-id')}"
         )
 
         print(
             f"Product name: "
-            f"{attrs.get('data-product-name', 'N/A')}"
+            f"{data.get('data-product-name')}"
         )
 
         print(
-            f"Product variant: "
-            f"{attrs.get('data-product-variant', 'N/A')}"
+            f"Variant: "
+            f"{data.get('data-product-variant')}"
         )
 
         print(
             f"Brand: "
-            f"{attrs.get('data-product-brand', 'N/A')}"
+            f"{data.get('data-product-brand')}"
         )
 
         print(
             f"Category: "
-            f"{attrs.get('data-product-category', 'N/A')}"
-        )
-
-        hrefs = re.findall(
-            r'href\s*=\s*["\']([^"\']+)["\']',
-            container,
-            re.I
+            f"{data.get('data-product-category')}"
         )
 
         print(
-            f"HREFs: {hrefs[:10]}"
+            f"HREFs: "
+            f"{data['hrefs'][:10]}"
         )
 
-        # Save each container
-        save_text(
-            f"{label}_container_{index}.html",
-            container
+        print(
+            f"Images: "
+            f"{data['images'][:5]}"
         )
 
-        summary.append({
+        print(
+            f"Text: "
+            f"{data['text'][:500]}"
+        )
+
+        save_file(
+            (
+                f"{result['label']}"
+                f"_container_{index}.html"
+            ),
+            str(container)
+        )
+
+    result["products"] = products
+
+    return result
+
+
+# ============================================================
+# FIND ALL QUANTITY BLOCKS
+# ============================================================
+
+def analyze_quantity(source, label):
+
+    print()
+    print("=" * 80)
+    print(f"QUANTITY ANALYSIS: {label}")
+    print("=" * 80)
+
+    matches = list(
+        re.finditer(
+            r"quantity",
+            source,
+            flags=re.I
+        )
+    )
+
+    print(
+        f"Total 'quantity' occurrences: "
+        f"{len(matches)}"
+    )
+
+    contexts = []
+
+    for index, match in enumerate(
+        matches,
+        start=1
+    ):
+
+        start = max(
+            0,
+            match.start() - 700
+        )
+
+        end = min(
+            len(source),
+            match.end() + 1200
+        )
+
+        context = source[
+            start:end
+        ]
+
+        contexts.append({
             "number": index,
-            "size": len(container),
-            "data_attributes": attrs,
-            "hrefs": hrefs,
-            "html": container
+            "position": match.start(),
+            "context": context
         })
 
-    return summary
+        print()
+        print(
+            f"--- quantity #{index} "
+            f"at {match.start()} ---"
+        )
+
+        print(
+            context[:1900]
+        )
+
+    save_file(
+        f"{label}_quantity_contexts.txt",
+        "\n\n".join(
+            item["context"]
+            for item in contexts
+        )
+    )
 
 
 # ============================================================
-# SEARCH FOR EXACT TERM
+# FIND PRICE BLOCKS
 # ============================================================
 
-def exact_occurrences(source, term):
+def analyze_price(source, label):
+
+    print()
+    print("=" * 80)
+    print(f"PRICE ANALYSIS: {label}")
+    print("=" * 80)
+
+    matches = list(
+        re.finditer(
+            r"price",
+            source,
+            flags=re.I
+        )
+    )
+
+    print(
+        f"Total 'price' occurrences: "
+        f"{len(matches)}"
+    )
+
+    contexts = []
+
+    for index, match in enumerate(
+        matches,
+        start=1
+    ):
+
+        start = max(
+            0,
+            match.start() - 500
+        )
+
+        end = min(
+            len(source),
+            match.end() + 900
+        )
+
+        context = source[
+            start:end
+        ]
+
+        contexts.append({
+            "number": index,
+            "position": match.start(),
+            "context": context
+        })
+
+        print()
+        print(
+            f"--- price #{index} "
+            f"at {match.start()} ---"
+        )
+
+        print(
+            context[:1400]
+        )
+
+    save_file(
+        f"{label}_price_contexts.txt",
+        "\n\n".join(
+            item["context"]
+            for item in contexts
+        )
+    )
+
+
+# ============================================================
+# FIND STORES
+# ============================================================
+
+def analyze_stores(source, label):
+
+    print()
+    print("=" * 80)
+    print(f"STORES ANALYSIS: {label}")
+    print("=" * 80)
+
+    matches = list(
+        re.finditer(
+            r"stores",
+            source,
+            flags=re.I
+        )
+    )
+
+    print(
+        f"Total 'stores' occurrences: "
+        f"{len(matches)}"
+    )
+
+    contexts = []
+
+    for index, match in enumerate(
+        matches,
+        start=1
+    ):
+
+        start = max(
+            0,
+            match.start() - 800
+        )
+
+        end = min(
+            len(source),
+            match.end() + 1800
+        )
+
+        context = source[
+            start:end
+        ]
+
+        contexts.append({
+            "number": index,
+            "position": match.start(),
+            "context": context
+        })
+
+        print()
+        print(
+            f"--- stores #{index} "
+            f"at {match.start()} ---"
+        )
+
+        print(
+            context[:2500]
+        )
+
+    save_file(
+        f"{label}_stores_contexts.txt",
+        "\n\n".join(
+            item["context"]
+            for item in contexts
+        )
+    )
+
+
+# ============================================================
+# SKU CONTEXT
+# ============================================================
+
+def analyze_sku_context(
+    source,
+    term,
+    label
+):
+
+    print()
+    print("=" * 80)
+    print(
+        f"TERM CONTEXT: {label}"
+    )
+    print("=" * 80)
 
     positions = []
 
@@ -300,22 +620,16 @@ def exact_occurrences(source, term):
         if position == -1:
             break
 
-        positions.append(position)
+        positions.append(
+            position
+        )
 
         start = position + len(term)
 
-    return positions
-
-
-# ============================================================
-# CONTEXT AROUND TERM
-# ============================================================
-
-def get_contexts(source, term, radius=1500):
-
-    positions = exact_occurrences(
-        source,
-        term
+    print(
+        f"Occurrences of "
+        f"'{term}': "
+        f"{len(positions)}"
     )
 
     contexts = []
@@ -325,416 +639,135 @@ def get_contexts(source, term, radius=1500):
         start=1
     ):
 
-        start = max(
+        left = max(
             0,
-            position - radius
+            position - 1000
         )
 
-        end = min(
+        right = min(
             len(source),
-            position + len(term) + radius
+            position + len(term) + 1500
         )
 
-        contexts.append({
-            "number": index,
-            "position": position,
-            "context": source[start:end]
-        })
+        context = source[
+            left:right
+        ]
 
-    return contexts
-
-
-# ============================================================
-# TERM ANALYSIS
-# ============================================================
-
-def analyze_term(source, term, label):
-
-    positions = exact_occurrences(
-        source,
-        term
-    )
-
-    print(
-        f"   {term}: "
-        f"{len(positions)} occurrence(s)"
-    )
-
-    contexts = get_contexts(
-        source,
-        term
-    )
-
-    output = []
-
-    for item in contexts:
-
-        output.append(
-            "=" * 100
+        contexts.append(
+            context
         )
 
-        output.append(
-            f"OCCURRENCE #{item['number']}"
+        print()
+        print(
+            f"--- occurrence #{index} "
+            f"at {position} ---"
         )
-
-        output.append(
-            f"Position: {item['position']}"
-        )
-
-        output.append(
-            item["context"]
-        )
-
-        output.append("")
-
-    save_text(
-        f"{label}_{term}_contexts.txt",
-        "\n".join(output)
-    )
-
-    return len(positions)
-
-
-# ============================================================
-# EXTRACT PRODUCT IDS
-# ============================================================
-
-def extract_product_ids(source):
-
-    ids = re.findall(
-        r'data-product-id\s*=\s*["\']([^"\']+)["\']',
-        source,
-        re.I
-    )
-
-    unique = []
-
-    for value in ids:
-
-        if value not in unique:
-            unique.append(value)
-
-    return unique
-
-
-# ============================================================
-# EXTRACT PRODUCT NAMES
-# ============================================================
-
-def extract_product_names(source):
-
-    names = re.findall(
-        r'data-product-name\s*=\s*["\']([^"\']*)["\']',
-        source,
-        re.I
-    )
-
-    unique = []
-
-    for value in names:
-
-        value = html.unescape(value)
-
-        if value not in unique:
-            unique.append(value)
-
-    return unique
-
-
-# ============================================================
-# EXTRACT HREFS
-# ============================================================
-
-def extract_hrefs(source):
-
-    hrefs = re.findall(
-        r'href\s*=\s*["\']([^"\']+)["\']',
-        source,
-        re.I
-    )
-
-    unique = []
-
-    for href in hrefs:
-
-        if href not in unique:
-            unique.append(href)
-
-    return unique
-
-
-# ============================================================
-# KEYWORD ANALYSIS
-# ============================================================
-
-def keyword_analysis(source, label):
-
-    print()
-    print("=" * 70)
-    print(f"KEYWORD ANALYSIS: {label}")
-    print("=" * 70)
-
-    keywords = [
-        "variant",
-        "variants",
-        "quantity",
-        "price",
-        "discountedPrice",
-        "productId",
-        "variantId",
-        "sku",
-        "barcode",
-        "stores",
-        "defaultVariant",
-        "add-variant-to-cart",
-        "search-autocomplete",
-        "search-json-typesense",
-        "serialize",
-        "946537",
-        "946534",
-        "946535",
-        "2557",
-    ]
-
-    result = {}
-
-    lower_source = source.lower()
-
-    for keyword in keywords:
-
-        count = lower_source.count(
-            keyword.lower()
-        )
-
-        result[keyword] = count
 
         print(
-            f"   {keyword}: {count}"
+            context
         )
 
-    save_text(
-        f"{label}_keywords.json",
-        json.dumps(
-            result,
-            ensure_ascii=False,
-            indent=2
+    save_file(
+        f"{label}_term_contexts.txt",
+        "\n\n".join(
+            contexts
         )
     )
 
-    return result
-
 
 # ============================================================
-# SEARCH RESULT SUMMARY
+# COMPARE RESULTS
 # ============================================================
 
-def create_summary(source, label):
+def compare_results(results):
 
-    product_ids = extract_product_ids(
-        source
-    )
+    print()
+    print("=" * 80)
+    print("RESPONSE COMPARISON")
+    print("=" * 80)
 
-    product_names = extract_product_names(
-        source
-    )
+    for i in range(
+        len(results)
+    ):
 
-    hrefs = extract_hrefs(
-        source
-    )
+        for j in range(
+            i + 1,
+            len(results)
+        ):
 
-    summary = {
-        "label": label,
-        "size": len(source),
-        "product_ids": product_ids,
-        "product_names": product_names,
-        "hrefs": hrefs,
-        "exact_terms": {
-            "946537": len(
-                exact_occurrences(
-                    source,
-                    "946537"
-                )
-            ),
-            "946534": len(
-                exact_occurrences(
-                    source,
-                    "946534"
-                )
-            ),
-            "946535": len(
-                exact_occurrences(
-                    source,
-                    "946535"
-                )
-            ),
-            "2557": len(
-                exact_occurrences(
-                    source,
-                    "2557"
-                )
+            a = results[i]
+            b = results[j]
+
+            print()
+            print(
+                f"{a['label']} "
+                f"VS "
+                f"{b['label']}"
             )
-        }
-    }
 
-    save_text(
-        f"{label}_summary.json",
+            print(
+                f"Raw SHA256 equal: "
+                f"{a['raw_hash'] == b['raw_hash']}"
+            )
+
+            print(
+                f"Normalized SHA256 equal: "
+                f"{a['normalized_hash'] == b['normalized_hash']}"
+            )
+
+            print(
+                f"Size difference: "
+                f"{a['size'] - b['size']}"
+            )
+
+
+# ============================================================
+# PRODUCT ID SUMMARY
+# ============================================================
+
+def product_id_summary(results):
+
+    print()
+    print("=" * 80)
+    print("PRODUCT ID SUMMARY")
+    print("=" * 80)
+
+    summary = {}
+
+    for result in results:
+
+        ids = []
+
+        for product in result.get(
+            "products",
+            []
+        ):
+
+            product_id = product.get(
+                "data-product-id"
+            )
+
+            if product_id:
+                ids.append(
+                    product_id
+                )
+
+        summary[
+            result["label"]
+        ] = ids
+
+        print(
+            f"{result['label']}: "
+            f"{ids}"
+        )
+
+    save_file(
+        "comparison_product_ids.json",
         json.dumps(
             summary,
             ensure_ascii=False,
             indent=2
         )
-    )
-
-    return summary
-
-
-# ============================================================
-# RUN ONE TEST
-# ============================================================
-
-def run_test(
-    session,
-    term,
-    label
-):
-
-    print()
-    print("=" * 70)
-    print(f"TEST: {label}")
-    print(
-        f"TERM: {term}"
-    )
-    print("=" * 70)
-
-    source = api_search(
-        session,
-        term,
-        label
-    )
-
-    if source is None:
-        return
-
-    # --------------------------------------------------------
-    # BASIC SUMMARY
-    # --------------------------------------------------------
-
-    summary = create_summary(
-        source,
-        label
-    )
-
-    print()
-    print(
-        "Product IDs:"
-    )
-
-    if summary["product_ids"]:
-
-        for value in summary["product_ids"]:
-            print(
-                f"   {value}"
-            )
-
-    else:
-
-        print(
-            "   няма"
-        )
-
-    print()
-    print(
-        "Product names:"
-    )
-
-    if summary["product_names"]:
-
-        for value in summary["product_names"]:
-
-            print(
-                f"   {value}"
-            )
-
-    else:
-
-        print(
-            "   няма"
-        )
-
-    # --------------------------------------------------------
-    # PRODUCT CONTAINERS
-    # --------------------------------------------------------
-
-    containers = analyze_containers(
-        source,
-        label
-    )
-
-    # --------------------------------------------------------
-    # IMPORTANT TERMS
-    # --------------------------------------------------------
-
-    print()
-    print("=" * 70)
-    print(f"EXACT TERM ANALYSIS: {label}")
-    print("=" * 70)
-
-    terms = [
-        "946537",
-        "946534",
-        "946535",
-        "2557",
-        "Комплект мухи за булдо FilStar тип C",
-    ]
-
-    for test_term in terms:
-
-        analyze_term(
-            source,
-            test_term,
-            label
-        )
-
-    # --------------------------------------------------------
-    # KEYWORDS
-    # --------------------------------------------------------
-
-    keyword_analysis(
-        source,
-        label
-    )
-
-    # --------------------------------------------------------
-    # HREFS
-    # --------------------------------------------------------
-
-    hrefs = extract_hrefs(
-        source
-    )
-
-    product_hrefs = [
-        href
-        for href in hrefs
-        if (
-            href.startswith("/")
-            and href not in [
-                "/",
-                "/search"
-            ]
-        )
-    ]
-
-    save_text(
-        f"{label}_hrefs.txt",
-        "\n".join(
-            product_hrefs
-        )
-    )
-
-    print()
-    print(
-        f"Internal HREFs saved: "
-        f"{len(product_hrefs)}"
     )
 
 
@@ -744,48 +777,59 @@ def run_test(
 
 def main():
 
-    prepare_debug_folder()
+    os.makedirs(
+        DEBUG_DIR,
+        exist_ok=True
+    )
 
-    print("=" * 70)
-    print("FILSTAR /api/search PRODUCT RELATION DIAGNOSTIC")
-    print("=" * 70)
+    print(
+        "=" * 80
+    )
+
+    print(
+        "FILSTAR /api/search DEEP DIAGNOSTIC"
+    )
+
+    print(
+        "=" * 80
+    )
 
     print()
     print(
-        "Този тест използва САМО:"
-    )
-
-    print(
-        "   /api/search"
+        "Използва се САМО /api/search."
     )
 
     print()
     print(
-        "НЕ се използват:"
+        "Не се използват:"
     )
 
     print(
-        "   - /search"
+        "  - /search"
     )
 
     print(
-        "   - /get-serialize-product/"
+        "  - /get-serialize-product/"
     )
 
     print(
-        "   - /search-json-typesense"
+        "  - /search-json-typesense"
     )
 
     print(
-        "   - product page"
+        "  - product page"
     )
 
     print(
-        "   - browser automation"
+        "  - Selenium"
     )
 
     print(
-        "   - Cloudflare bypass"
+        "  - Playwright"
+    )
+
+    print(
+        "  - Cloudflare bypass"
     )
 
     session = requests.Session()
@@ -794,93 +838,158 @@ def main():
         HEADERS
     )
 
+    results = []
+
     # ========================================================
-    # TEST 1 — SKU 946537
+    # RUN TESTS
     # ========================================================
 
-    run_test(
-        session,
-        "946537",
-        "api_sku_946537"
+    for term, label in TESTS:
+
+        result = api_search(
+            session,
+            term,
+            label
+        )
+
+        if not result:
+            continue
+
+        analyze_products(
+            result
+        )
+
+        analyze_quantity(
+            result["source"],
+            label
+        )
+
+        analyze_price(
+            result["source"],
+            label
+        )
+
+        analyze_stores(
+            result["source"],
+            label
+        )
+
+        analyze_sku_context(
+            result["source"],
+            term,
+            label
+        )
+
+        results.append(
+            result
+        )
+
+    # ========================================================
+    # COMPARE
+    # ========================================================
+
+    compare_results(
+        results
+    )
+
+    product_id_summary(
+        results
     )
 
     # ========================================================
-    # TEST 2 — SKU 946534
+    # FINAL JSON
     # ========================================================
 
-    run_test(
-        session,
-        "946534",
-        "api_sku_946534"
+    final_summary = []
+
+    for result in results:
+
+        final_summary.append({
+            "term": result["term"],
+            "label": result["label"],
+            "status": result["status"],
+            "size": result["size"],
+            "raw_hash": result["raw_hash"],
+            "normalized_hash": result[
+                "normalized_hash"
+            ],
+            "product_ids": [
+                p.get(
+                    "data-product-id"
+                )
+                for p in result.get(
+                    "products",
+                    []
+                )
+                if p.get(
+                    "data-product-id"
+                )
+            ],
+        })
+
+    save_file(
+        "FINAL_COMPARISON.json",
+        json.dumps(
+            final_summary,
+            ensure_ascii=False,
+            indent=2
+        )
     )
-
-    # ========================================================
-    # TEST 3 — SKU 946535
-    # ========================================================
-
-    run_test(
-        session,
-        "946535",
-        "api_sku_946535"
-    )
-
-    # ========================================================
-    # TEST 4 — PRODUCT ID
-    # ========================================================
-
-    run_test(
-        session,
-        "2557",
-        "api_product_2557"
-    )
-
-    # ========================================================
-    # TEST 5 — PRODUCT NAME
-    # ========================================================
-
-    run_test(
-        session,
-        "Комплект мухи за булдо FilStar тип C",
-        "api_product_name"
-    )
-
-    # ========================================================
-    # FINISHED
-    # ========================================================
 
     print()
-    print("=" * 70)
-    print("DIAGNOSTIC FINISHED")
-    print("=" * 70)
-
-    print()
     print(
-        f"Debug folder: {DEBUG_DIR}"
+        "=" * 80
+    )
+
+    print(
+        "DIAGNOSTIC FINISHED"
+    )
+
+    print(
+        "=" * 80
     )
 
     print()
     print(
-        "Създадени са отделни резултати за:"
+        f"Всички debug файлове са в: "
+        f"{DEBUG_DIR}/"
+    )
+
+    print()
+    print(
+        "Най-важните файлове са:"
     )
 
     print(
-        "   1. SKU 946537"
+        "  FINAL_COMPARISON.json"
     )
 
     print(
-        "   2. SKU 946534"
+        "  comparison_product_ids.json"
     )
 
     print(
-        "   3. SKU 946535"
+        "  sku_946537_quantity_contexts.txt"
     )
 
     print(
-        "   4. Product ID 2557"
+        "  sku_946534_quantity_contexts.txt"
     )
 
     print(
-        "   5. Името на продукта"
+        "  sku_946535_quantity_contexts.txt"
+    )
+
+    print(
+        "  sku_946537_price_contexts.txt"
+    )
+
+    print(
+        "  sku_946534_price_contexts.txt"
+    )
+
+    print(
+        "  sku_946535_price_contexts.txt"
     )
 
 
