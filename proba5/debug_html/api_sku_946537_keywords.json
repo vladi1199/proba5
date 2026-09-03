@@ -1,0 +1,21 @@
+{
+  "variant": 4,
+  "variants": 0,
+  "quantity": 18,
+  "price": 34,
+  "discountedPrice": 0,
+  "productId": 0,
+  "variantId": 0,
+  "sku": 0,
+  "barcode": 0,
+  "stores": 4,
+  "defaultVariant": 0,
+  "add-variant-to-cart": 2,
+  "search-autocomplete": 3,
+  "search-json-typesense": 1,
+  "serialize": 0,
+  "946537": 8,
+  "946534": 0,
+  "946535": 0,
+  "2557": 2
+}

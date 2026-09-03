@@ -1,0 +1,524 @@
+====================================================================================================
+OCCURRENCE #1
+Position: 1154
+<!doctype html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta name="facebook-domain-verification" content="hu18a9puhbeodzy107ugzd35gijlx4"/>
+
+    <link rel="preconnect" href="https://a.omappapi.com"/>
+    <link rel="preconnect" href="https://connect.facebook.net"/>
+    <link rel="preconnect" href="https://www.facebook.com"/>
+    <link rel="manifest" href="/manifest.json">
+
+
+                    <title>FilStar - Онлайн магазин за риболовни принадлежности </title>
+<meta name="description" content="Най-добрите оферти за риболовно оборудване и аксесоари в filstar.com. Купете сега висококачествено рибарско оборудване, въдици, макари, примамки и други."/>
+<meta name="author" content="meta.author"/>
+
+<meta property="fb:page_id" content="">
+
+<meta property="og:title" content="Риболовно оборудване и аксесоари - filstar.com "/>
+<meta property="og:type" content="website"/>
+<meta property="og:url" content="https://filstar.com/api/search?term=946537"/>
+<meta property="og:description" content="Най-добрите оферти за риболовно оборудване и аксесоари в filstar.com. Купете сега висококачествено рибарско оборудване, въдици, макари, примамки и други."/>
+<meta property="og:site_name" content="filstar.com"/>
+<meta property="og:image" content="home.og_image"/>
+
+
+    
+                        
+            
+                    <link rel="alternate" hreflang="en"
+                  href="https://filstar.com/en/api/search"/>
+                    <link rel="alternate" hreflang="bg"
+                  href="https://filstar.com/api/search"/>
+                    <link rel="alternate" hreflang="ro"
+                  href="https://filstar.com/ro/api/search"/>
+                    <link rel="alternate" hreflang="el"
+                  href="https://filstar.com/el/api/search"/>
+            
+
+            <link rel="stylesheet" href="/build/0.10ce7f60.css"><link rel="stylesheet" href="/build/2.76dd3e7b.css"><link rel="stylesheet" href="/build/app.9b5f459e.css">
+    
+                    <!-- Global site tag (gtag.js) - Google Analytics & Google Ads -->
+            <script async src="https://www.googletagmanager.com/gtag/js?id=UA-36261628-1"></script>
+            <script>
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', 'UA-36261628-1');
+                gtag('config', 'AW-17927543902');
+            </script>
+    
+
+====================================================================================================
+OCCURRENCE #2
+Position: 177198
+                                                 <h1>Търсене на продукти</h1>
+                                                                    </div>
+                            </div>
+                        </div>
+                        <div class="col-xl-6">
+                            <div class="right-side">
+                                                                <div class="cat-image-round"
+                                     style="background: url(/build/images/Search-Results.png); background-size: cover"></div>
+                                                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+
+            <section class="products-listing-view-holder">
+                <div class="container">
+                    <div class="row">
+                        <div class="col-xl-auto">
+                            <button class="filter-btn toggle-filters d-block d-xl-none">Покажи/Скрий филтрите</button>
+                            <div class="attributes">
+
+                                <div class="available-products">
+
+                                                                            <p>ПОКАЗВА <span>1</span> продукта</p>
+                                                                    </div>
+
+                                                                                                                                    <a class="clear-btn" href="/search?term=946537">
+                                    <img src="/build/images/icons/plus_pink.svg" alt="clear icon"/>
+                                    Изчисти филтрите</a>
+                                <aside class="sidebar active">
+                                                                        
+                                    <div class="widgets">
+
+                                                                                    <script type="text/x-template" id="range-filter">
+    <div class="widget-box">
+        <div :class="attribute?('range-slider' + attribute):'range-slider'">
+            <input type="text" :ref="attribute?('slider' + attribute):'slider'" class="js-range-slider" value="" />
+        </div>
+
+    </div>
+</script>
+                                            <div class="attributes-box-holder price-slider">
+                                                <p>Цена</p>
+                                                <div class="range-slider">
+                                                    <range-filter
+                                                            property="price_range"
+                                                            locale="bg"
+                                                            :exchange-rate="1.95583"
+                                                            :exchange-rate-mode="1"
+                                                            :convert-mode="1"
+                                                        
+
+====================================================================================================
+OCCURRENCE #3
+Position: 194645
+                 </div>
+                                </div>
+
+                                <div class="products-list first-type ">
+    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-4">
+                                <div class="col px-1">
+                                                                                                                                    <div class="product-item-wapper "
+             data-controller="impression impression-click"
+             data-product-id="2557"
+             data-product-name="Комплект мухи за булдо FilStar тип C"
+             data-product-category="Мухарски риболов"
+             data-product-variant="Комплект мухи за булдо FilStar тип C"
+             data-product-brand="Filstar"
+             data-list="SearchPage"
+             data-position="1">
+                                                <div class="product-item border-bottom text-right p-2">
+                <div class="regular-price">
+                                    </div>
+                <div class="discount-price">
+                    от
+                    3.89 лв. / 1.99 €
+                </div>
+            </div>
+            
+            <div class="product-image">
+                <a href="/Muhi-za-buldo-bz"
+                   data-action="click->impression-click#manageClickImpression">
+                    
+
+    <picture>
+
+                    <source srcset="https://filstar.com/media/cache/products_list_webp/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg" type="image/webp">
+            <source srcset="https://filstar.com/media/cache/products_list/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg" type="image/">
+        
+                            <img src="https://filstar.com/media/cache/products_list/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg"
+                                            alt = "Комплект мухи за булдо FilStar тип C"
+                    
+                    loading="lazy"
+                class = ""
+        >
+
+    </picture>
+
+
+
+                </a>
+            </div>
+
+            
+            <div class="px-3 pt-3">
+                <h2 class="product-title">
+                    <a href="/Muhi-za-buldo-bz" class="product-name"
+                       data-action="click->impression-click#manageClickImpression">
+                        Комплект мухи за булдо FilStar тип C
+                    </a>
+                </h2>
+            </div>
+
+                                        <div class="product-hr mt-2"></div>
+                <div class="promo-text-wapper p-lg-3 p-2">
+                    <img src="/build/images/icons/more_colors.svg"
+                         alt="Има 6 разновидности"
+                         title="Има 6 разновидности"/>
+                    <span class="varieties-counter">+6</span>
+                </div>
+                    </div>
+                </div>
+            </div>
+</div>
+
+<div class="produc
+
+====================================================================================================
+OCCURRENCE #4
+Position: 194814
+w-cols-md-3 row-cols-lg-4 row-cols-xl-4">
+                                <div class="col px-1">
+                                                                                                                                    <div class="product-item-wapper "
+             data-controller="impression impression-click"
+             data-product-id="2557"
+             data-product-name="Комплект мухи за булдо FilStar тип C"
+             data-product-category="Мухарски риболов"
+             data-product-variant="Комплект мухи за булдо FilStar тип C"
+             data-product-brand="Filstar"
+             data-list="SearchPage"
+             data-position="1">
+                                                <div class="product-item border-bottom text-right p-2">
+                <div class="regular-price">
+                                    </div>
+                <div class="discount-price">
+                    от
+                    3.89 лв. / 1.99 €
+                </div>
+            </div>
+            
+            <div class="product-image">
+                <a href="/Muhi-za-buldo-bz"
+                   data-action="click->impression-click#manageClickImpression">
+                    
+
+    <picture>
+
+                    <source srcset="https://filstar.com/media/cache/products_list_webp/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg" type="image/webp">
+            <source srcset="https://filstar.com/media/cache/products_list/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg" type="image/">
+        
+                            <img src="https://filstar.com/media/cache/products_list/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg"
+                                            alt = "Комплект мухи за булдо FilStar тип C"
+                    
+                    loading="lazy"
+                class = ""
+        >
+
+    </picture>
+
+
+
+                </a>
+            </div>
+
+            
+            <div class="px-3 pt-3">
+                <h2 class="product-title">
+                    <a href="/Muhi-za-buldo-bz" class="product-name"
+                       data-action="click->impression-click#manageClickImpression">
+                        Комплект мухи за булдо FilStar тип C
+                    </a>
+                </h2>
+            </div>
+
+                                        <div class="product-hr mt-2"></div>
+                <div class="promo-text-wapper p-lg-3 p-2">
+                    <img src="/build/images/icons/more_colors.svg"
+                         alt="Има 6 разновидности"
+                         title="Има 6 разновидности"/>
+                    <span class="varieties-counter">+6</span>
+                </div>
+                    </div>
+                </div>
+            </div>
+</div>
+
+<div class="products-list sec-type ">
+    <div class="row flex-wrap products-list-holder">
+        <div class="container">
+            <div class="product-listing-grid row">
+             
+
+====================================================================================================
+OCCURRENCE #5
+Position: 194998
+                                             <div class="product-item-wapper "
+             data-controller="impression impression-click"
+             data-product-id="2557"
+             data-product-name="Комплект мухи за булдо FilStar тип C"
+             data-product-category="Мухарски риболов"
+             data-product-variant="Комплект мухи за булдо FilStar тип C"
+             data-product-brand="Filstar"
+             data-list="SearchPage"
+             data-position="1">
+                                                <div class="product-item border-bottom text-right p-2">
+                <div class="regular-price">
+                                    </div>
+                <div class="discount-price">
+                    от
+                    3.89 лв. / 1.99 €
+                </div>
+            </div>
+            
+            <div class="product-image">
+                <a href="/Muhi-za-buldo-bz"
+                   data-action="click->impression-click#manageClickImpression">
+                    
+
+    <picture>
+
+                    <source srcset="https://filstar.com/media/cache/products_list_webp/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg" type="image/webp">
+            <source srcset="https://filstar.com/media/cache/products_list/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg" type="image/">
+        
+                            <img src="https://filstar.com/media/cache/products_list/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg"
+                                            alt = "Комплект мухи за булдо FilStar тип C"
+                    
+                    loading="lazy"
+                class = ""
+        >
+
+    </picture>
+
+
+
+                </a>
+            </div>
+
+            
+            <div class="px-3 pt-3">
+                <h2 class="product-title">
+                    <a href="/Muhi-za-buldo-bz" class="product-name"
+                       data-action="click->impression-click#manageClickImpression">
+                        Комплект мухи за булдо FilStar тип C
+                    </a>
+                </h2>
+            </div>
+
+                                        <div class="product-hr mt-2"></div>
+                <div class="promo-text-wapper p-lg-3 p-2">
+                    <img src="/build/images/icons/more_colors.svg"
+                         alt="Има 6 разновидности"
+                         title="Има 6 разновидности"/>
+                    <span class="varieties-counter">+6</span>
+                </div>
+                    </div>
+                </div>
+            </div>
+</div>
+
+<div class="products-list sec-type ">
+    <div class="row flex-wrap products-list-holder">
+        <div class="container">
+            <div class="product-listing-grid row">
+                                                        <div class="col-12">
+                                                                                                                        
+
+====================================================================================================
+OCCURRENCE #6
+Position: 197434
+       title="Има 6 разновидности"/>
+                    <span class="varieties-counter">+6</span>
+                </div>
+                    </div>
+                </div>
+            </div>
+</div>
+
+<div class="products-list sec-type ">
+    <div class="row flex-wrap products-list-holder">
+        <div class="container">
+            <div class="product-listing-grid row">
+                                                        <div class="col-12">
+                                                                                                                                                                    <div class="product-list-view out-of-stock"
+             data-controller="impression impression-click"
+             data-product-id="2557"
+             data-product-name="Комплект мухи за булдо FilStar тип C"
+             data-product-category="Мухарски риболов"
+             data-product-variant="Комплект мухи за булдо FilStar тип C"
+             data-product-brand="Filstar"
+             data-list="SearchPage"
+             data-position="1">
+                                                <div class="product-item-wapper product-list-view">
+                <div class="product-image-list-view">
+                    <a href="/Muhi-za-buldo-bz"
+                       data-action="click->impression-click#manageClickImpression">
+                        
+
+    <picture>
+
+                    <source srcset="https://filstar.com/media/cache/products_list_webp/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg" type="image/webp">
+            <source srcset="https://filstar.com/media/cache/products_list/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg" type="image/">
+        
+                            <img src="https://filstar.com/media/cache/products_list/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg"
+                                            alt = "Комплект мухи за булдо FilStar тип C"
+                    
+                    loading="lazy"
+                class = ""
+        >
+
+    </picture>
+
+
+
+                    </a>
+                </div>
+
+                <div class="p-3 mb-2 product-listing-content-wapper">
+                    <div class="product-item d-flex py-3 align-items-center">
+                                                                    </div>
+                    <div class="product-title-list-view mb-1">
+                        <h4>
+                            <a href="/Muhi-za-buldo-bz" class="product-name"
+                               data-action="click->impression-click#manageClickImpression">
+                                Комплект мухи за булдо FilStar тип C
+                            </a>
+                        </h4>
+                    </div>
+                                                                <div class="more-colors">
+                            <img src="/build/images/icons/more_colors.svg"
+                                 alt="Има 6 р
+
+====================================================================================================
+OCCURRENCE #7
+Position: 197603
+v>
+            </div>
+</div>
+
+<div class="products-list sec-type ">
+    <div class="row flex-wrap products-list-holder">
+        <div class="container">
+            <div class="product-listing-grid row">
+                                                        <div class="col-12">
+                                                                                                                                                                    <div class="product-list-view out-of-stock"
+             data-controller="impression impression-click"
+             data-product-id="2557"
+             data-product-name="Комплект мухи за булдо FilStar тип C"
+             data-product-category="Мухарски риболов"
+             data-product-variant="Комплект мухи за булдо FilStar тип C"
+             data-product-brand="Filstar"
+             data-list="SearchPage"
+             data-position="1">
+                                                <div class="product-item-wapper product-list-view">
+                <div class="product-image-list-view">
+                    <a href="/Muhi-za-buldo-bz"
+                       data-action="click->impression-click#manageClickImpression">
+                        
+
+    <picture>
+
+                    <source srcset="https://filstar.com/media/cache/products_list_webp/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg" type="image/webp">
+            <source srcset="https://filstar.com/media/cache/products_list/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg" type="image/">
+        
+                            <img src="https://filstar.com/media/cache/products_list/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg"
+                                            alt = "Комплект мухи за булдо FilStar тип C"
+                    
+                    loading="lazy"
+                class = ""
+        >
+
+    </picture>
+
+
+
+                    </a>
+                </div>
+
+                <div class="p-3 mb-2 product-listing-content-wapper">
+                    <div class="product-item d-flex py-3 align-items-center">
+                                                                    </div>
+                    <div class="product-title-list-view mb-1">
+                        <h4>
+                            <a href="/Muhi-za-buldo-bz" class="product-name"
+                               data-action="click->impression-click#manageClickImpression">
+                                Комплект мухи за булдо FilStar тип C
+                            </a>
+                        </h4>
+                    </div>
+                                                                <div class="more-colors">
+                            <img src="/build/images/icons/more_colors.svg"
+                                 alt="Има 6 разновидности"
+                                 title="Има 6 разновидности"/>
+                            <span class="varieties-counter">+6</span>
+                      
+
+====================================================================================================
+OCCURRENCE #8
+Position: 197787
+-listing-grid row">
+                                                        <div class="col-12">
+                                                                                                                                                                    <div class="product-list-view out-of-stock"
+             data-controller="impression impression-click"
+             data-product-id="2557"
+             data-product-name="Комплект мухи за булдо FilStar тип C"
+             data-product-category="Мухарски риболов"
+             data-product-variant="Комплект мухи за булдо FilStar тип C"
+             data-product-brand="Filstar"
+             data-list="SearchPage"
+             data-position="1">
+                                                <div class="product-item-wapper product-list-view">
+                <div class="product-image-list-view">
+                    <a href="/Muhi-za-buldo-bz"
+                       data-action="click->impression-click#manageClickImpression">
+                        
+
+    <picture>
+
+                    <source srcset="https://filstar.com/media/cache/products_list_webp/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg" type="image/webp">
+            <source srcset="https://filstar.com/media/cache/products_list/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg" type="image/">
+        
+                            <img src="https://filstar.com/media/cache/products_list/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg"
+                                            alt = "Комплект мухи за булдо FilStar тип C"
+                    
+                    loading="lazy"
+                class = ""
+        >
+
+    </picture>
+
+
+
+                    </a>
+                </div>
+
+                <div class="p-3 mb-2 product-listing-content-wapper">
+                    <div class="product-item d-flex py-3 align-items-center">
+                                                                    </div>
+                    <div class="product-title-list-view mb-1">
+                        <h4>
+                            <a href="/Muhi-za-buldo-bz" class="product-name"
+                               data-action="click->impression-click#manageClickImpression">
+                                Комплект мухи за булдо FilStar тип C
+                            </a>
+                        </h4>
+                    </div>
+                                                                <div class="more-colors">
+                            <img src="/build/images/icons/more_colors.svg"
+                                 alt="Има 6 разновидности"
+                                 title="Има 6 разновидности"/>
+                            <span class="varieties-counter">+6</span>
+                        </div>
+                                        <div class="product-listing-content my-3">
+                        Комплект с 3 броя вързани мухи за булдо. Използваната кука е с цвят 
