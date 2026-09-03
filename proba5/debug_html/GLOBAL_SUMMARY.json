@@ -1,0 +1,62 @@
+[
+  {
+    "sku": "946537",
+    "response_size": 224784,
+    "product_id": "2557",
+    "product_url": "https://filstar.com/Muhi-za-buldo-bz",
+    "container_found": true,
+    "container_size": 2539,
+    "keywords": {
+      "variant": 4,
+      "variants": 0,
+      "quantity": 18,
+      "price": 34,
+      "discountedPrice": 0,
+      "discountedRetailPrice": 0,
+      "traderPrice": 0,
+      "stores": 4,
+      "maxQuantity": 0,
+      "maxQuantityByStores": 0
+    }
+  },
+  {
+    "sku": "946534",
+    "response_size": 224784,
+    "product_id": "2557",
+    "product_url": null,
+    "container_found": false,
+    "container_size": 0,
+    "keywords": {
+      "variant": 4,
+      "variants": 0,
+      "quantity": 18,
+      "price": 34,
+      "discountedPrice": 0,
+      "discountedRetailPrice": 0,
+      "traderPrice": 0,
+      "stores": 4,
+      "maxQuantity": 0,
+      "maxQuantityByStores": 0
+    }
+  },
+  {
+    "sku": "946535",
+    "response_size": 224784,
+    "product_id": "2557",
+    "product_url": null,
+    "container_found": false,
+    "container_size": 0,
+    "keywords": {
+      "variant": 4,
+      "variants": 0,
+      "quantity": 18,
+      "price": 34,
+      "discountedPrice": 0,
+      "discountedRetailPrice": 0,
+      "traderPrice": 0,
+      "stores": 4,
+      "maxQuantity": 0,
+      "maxQuantityByStores": 0
+    }
+  }
+]

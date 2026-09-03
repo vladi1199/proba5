@@ -1,0 +1,32 @@
+{
+  "sku": "946537",
+  "container_size": 2539,
+  "data_attributes": 10,
+  "hrefs": [
+    "/Muhi-za-buldo-bz",
+    "/Muhi-za-buldo-bz"
+  ],
+  "images": [
+    "https://filstar.com/media/cache/products_list/images/originals/products/946537_Flies_C_type_Ni_1_-20220223114652-326.jpg",
+    "/build/images/icons/more_colors.svg"
+  ],
+  "variant_occurrences": 1,
+  "quantity_occurrences": 0,
+  "price_occurrences": 2,
+  "variant_ids_found": [],
+  "known_skus_found": [
+    "946537"
+  ],
+  "contains_barcode": false,
+  "numbers": [
+    "2557",
+    "1",
+    "2",
+    "3.89",
+    "1.99",
+    "20220223114652",
+    "326",
+    "3",
+    "6"
+  ]
+}

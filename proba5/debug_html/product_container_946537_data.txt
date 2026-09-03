@@ -1,18 +1,10 @@
-impression impression-click
-2557
-Комплект мухи за булдо FilStar тип C
-Мухарски риболов
-Комплект мухи за булдо FilStar тип C
-Filstar
-SearchPage
-1
-click->impression-click#manageClickImpression
-click->impression-click#manageClickImpression
-impression impression-click
-2557
-Комплект мухи за булдо FilStar тип C
-Мухарски риболов
-Комплект мухи за булдо FilStar тип C
-Filstar
-SearchPage
-1
+data-controller = impression impression-click
+data-product-id = 2557
+data-product-name = Комплект мухи за булдо FilStar тип C
+data-product-category = Мухарски риболов
+data-product-variant = Комплект мухи за булдо FilStar тип C
+data-product-brand = Filstar
+data-list = SearchPage
+data-position = 1
+data-action = click->impression-click#manageClickImpression
+data-action = click->impression-click#manageClickImpression

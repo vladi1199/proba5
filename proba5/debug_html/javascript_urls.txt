@@ -1,6 +1,0 @@
-https://www.googletagmanager.com/gtag/js?id=UA-36261628-1
-https://filstar.com/build/runtime.d94b3b43.js
-https://filstar.com/build/0.eab9a25b.js
-https://filstar.com/build/2.894e9701.js
-https://filstar.com/build/app.6298546b.js
-https://static.cloudflareinsights.com/beacon.min.js/v3d52b47920f24c319d37e2661827c42b1787588026925
