@@ -1,7 +1,6 @@
 import csv
-import json
-import time
 import re
+import time
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
@@ -13,27 +12,85 @@ INPUT_FILE = "sku_list_filstar.csv"
 OUTPUT_FILE = "results_filstar.csv"
 NOT_FOUND_FILE = "not_found_filstar.csv"
 
-WAIT = 2
+# За тестове е 0.
+# По-късно може да го направим 1-2 секунди.
+WAIT = 0
 
+
+# ============================================================
+# ЧЕТЕНЕ НА SKU
+#
+# Правило:
+#
+# SKU
+# 946537
+# 946534
+# ##
+# 946535
+# 946536
+# ##
+#
+# Всичко между две ## линии се игнорира.
+#
+# Това позволява временно да изключваме големи групи SKU.
+# ============================================================
 
 def read_skus():
+
     skus = []
 
-    with open(INPUT_FILE, "r", encoding="utf-8-sig", newline="") as f:
-        reader = csv.DictReader(f)
+    in_comment_block = False
 
-        sku_column = None
+    with open(
+        INPUT_FILE,
+        "r",
+        encoding="utf-8-sig",
+        newline=""
+    ) as f:
 
-        for column in reader.fieldnames or []:
-            if column.strip().lower() == "sku":
-                sku_column = column
-                break
-
-        if not sku_column:
-            raise RuntimeError("Няма колона SKU в CSV файла.")
+        reader = csv.reader(f)
 
         for row in reader:
-            sku = str(row.get(sku_column, "")).strip()
+
+            if not row:
+                continue
+
+            first = str(
+                row[0]
+            ).strip()
+
+            # Празен ред
+            if not first:
+                continue
+
+            # ------------------------------------------------
+            # ## включва/изключва коментарния блок
+            # ------------------------------------------------
+
+            if first == "##":
+
+                in_comment_block = not in_comment_block
+                continue
+
+            # ------------------------------------------------
+            # Всичко вътре в ## ... ## се пропуска
+            # ------------------------------------------------
+
+            if in_comment_block:
+                continue
+
+            # ------------------------------------------------
+            # Header
+            # ------------------------------------------------
+
+            if first.lower() == "sku":
+                continue
+
+            # ------------------------------------------------
+            # Взимаме само първата колона
+            # ------------------------------------------------
+
+            sku = first.strip()
 
             if sku:
                 skus.append(sku)
@@ -41,232 +98,585 @@ def read_skus():
     return skus
 
 
-def find_product_id(page, sku):
-    """
-    Използваме вече доказания /api/search.
-    От него ни трябва само parent product ID.
-    """
+# ============================================================
+# FIND PRODUCT ID
+#
+# /api/search е достъпен и го използваме само за намиране
+# на parent product ID.
+#
+# Например:
+#
+# SKU 946537
+#       ↓
+# product_id 2557
+# ============================================================
 
-    url = f"{BASE_URL}/api/search?term={sku}"
+def find_product_id(page, sku):
+
+    url = (
+        f"{BASE_URL}/api/search"
+        f"?term={sku}"
+    )
 
     try:
-        response = page.request.get(url, timeout=30000)
 
-        if response.status != 200:
-            print(f"   ❌ /api/search HTTP {response.status}")
-            return None
-
-        html = response.text()
-
-        # data-product-id="2557"
-        pattern = (
-            r'data-product-id=["\'](\d+)["\']'
+        response = page.request.get(
+            url,
+            timeout=30000
         )
 
-        ids = re.findall(pattern, html)
-
-        if not ids:
-            return None
-
-        # Запазваме първия product ID.
-        return ids[0]
-
-    except Exception as e:
-        print(f"   ❌ Грешка при /api/search: {e}")
-        return None
-
-
-def extract_variants_from_vue(page):
-    """
-    Това е ключовата част.
-
-    В браузъра намираме Vue компонента, който вече установихме
-    от Console, и взимаме:
-
-        __vue__.product.variants
-
-    Не правим нов API parser.
-    Не измисляме структура.
-    Използваме реалния Vue state.
-    """
-
-    result = page.evaluate("""
-    () => {
-
-        const elements = document.querySelectorAll("*");
-
-        for (const el of elements) {
-
-            const vue = el.__vue__;
-
-            if (!vue) {
-                continue;
-            }
-
-            // Това е компонентът, който намерихме
-            // при диагностиката.
-            if (
-                vue.product &&
-                Array.isArray(vue.product.variants)
-            ) {
-
-                return vue.product.variants.map(v => ({
-                    id: v.id ?? null,
-                    sku: v.sku ?? null,
-                    quantity: v.quantity ?? 0,
-                    price: v.price ?? null,
-                    discountedPrice: v.discountedPrice ?? null,
-                    discountedRetailPrice:
-                        v.discountedRetailPrice ?? null,
-                    barcode: v.barcode ?? null,
-                    stores: Array.isArray(v.stores)
-                        ? v.stores.map(s => ({
-                            id: s.id ?? null,
-                            name: s.name ?? null,
-                            quantity: s.quantity ?? 0
-                        }))
-                        : []
-                }));
-            }
-        }
-
-        return null;
-    }
-    """)
-
-    return result
-
-
-def load_product_and_variants(page, product_id):
-    """
-    Зареждаме реалната продуктова страница.
-
-    Vue на страницата сам извиква:
-        /get-serialize-product/{product_id}
-
-    След като Vue приключи, четем:
-        __vue__.product.variants
-    """
-
-    url = f"{BASE_URL}/get-product/{product_id}"
-
-    # Не разчитаме на URL-а да е точно този.
-    # Първо отваряме продуктовата страница през API HTML-а,
-    # като взимаме реалния href.
-    return None
-
-
-def find_product_url(page, product_id, sku):
-    """
-    Намираме реалния URL на продукта от /api/search.
-    """
-
-    url = f"{BASE_URL}/api/search?term={sku}"
-
-    try:
-        response = page.request.get(url, timeout=30000)
+        print(
+            f"   /api/search -> "
+            f"HTTP {response.status}"
+        )
 
         if response.status != 200:
             return None
 
         html = response.text()
 
-        # Намираме всички href към продуктови страници.
+        # Търсим:
+        #
+        # data-product-id="2557"
+        #
+
         matches = re.findall(
-            r'href=["\']([^"\']+)["\']',
+            r'data-product-id=["\'](\d+)["\']',
             html
         )
 
-        for href in matches:
+        if not matches:
+            return None
 
+        # Премахваме дублиращите се ID-та,
+        # като запазваме реда.
+        unique_ids = list(
+            dict.fromkeys(matches)
+        )
+
+        # Ако има няколко продукта,
+        # търсим този, в чийто HTML има SKU.
+        for product_id in unique_ids:
+
+            pattern = (
+                rf'data-product-id=["\']'
+                rf'{re.escape(product_id)}'
+                rf'["\']'
+                rf'[^>]*'
+            )
+
+            product_match = re.search(
+                pattern,
+                html,
+                re.IGNORECASE
+            )
+
+            if product_match:
+
+                # Взимаме малко по-голям контекст
+                # около product card-а.
+                start = max(
+                    0,
+                    product_match.start() - 500
+                )
+
+                end = min(
+                    len(html),
+                    product_match.end() + 5000
+                )
+
+                context = html[
+                    start:end
+                ]
+
+                if sku in context:
+                    return product_id
+
+        # При нашия тест /api/search обикновено
+        # връща правилния product като първи.
+        return unique_ids[0]
+
+    except Exception as e:
+
+        print(
+            f"   ❌ Грешка при /api/search: {e}"
+        )
+
+        return None
+
+
+# ============================================================
+# FIND PRODUCT URL
+#
+# От /api/search намираме реалния href на продукта.
+#
+# Например:
+#
+# /Muhi-za-buldo-bz
+# ============================================================
+
+def find_product_url(page, sku):
+
+    url = (
+        f"{BASE_URL}/api/search"
+        f"?term={sku}"
+    )
+
+    try:
+
+        response = page.request.get(
+            url,
+            timeout=30000
+        )
+
+        if response.status != 200:
+            return None
+
+        html = response.text
+
+        # ----------------------------------------------------
+        # Търсим href.
+        # ----------------------------------------------------
+
+        hrefs = re.findall(
+            r'href=["\']([^"\']+)["\']',
+            html,
+            re.IGNORECASE
+        )
+
+        for href in hrefs:
+
+            href = href.strip()
+
+            if not href:
+                continue
+
+            # Вътрешен URL
             if href.startswith("/"):
-                full = BASE_URL + href
-            elif href.startswith("http"):
-                full = href
+                full_url = (
+                    BASE_URL + href
+                )
+
+            # Пълен URL
+            elif href.startswith(
+                "http://"
+            ) or href.startswith(
+                "https://"
+            ):
+                full_url = href
+
             else:
                 continue
 
-            # Изключваме технически URL-и.
+            # ------------------------------------------------
+            # Игнорираме технически URL-и.
+            # ------------------------------------------------
+
             if (
-                "/search" in full
-                or "/cart" in full
-                or "/login" in full
-                or "/register" in full
+                "/search" in full_url
+                or "/cart" in full_url
+                or "/login" in full_url
+                or "/register" in full_url
+                or "/account" in full_url
             ):
                 continue
 
-            return full
+            # ------------------------------------------------
+            # Това трябва да е продуктовият URL.
+            # ------------------------------------------------
+
+            return full_url
 
         return None
 
     except Exception as e:
-        print(f"   ❌ Грешка при намиране на URL: {e}")
+
+        print(
+            f"   ❌ Грешка при URL: {e}"
+        )
+
         return None
 
 
-def get_variant(variants, sku):
+# ============================================================
+# ЧЕТЕМ VUE PRODUCT.VARIANTS
+#
+# Това е най-важната част.
+#
+# В Console установихме:
+#
+# document.querySelectorAll("*")[544].__vue__
+#
+# и:
+#
+# v.product
+# v.product.variants
+#
+# Тук НЕ правим API parser на variant JSON.
+#
+# Оставяме страницата да зареди Vue и директно четем
+# неговия state от DOM.
+# ============================================================
 
-    sku = str(sku).strip()
+def extract_variants_from_vue(page):
+
+    variants = page.evaluate(
+        """
+        () => {
+
+            const elements =
+                document.querySelectorAll("*");
+
+            for (const el of elements) {
+
+                const vue = el.__vue__;
+
+                if (!vue) {
+                    continue;
+                }
+
+                // Точно това търсихме в Console:
+                //
+                // v.product
+                // v.product.variants
+                //
+
+                if (
+                    vue.product &&
+                    Array.isArray(
+                        vue.product.variants
+                    )
+                ) {
+
+                    return vue.product.variants.map(
+                        v => ({
+
+                            id:
+                                v.id ?? null,
+
+                            sku:
+                                v.sku ?? null,
+
+                            quantity:
+                                v.quantity ?? 0,
+
+                            price:
+                                v.price ?? null,
+
+                            discountedPrice:
+                                v.discountedPrice ?? null,
+
+                            discountedRetailPrice:
+                                v.discountedRetailPrice ?? null,
+
+                            barcode:
+                                v.barcode ?? null,
+
+                            stores:
+                                Array.isArray(v.stores)
+                                    ? v.stores.map(
+                                        s => ({
+                                            id:
+                                                s.id ?? null,
+
+                                            name:
+                                                s.name ?? null,
+
+                                            quantity:
+                                                s.quantity ?? 0
+                                        })
+                                    )
+                                    : []
+                        })
+                    );
+                }
+            }
+
+            return null;
+        }
+        """
+    )
+
+    return variants
+
+
+# ============================================================
+# WAIT FOR VUE
+#
+# Vue може да не е зареден веднага.
+# Проверяваме многократно, но не чакаме излишно.
+# ============================================================
+
+def wait_for_vue_variants(page):
+
+    for attempt in range(15):
+
+        variants = (
+            extract_variants_from_vue(
+                page
+            )
+        )
+
+        if variants:
+            return variants
+
+        # 500 ms между проверките
+        page.wait_for_timeout(500)
+
+    return None
+
+
+# ============================================================
+# FIND VARIANT BY SKU
+#
+# Това е еквивалентът на Vue кода:
+#
+# this.variants.filter(
+#     t => t.sku === u
+# )[0]
+# ============================================================
+
+def find_variant(
+    variants,
+    sku
+):
+
+    sku = str(
+        sku
+    ).strip()
 
     for variant in variants:
 
-        if str(variant.get("sku", "")).strip() == sku:
+        variant_sku = str(
+            variant.get(
+                "sku",
+                ""
+            )
+        ).strip()
+
+        if variant_sku == sku:
             return variant
 
     return None
 
 
+# ============================================================
+# PRICE
+#
+# Използваме normal price.
+#
+# Ако няма price, имаме fallback към discountedPrice.
+# ============================================================
+
 def get_price(variant):
 
-    value = variant.get("price")
+    value = variant.get(
+        "price"
+    )
 
     if value is None:
-        value = variant.get("discountedPrice")
+        value = variant.get(
+            "discountedPrice"
+        )
 
     if value is None:
-        value = variant.get("discountedRetailPrice")
+        value = variant.get(
+            "discountedRetailPrice"
+        )
 
     if value is None:
         return ""
 
     try:
+
         return f"{float(value):.2f}"
+
     except Exception:
+
         return str(value)
 
 
-def get_store_quantity(variant, store_name):
+# ============================================================
+# QUANTITY
+# ============================================================
 
-    for store in variant.get("stores", []):
+def get_quantity(variant):
+
+    value = variant.get(
+        "quantity",
+        0
+    )
+
+    try:
+
+        return int(value)
+
+    except Exception:
+
+        try:
+            return int(
+                float(value)
+            )
+
+        except Exception:
+            return 0
+
+
+# ============================================================
+# STORE QUANTITY
+#
+# variant.stores
+# ============================================================
+
+def get_store_quantity(
+    variant,
+    wanted_store
+):
+
+    stores = variant.get(
+        "stores",
+        []
+    )
+
+    if not isinstance(
+        stores,
+        list
+    ):
+        return ""
+
+    for store in stores:
+
+        if not isinstance(
+            store,
+            dict
+        ):
+            continue
 
         name = str(
-            store.get("name", "")
+            store.get(
+                "name",
+                ""
+            )
         ).strip()
 
-        if name.lower() == store_name.lower():
+        if (
+            name.lower()
+            == wanted_store.lower()
+        ):
+
+            value = store.get(
+                "quantity",
+                0
+            )
 
             try:
-                return int(
-                    store.get("quantity", 0)
-                )
+                return int(value)
+
             except Exception:
                 return 0
 
     return ""
 
 
+# ============================================================
+# BUILD RESULT
+# ============================================================
+
+def build_result(
+    sku,
+    product_id,
+    variant
+):
+
+    quantity = get_quantity(
+        variant
+    )
+
+    price = get_price(
+        variant
+    )
+
+    barcode = str(
+        variant.get(
+            "barcode",
+            ""
+        )
+    ).strip()
+
+    plovdiv = get_store_quantity(
+        variant,
+        "Пловдив"
+    )
+
+    sofia = get_store_quantity(
+        variant,
+        "София"
+    )
+
+    if quantity > 0:
+        availability = "Наличен"
+    else:
+        availability = "Изчерпан"
+
+    return {
+
+        "SKU":
+            sku,
+
+        "Наличност":
+            availability,
+
+        "Бройки":
+            quantity,
+
+        "Цена":
+            price,
+
+        "Product ID":
+            product_id,
+
+        "Variant ID":
+            variant.get(
+                "id",
+                ""
+            ),
+
+        "Barcode":
+            barcode,
+
+        "Пловдив":
+            plovdiv,
+
+        "София":
+            sofia
+    }
+
+
+# ============================================================
+# SAVE RESULTS
+# ============================================================
+
 def save_results(results):
 
     fields = [
+
         "SKU",
+
         "Наличност",
+
         "Бройки",
+
         "Цена",
+
         "Product ID",
+
         "Variant ID",
+
         "Barcode",
+
         "Пловдив",
-        "София",
+
+        "София"
     ]
 
     with open(
@@ -282,10 +692,19 @@ def save_results(results):
         )
 
         writer.writeheader()
-        writer.writerows(results)
+
+        writer.writerows(
+            results
+        )
 
 
-def save_not_found(items):
+# ============================================================
+# SAVE NOT FOUND
+# ============================================================
+
+def save_not_found(
+    not_found
+):
 
     with open(
         NOT_FOUND_FILE,
@@ -295,54 +714,96 @@ def save_not_found(items):
     ) as f:
 
         writer = csv.writer(f)
-        writer.writerow(["SKU"])
 
-        for sku in items:
-            writer.writerow([sku])
+        writer.writerow(
+            ["SKU"]
+        )
 
+        for sku in not_found:
+
+            writer.writerow(
+                [sku]
+            )
+
+
+# ============================================================
+# MAIN
+# ============================================================
 
 def main():
 
     print()
-    print("=" * 60)
-    print(" FILSTAR CHECKER - BROWSER/VUE")
-    print("=" * 60)
+    print("=" * 70)
+    print(" FILSTAR CHECKER")
+    print(" BROWSER + VUE product.variants")
+    print("=" * 70)
     print()
 
     skus = read_skus()
 
-    print(f"🧾 Общо SKU: {len(skus)}")
+    print(
+        f"🧾 SKU за проверка: "
+        f"{len(skus)}"
+    )
+
     print()
 
+    if not skus:
+
+        print(
+            "❌ Няма SKU за обработка."
+        )
+
+        return
+
     results = []
+
     not_found = []
 
-    # Cache на product variants.
+    # --------------------------------------------------------
+    # Cache:
     #
-    # Един product може да има 6, 10, 20 и т.н. SKU.
-    # Зареждаме Vue само веднъж за всеки product.
+    # product_id -> variants
+    #
+    # Един продукт може да има много SKU.
+    # --------------------------------------------------------
+
     product_cache = {}
 
     with sync_playwright() as p:
+
+        print(
+            "🌐 Стартирам Chromium..."
+        )
 
         browser = p.chromium.launch(
             headless=True
         )
 
         context = browser.new_context(
+
             viewport={
                 "width": 1440,
                 "height": 1000
             },
+
             locale="bg-BG",
+
             user_agent=(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/131.0.0.0 Safari/537.36"
+                "Mozilla/5.0 "
+                "(Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 "
+                "(KHTML, like Gecko) "
+                "Chrome/131.0.0.0 "
+                "Safari/537.36"
             )
         )
 
         page = context.new_page()
+
+        # ----------------------------------------------------
+        # Обработваме SKU
+        # ----------------------------------------------------
 
         for index, sku in enumerate(
             skus,
@@ -351,12 +812,12 @@ def main():
 
             print(
                 f"[{index}/{len(skus)}] "
-                f"SKU: {sku}"
+                f"🔎 {sku}"
             )
 
-            # ------------------------------------------------
-            # 1. Product ID
-            # ------------------------------------------------
+            # =================================================
+            # 1. PRODUCT ID
+            # =================================================
 
             product_id = find_product_id(
                 page,
@@ -369,19 +830,20 @@ def main():
                     "   ❌ Product ID не е намерен."
                 )
 
-                not_found.append(sku)
+                not_found.append(
+                    sku
+                )
 
-                time.sleep(WAIT)
                 continue
 
             print(
-                f"   📦 Product ID: {product_id}"
+                f"   📦 Product ID: "
+                f"{product_id}"
             )
 
-            # ------------------------------------------------
-            # 2. Ако product вече е зареден,
-            #    използваме кеша.
-            # ------------------------------------------------
+            # =================================================
+            # 2. ПРОВЕРЯВАМЕ CACHE
+            # =================================================
 
             if product_id in product_cache:
 
@@ -390,19 +852,18 @@ def main():
                 ]
 
                 print(
-                    f"   ♻️ Cache: "
+                    f"   ♻️ Cache → "
                     f"{len(variants)} variants"
                 )
 
             else:
 
-                # ------------------------------------------------
-                # Намираме реалния URL на продукта.
-                # ------------------------------------------------
+                # =============================================
+                # 3. PRODUCT URL
+                # =============================================
 
                 product_url = find_product_url(
                     page,
-                    product_id,
                     sku
                 )
 
@@ -412,18 +873,19 @@ def main():
                         "   ❌ Product URL не е намерен."
                     )
 
-                    not_found.append(sku)
+                    not_found.append(
+                        sku
+                    )
 
-                    time.sleep(WAIT)
                     continue
 
                 print(
                     f"   🌐 {product_url}"
                 )
 
-                # ------------------------------------------------
-                # Зареждаме страницата през Chromium.
-                # ------------------------------------------------
+                # =============================================
+                # 4. ОТВАРЯМЕ СТРАНИЦАТА
+                # =============================================
 
                 try:
 
@@ -433,44 +895,42 @@ def main():
                         timeout=60000
                     )
 
-                    # Vue трябва да има време да изпълни
-                    # AddToCart.js и да зареди product.
-                    page.wait_for_timeout(3000)
-
                 except PlaywrightTimeoutError:
 
                     print(
-                        "   ⚠️ Page timeout - проверявам "
-                        "дали Vue все пак е зареден."
+                        "   ⚠️ Page timeout."
                     )
 
-                # ------------------------------------------------
-                # Изчакваме product.variants.
-                # ------------------------------------------------
+                # =============================================
+                # 5. ЧАКАМЕ VUE
+                # =============================================
 
-                variants = None
+                print(
+                    "   ⏳ Чакам Vue..."
+                )
 
-                for attempt in range(15):
-
-                    variants = extract_variants_from_vue(
+                variants = (
+                    wait_for_vue_variants(
                         page
                     )
+                )
 
-                    if variants:
-
-                        break
-
-                    page.wait_for_timeout(1000)
+                # =============================================
+                # 6. АКО НЯМА VUE
+                # =============================================
 
                 if not variants:
 
                     print(
-                        "   ❌ Vue product.variants "
-                        "не беше намерен."
+                        "   ❌ Не намерих "
+                        "Vue product.variants."
                     )
 
-                    # Запазваме HTML за диагностика,
-                    # само ако не е успяло.
+                    # ------------------------------------------------
+                    # Debug screenshot + HTML
+                    # само при грешка
+                    # ------------------------------------------------
+
                     try:
 
                         debug_dir = Path(
@@ -503,25 +963,30 @@ def main():
                     except Exception:
                         pass
 
-                    not_found.append(sku)
+                    not_found.append(
+                        sku
+                    )
 
-                    time.sleep(WAIT)
                     continue
+
+                # =============================================
+                # 7. CACHE
+                # =============================================
 
                 product_cache[
                     product_id
                 ] = variants
 
                 print(
-                    f"   🔢 Vue variants: "
+                    f"   🔢 Намерени variants: "
                     f"{len(variants)}"
                 )
 
-            # ------------------------------------------------
-            # 3. Намираме конкретния SKU
-            # ------------------------------------------------
+            # =================================================
+            # 8. НАМИРАМЕ SKU В VARIANTS
+            # =================================================
 
-            variant = get_variant(
+            variant = find_variant(
                 variants,
                 sku
             )
@@ -529,110 +994,115 @@ def main():
             if not variant:
 
                 print(
-                    "   ❌ SKU не е намерен "
+                    "   ❌ SKU не съществува "
                     "в product.variants."
                 )
 
-                not_found.append(sku)
+                not_found.append(
+                    sku
+                )
 
-                time.sleep(WAIT)
                 continue
 
-            # ------------------------------------------------
-            # 4. Реалните данни от Vue
-            # ------------------------------------------------
+            # =================================================
+            # 9. ИЗВЛИЧАМЕ ДАННИТЕ
+            # =================================================
 
-            try:
-                quantity = int(
-                    variant.get(
-                        "quantity",
-                        0
-                    )
-                )
-            except Exception:
-                quantity = 0
-
-            price = get_price(
+            result = build_result(
+                sku,
+                product_id,
                 variant
             )
 
-            barcode = variant.get(
-                "barcode",
-                ""
-            )
-
-            plovdiv = get_store_quantity(
-                variant,
-                "Пловдив"
-            )
-
-            sofia = get_store_quantity(
-                variant,
-                "София"
-            )
-
-            availability = (
-                "Наличен"
-                if quantity > 0
-                else "Изчерпан"
-            )
-
-            result = {
-                "SKU": sku,
-                "Наличност": availability,
-                "Бройки": quantity,
-                "Цена": price,
-                "Product ID": product_id,
-                "Variant ID": variant.get(
-                    "id",
-                    ""
-                ),
-                "Barcode": barcode,
-                "Пловдив": plovdiv,
-                "София": sofia,
-            }
-
-            results.append(result)
-
-            print(
-                f"   ✅ Variant ID: {result['Variant ID']}"
+            results.append(
+                result
             )
 
             print(
-                f"   📦 Бройки: {quantity}"
+                f"   ✅ Variant ID: "
+                f"{result['Variant ID']}"
             )
 
             print(
-                f"   💰 Цена: {price}"
+                f"   📦 Бройки: "
+                f"{result['Бройки']}"
             )
 
             print(
-                f"   🏬 Пловдив: {plovdiv}"
+                f"   💰 Цена: "
+                f"{result['Цена']}"
             )
 
             print(
-                f"   🏬 София: {sofia}"
+                f"   🏬 Пловдив: "
+                f"{result['Пловдив']}"
+            )
+
+            print(
+                f"   🏬 София: "
+                f"{result['София']}"
             )
 
             print()
 
-            time.sleep(WAIT)
+            if WAIT > 0:
+                time.sleep(WAIT)
+
+        # ----------------------------------------------------
+        # Browser close
+        # ----------------------------------------------------
 
         browser.close()
 
-    save_results(results)
-    save_not_found(not_found)
+    # ========================================================
+    # SAVE
+    # ========================================================
+
+    save_results(
+        results
+    )
+
+    save_not_found(
+        not_found
+    )
+
+    # ========================================================
+    # SUMMARY
+    # ========================================================
 
     print()
-    print("=" * 60)
+    print("=" * 70)
     print(" ГОТОВО")
-    print("=" * 60)
+    print("=" * 70)
     print()
-    print(f"✅ Успешни: {len(results)}")
-    print(f"❌ Ненамерени: {len(not_found)}")
+
+    print(
+        f"✅ Успешни: "
+        f"{len(results)}"
+    )
+
+    print(
+        f"❌ Ненамерени: "
+        f"{len(not_found)}"
+    )
+
+    print(
+        f"📦 Заредени продукти: "
+        f"{len(product_cache)}"
+    )
+
     print()
-    print(f"📄 {OUTPUT_FILE}")
-    print(f"📄 {NOT_FOUND_FILE}")
+
+    print(
+        f"📄 Резултати: "
+        f"{OUTPUT_FILE}"
+    )
+
+    print(
+        f"📄 Ненамерени: "
+        f"{NOT_FOUND_FILE}"
+    )
+
     print()
 
 
