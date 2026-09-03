@@ -1,10 +1,20 @@
 import os
 import re
 import json
+import html
+import csv
 import requests
+from bs4 import BeautifulSoup
 
 BASE_URL = "https://filstar.com"
+CSV_FILE = "sku_list_filstar.csv"
 DEBUG_DIR = "debug_html"
+
+TEST_SKUS = [
+    "946537",
+    "946534",
+    "946535",
+]
 
 HEADERS = {
     "User-Agent": (
@@ -12,36 +22,18 @@ HEADERS = {
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/131.0.0.0 Safari/537.36"
     ),
-    "Accept": "*/*",
+    "Accept": (
+        "text/html,application/xhtml+xml,application/xml;"
+        "q=0.9,image/avif,image/webp,*/*;q=0.8"
+    ),
     "Accept-Language": "bg-BG,bg;q=0.9,en-US;q=0.8,en;q=0.7",
     "Connection": "keep-alive",
 }
 
-JS_FILES = [
-    "/build/runtime.d94b3b43.js",
-    "/build/0.eab9a25b.js",
-    "/build/2.894e9701.js",
-    "/build/app.6298546b.js",
-]
 
-SEARCH_TERMS = [
-    "search-json-typesense",
-    "/api/search",
-    "get-serialize-product",
-    "serialize",
-    "variants",
-    "defaultVariant",
-    "quantity",
-    "discountedPrice",
-    "productId",
-    "variantId",
-    "sku",
-    "barcode",
-    "stores",
-    "add-variant-to-cart",
-    "search-autocomplete",
-]
-
+# ============================================================
+# SAVE
+# ============================================================
 
 def save_text(filename, content):
     os.makedirs(DEBUG_DIR, exist_ok=True)
@@ -54,364 +46,607 @@ def save_text(filename, content):
     return path
 
 
-def search_terms_in_text(text):
-    found = {}
+# ============================================================
+# EXACT OCCURRENCES
+# ============================================================
 
-    lower = text.lower()
+def find_occurrences(text, sku):
+    positions = []
 
-    for term in SEARCH_TERMS:
-        positions = []
+    start = 0
 
-        start = 0
+    while True:
+        pos = text.find(sku, start)
 
-        while True:
-            pos = lower.find(term.lower(), start)
+        if pos == -1:
+            break
 
-            if pos == -1:
-                break
+        positions.append(pos)
+        start = pos + len(sku)
 
-            positions.append(pos)
-            start = pos + len(term)
-
-        if positions:
-            found[term] = positions
-
-    return found
+    return positions
 
 
-def extract_context(text, position, radius=1500):
-    start = max(0, position - radius)
-    end = min(len(text), position + radius)
+# ============================================================
+# TAG AROUND SKU
+# ============================================================
 
-    return text[start:end]
+def get_tag(text, position):
+    left = text.rfind("<", 0, position)
+    right = text.find(">", position)
+
+    if left == -1 or right == -1:
+        return ""
+
+    tag = text[left:right + 1]
+
+    if len(tag) > 5000:
+        tag = tag[:5000] + "\n...[TRUNCATED]..."
+
+    return tag
 
 
-def inspect_source_map(session, js_url):
-    map_url = js_url + ".map"
+# ============================================================
+# ATTRIBUTES
+# ============================================================
 
-    print()
-    print("-" * 70)
-    print("SOURCE MAP")
-    print("-" * 70)
+def extract_attributes(tag):
+    result = {}
 
-    print(f"URL: {map_url}")
-
-    try:
-        response = session.get(
-            map_url,
-            headers=HEADERS,
-            timeout=30
-        )
-
-        print(
-            f"HTTP: {response.status_code}"
-        )
-
-        print(
-            f"Content-Type: "
-            f"{response.headers.get('Content-Type', '')}"
-        )
-
-        print(
-            f"Size: {len(response.content):,} bytes"
-        )
-
-    except Exception as e:
-        print(f"❌ ERROR: {e}")
-        return
-
-    if response.status_code != 200:
-        print("❌ Source map is not accessible.")
-        return
-
-    content = response.text
-
-    save_text(
-        os.path.basename(map_url),
-        content
+    match = re.match(
+        r"<\s*([a-zA-Z0-9:_-]+)",
+        tag
     )
 
-    print("✅ Source map accessible!")
+    if match:
+        result["_tag"] = match.group(1)
 
-    # --------------------------------------------------------
-    # Try JSON
-    # --------------------------------------------------------
+    attributes = re.findall(
+        r'([a-zA-Z_:][a-zA-Z0-9_:.-]*)\s*=\s*["\']([^"\']*)["\']',
+        tag
+    )
 
-    try:
-        data = response.json()
+    for key, value in attributes:
+        result[key] = html.unescape(value)
 
-        print()
-        print("JSON source map detected.")
+    return result
 
-        print(
-            f"Version: {data.get('version')}"
+
+# ============================================================
+# PRODUCT CONTAINERS
+# ============================================================
+
+def find_product_containers(source):
+    """
+    Намира product-item-wapper блоков.
+    """
+
+    pattern = re.compile(
+        r'<div\b[^>]*class\s*=\s*["\'][^"\']*product-item-wapper[^"\']*["\'][^>]*>',
+        re.I
+    )
+
+    containers = []
+
+    for match in pattern.finditer(source):
+
+        start = match.start()
+        opening_tag = match.group(0)
+
+        depth = 0
+        pos = start
+
+        tag_pattern = re.compile(
+            r"</?div\b[^>]*>",
+            re.I
         )
 
-        print(
-            f"Sources: "
-            f"{len(data.get('sources', []))}"
-        )
+        for tag_match in tag_pattern.finditer(
+            source,
+            start
+        ):
 
-        print(
-            f"SourcesContent: "
-            f"{len(data.get('sourcesContent', []))}"
-        )
+            tag = tag_match.group(0)
 
-        print()
-
-        sources = data.get("sources", [])
-        sources_content = data.get("sourcesContent", [])
-
-        for i, source_name in enumerate(sources):
-
-            source_content = ""
-
-            if i < len(sources_content):
-                source_content = (
-                    sources_content[i] or ""
-                )
-
-            combined = (
-                source_name
-                + "\n"
-                + source_content
-            )
-
-            found = search_terms_in_text(
-                combined
-            )
-
-            if not found:
-                continue
-
-            print()
-            print(
-                "=" * 70
-            )
-
-            print(
-                f"SOURCE #{i + 1}: {source_name}"
-            )
-
-            print(
-                "=" * 70
-            )
-
-            for term, positions in found.items():
-
-                print(
-                    f"   🔎 {term}: "
-                    f"{len(positions)} occurrence(s)"
-                )
-
-                # максимум 10 контекста
-                for occurrence, pos in enumerate(
-                    positions[:10],
-                    start=1
-                ):
-
-                    context = extract_context(
-                        combined,
-                        pos,
-                        radius=1200
-                    )
-
-                    print()
-                    print(
-                        f"   --- {term} #{occurrence} ---"
-                    )
-
-                    print(context)
-
-                    save_text(
-                        (
-                            f"map_source_{i + 1}_"
-                            f"{term.replace('/', '_')}_"
-                            f"{occurrence}.txt"
-                        ),
-                        context
-                    )
-
-        # ----------------------------------------------------
-        # Also inspect entire source map
-        # ----------------------------------------------------
-
-        found = search_terms_in_text(
-            content
-        )
-
-        print()
-        print(
-            "=" * 70
-        )
-
-        print("WHOLE SOURCE MAP SEARCH")
-        print(
-            "=" * 70
-        )
-
-        for term, positions in found.items():
-
-            print(
-                f"   {term}: "
-                f"{len(positions)} occurrence(s)"
-            )
-
-    except Exception as e:
-
-        print(
-            f"⚠️ Не е валиден стандартен JSON source map: {e}"
-        )
-
-        # ----------------------------------------------------
-        # Raw text search
-        # ----------------------------------------------------
-
-        found = search_terms_in_text(
-            content
-        )
-
-        for term, positions in found.items():
-
-            print()
-            print(
-                f"🔎 {term}: "
-                f"{len(positions)} occurrence(s)"
-            )
-
-            for occurrence, pos in enumerate(
-                positions[:10],
-                start=1
+            if re.match(
+                r"<div\b",
+                tag,
+                re.I
             ):
+                depth += 1
 
-                context = extract_context(
-                    content,
-                    pos,
-                    radius=1500
-                )
+            elif re.match(
+                r"</div",
+                tag,
+                re.I
+            ):
+                depth -= 1
 
-                print()
-                print(
-                    f"--- {term} #{occurrence} ---"
-                )
+                if depth == 0:
 
-                print(context)
+                    end = tag_match.end()
+
+                    containers.append({
+                        "start": start,
+                        "end": end,
+                        "html": source[start:end],
+                        "opening_tag": opening_tag
+                    })
+
+                    break
+
+    return containers
 
 
-def inspect_js(session, js_url):
+# ============================================================
+# PRODUCT CONTAINER ANALYSIS
+# ============================================================
+
+def analyze_product_containers(source, sku):
+
+    print()
+    print("=" * 60)
+    print("PRODUCT CONTAINERS")
+    print("=" * 60)
+
+    containers = find_product_containers(source)
+
+    print(
+        f"Product containers: {len(containers)}"
+    )
+
+    output = []
+
+    for index, container in enumerate(
+        containers,
+        start=1
+    ):
+
+        container_html = container["html"]
+
+        print()
+        print(
+            f"Container #{index}"
+        )
+
+        print(
+            f"Size: {len(container_html):,} bytes"
+        )
+
+        attrs = extract_attributes(
+            container["opening_tag"]
+        )
+
+        print(
+            f"Product ID: "
+            f"{attrs.get('data-product-id', 'N/A')}"
+        )
+
+        print(
+            f"Product name: "
+            f"{attrs.get('data-product-name', 'N/A')}"
+        )
+
+        print(
+            f"Product variant: "
+            f"{attrs.get('data-product-variant', 'N/A')}"
+        )
+
+        print(
+            f"Category: "
+            f"{attrs.get('data-product-category', 'N/A')}"
+        )
+
+        # HREFs
+        hrefs = re.findall(
+            r'href\s*=\s*["\']([^"\']+)["\']',
+            container_html,
+            re.I
+        )
+
+        print(
+            f"HREFs: {hrefs[:10]}"
+        )
+
+        # Всички data-* атрибути
+        data_attrs = {}
+
+        for key, value in re.findall(
+            r'(data-[a-zA-Z0-9:_-]+)\s*=\s*["\']([^"\']*)["\']',
+            container_html
+        ):
+            data_attrs[key] = html.unescape(value)
+
+        print("Data attributes:")
+
+        for key, value in data_attrs.items():
+            print(
+                f"   {key} = {value}"
+            )
+
+        # SKU occurrences
+        occurrences = find_occurrences(
+            container_html,
+            sku
+        )
+
+        print(
+            f"SKU {sku} occurrences: "
+            f"{len(occurrences)}"
+        )
+
+        # price
+        price_matches = re.findall(
+            r'.{0,300}(?:price|цена).{0,500}',
+            container_html,
+            re.I | re.S
+        )
+
+        # quantity
+        quantity_matches = re.findall(
+            r'.{0,300}(?:quantity|количество|наличност).{0,500}',
+            container_html,
+            re.I | re.S
+        )
+
+        # variant
+        variant_matches = re.findall(
+            r'.{0,300}variant.{0,500}',
+            container_html,
+            re.I | re.S
+        )
+
+        output.append({
+            "container_number": index,
+            "size": len(container_html),
+            "attributes": attrs,
+            "data_attributes": data_attrs,
+            "hrefs": hrefs,
+            "sku_occurrences": occurrences,
+            "price_matches": price_matches,
+            "quantity_matches": quantity_matches,
+            "variant_matches": variant_matches,
+            "html": container_html
+        })
+
+        # ----------------------------------------------------
+        # SAVE CONTAINER
+        # ----------------------------------------------------
+
+        save_text(
+            f"search_{sku}_container_{index}.html",
+            container_html
+        )
+
+    return output
+
+
+# ============================================================
+# SKU CONTEXT
+# ============================================================
+
+def analyze_sku_occurrences(source, sku):
+
+    print()
+    print("=" * 60)
+    print(f"ALL SKU OCCURRENCES: {sku}")
+    print("=" * 60)
+
+    positions = find_occurrences(
+        source,
+        sku
+    )
+
+    print(
+        f"Exact occurrences: {len(positions)}"
+    )
+
+    output = []
+
+    for index, position in enumerate(
+        positions,
+        start=1
+    ):
+
+        tag = get_tag(
+            source,
+            position
+        )
+
+        attrs = extract_attributes(tag)
+
+        start = max(
+            0,
+            position - 2000
+        )
+
+        end = min(
+            len(source),
+            position + len(sku) + 2000
+        )
+
+        context = source[start:end]
+
+        print()
+        print(
+            f"#{index}"
+        )
+
+        print(
+            f"Position: {position:,}"
+        )
+
+        print(
+            f"Tag: {tag[:1000]}"
+        )
+
+        print(
+            f"Attributes: "
+            f"{json.dumps(attrs, ensure_ascii=False)}"
+        )
+
+        output.append({
+            "occurrence": index,
+            "position": position,
+            "tag": tag,
+            "attributes": attrs,
+            "context": context
+        })
+
+    # --------------------------------------------------------
+    # SAVE SUMMARY
+    # --------------------------------------------------------
+
+    summary = []
+
+    for item in output:
+
+        summary.append(
+            "=" * 100
+        )
+
+        summary.append(
+            f"OCCURRENCE #{item['occurrence']}"
+        )
+
+        summary.append(
+            f"Position: {item['position']}"
+        )
+
+        summary.append(
+            f"Tag:\n{item['tag']}"
+        )
+
+        summary.append(
+            "Attributes:"
+        )
+
+        summary.append(
+            json.dumps(
+                item["attributes"],
+                ensure_ascii=False,
+                indent=2
+            )
+        )
+
+        summary.append(
+            "Context:"
+        )
+
+        summary.append(
+            item["context"]
+        )
+
+        summary.append("")
+
+    save_text(
+        f"search_{sku}_occurrences.txt",
+        "\n".join(summary)
+    )
+
+    return output
+
+
+# ============================================================
+# SEARCH PAGE
+# ============================================================
+
+def test_search_page(session, sku):
+
     print()
     print("=" * 70)
-    print("JAVASCRIPT")
+    print(f"SEARCH PAGE: {sku}")
     print("=" * 70)
 
-    print(f"URL: {js_url}")
+    url = f"{BASE_URL}/search"
 
     try:
+
         response = session.get(
-            BASE_URL + js_url,
+            url,
+            params={"term": sku},
             headers=HEADERS,
             timeout=30
         )
 
-        print(
-            f"HTTP: {response.status_code}"
-        )
-
-        print(
-            f"Content-Type: "
-            f"{response.headers.get('Content-Type', '')}"
-        )
-
-        print(
-            f"Size: {len(response.content):,} bytes"
-        )
-
     except Exception as e:
-        print(f"❌ ERROR: {e}")
+
+        print(
+            f"❌ ERROR: {e}"
+        )
+
         return
 
-    # Записваме JS независимо дали е 200 или 403
-    filename = (
-        "js_"
-        + os.path.basename(js_url)
-        + ".txt"
+    print(
+        f"URL: {response.url}"
     )
+
+    print(
+        f"HTTP: {response.status_code}"
+    )
+
+    print(
+        f"Content-Type: "
+        f"{response.headers.get('Content-Type', '')}"
+    )
+
+    print(
+        f"Size: {len(response.content):,} bytes"
+    )
+
+    source = response.text
+
+    # --------------------------------------------------------
+    # SAVE RAW
+    # --------------------------------------------------------
+
+    raw_path = save_text(
+        f"search_page_{sku}.html",
+        source
+    )
+
+    print(
+        f"💾 Raw HTML: {raw_path}"
+    )
+
+    # --------------------------------------------------------
+    # SEARCH SKU
+    # --------------------------------------------------------
+
+    occurrences = analyze_sku_occurrences(
+        source,
+        sku
+    )
+
+    # --------------------------------------------------------
+    # PRODUCT CONTAINERS
+    # --------------------------------------------------------
+
+    containers = analyze_product_containers(
+        source,
+        sku
+    )
+
+    # --------------------------------------------------------
+    # GLOBAL KEYWORD SEARCH
+    # --------------------------------------------------------
+
+    print()
+    print("=" * 60)
+    print("GLOBAL KEYWORD SEARCH")
+    print("=" * 60)
+
+    keywords = [
+        "product-item-wapper",
+        "data-product-id",
+        "data-product-variant",
+        "quantity",
+        "price",
+        "variant",
+        "search-json-typesense",
+        "autocomplete",
+        "946537",
+        "946534",
+        "946535",
+    ]
+
+    keyword_summary = {}
+
+    lower_source = source.lower()
+
+    for keyword in keywords:
+
+        count = lower_source.count(
+            keyword.lower()
+        )
+
+        keyword_summary[keyword] = count
+
+        print(
+            f"{keyword}: {count}"
+        )
 
     save_text(
-        filename,
-        response.text
+        f"search_page_{sku}_keywords.json",
+        json.dumps(
+            keyword_summary,
+            ensure_ascii=False,
+            indent=2
+        )
     )
 
-    if response.status_code == 200:
+    # --------------------------------------------------------
+    # LOOK FOR ALL PRODUCT IDs
+    # --------------------------------------------------------
 
-        found = search_terms_in_text(
-            response.text
-        )
+    product_ids = re.findall(
+        r'data-product-id\s*=\s*["\']([^"\']+)["\']',
+        source,
+        re.I
+    )
 
-        if found:
+    print()
+    print(
+        "Product IDs:"
+    )
 
-            print()
-            print(
-                "Намерени термини:"
-            )
+    unique_product_ids = []
 
-            for term, positions in found.items():
+    for product_id in product_ids:
 
-                print(
-                    f"   🔎 {term}: "
-                    f"{len(positions)}"
-                )
+        if product_id not in unique_product_ids:
+            unique_product_ids.append(product_id)
 
-                for occurrence, pos in enumerate(
-                    positions[:5],
-                    start=1
-                ):
-
-                    context = extract_context(
-                        response.text,
-                        pos,
-                        radius=1000
-                    )
-
-                    save_text(
-                        (
-                            f"js_"
-                            f"{os.path.basename(js_url)}_"
-                            f"{term.replace('/', '_')}_"
-                            f"{occurrence}.txt"
-                        ),
-                        context
-                    )
-
-                    print(
-                        f"      Context #{occurrence} saved"
-                    )
-
-        else:
-            print(
-                "⚠️ JS е достъпен, но търсените "
-                "термини не са намерени."
-            )
-
-    else:
+    for product_id in unique_product_ids:
         print(
-            "❌ JS не е достъпен."
+            f"   {product_id}"
         )
 
-    # --------------------------------------------------------
-    # Source map
-    # --------------------------------------------------------
-
-    inspect_source_map(
-        session,
-        BASE_URL + js_url
+    save_text(
+        f"search_page_{sku}_product_ids.txt",
+        "\n".join(unique_product_ids)
     )
 
+    # --------------------------------------------------------
+    # LOOK FOR ALL HREFs TO PRODUCT
+    # --------------------------------------------------------
+
+    product_hrefs = []
+
+    for href in re.findall(
+        r'href\s*=\s*["\']([^"\']+)["\']',
+        source,
+        re.I
+    ):
+
+        if href not in product_hrefs:
+            product_hrefs.append(href)
+
+    relevant_hrefs = [
+        href
+        for href in product_hrefs
+        if href.startswith("/")
+    ]
+
+    save_text(
+        f"search_page_{sku}_hrefs.txt",
+        "\n".join(relevant_hrefs)
+    )
+
+    print()
+    print(
+        f"Internal HREFs: {len(relevant_hrefs)}"
+    )
+
+
+# ============================================================
+# MAIN
+# ============================================================
 
 def main():
 
     print("=" * 70)
-    print("FILSTAR JAVASCRIPT / SOURCE MAP DIAGNOSTIC")
+    print("FILSTAR /search?term=SKU DIAGNOSTIC")
     print("=" * 70)
 
     os.makedirs(
@@ -425,84 +660,23 @@ def main():
         HEADERS
     )
 
-    # --------------------------------------------------------
-    # Test every JS
-    # --------------------------------------------------------
-
-    for index, js_file in enumerate(
-        JS_FILES,
+    for index, sku in enumerate(
+        TEST_SKUS,
         start=1
     ):
 
         print()
+        print("=" * 70)
+
         print(
-            f"### JS {index}/{len(JS_FILES)} ###"
+            f"SKU {index}/{len(TEST_SKUS)}: {sku}"
         )
 
-        inspect_js(
+        print("=" * 70)
+
+        test_search_page(
             session,
-            js_file
-        )
-
-    # --------------------------------------------------------
-    # Try source maps directly one more time
-    # --------------------------------------------------------
-
-    print()
-    print("=" * 70)
-    print("DIRECT SOURCE MAP SUMMARY")
-    print("=" * 70)
-
-    accessible = []
-
-    for js_file in JS_FILES:
-
-        map_url = BASE_URL + js_file + ".map"
-
-        try:
-            response = session.get(
-                map_url,
-                headers=HEADERS,
-                timeout=30
-            )
-
-            status = response.status_code
-
-            print(
-                f"{os.path.basename(map_url)} "
-                f"→ HTTP {status}, "
-                f"{len(response.content):,} bytes"
-            )
-
-            if status == 200:
-                accessible.append(
-                    map_url
-                )
-
-        except Exception as e:
-
-            print(
-                f"{os.path.basename(map_url)} "
-                f"→ ERROR {e}"
-            )
-
-    print()
-
-    if accessible:
-
-        print(
-            "✅ ДОСТЪПНИ SOURCE MAP ФАЙЛОВЕ:"
-        )
-
-        for url in accessible:
-            print(
-                f"   {url}"
-            )
-
-    else:
-
-        print(
-            "❌ Няма достъпен source map."
+            sku
         )
 
     print()
@@ -510,20 +684,51 @@ def main():
     print("DIAGNOSTIC FINISHED")
     print("=" * 70)
 
-    print()
     print(
         f"Debug folder: {DEBUG_DIR}"
     )
 
     print()
     print(
-        "Търсени термини:"
+        "Проверени са:"
     )
 
-    for term in SEARCH_TERMS:
-        print(
-            f"   - {term}"
-        )
+    print(
+        "   /search?term=946537"
+    )
+
+    print(
+        "   /search?term=946534"
+    )
+
+    print(
+        "   /search?term=946535"
+    )
+
+    print()
+    print(
+        "НЕ са използвани:"
+    )
+
+    print(
+        "   - /get-serialize-product/"
+    )
+
+    print(
+        "   - /search-json-typesense"
+    )
+
+    print(
+        "   - product page"
+    )
+
+    print(
+        "   - browser automation"
+    )
+
+    print(
+        "   - Cloudflare bypass"
+    )
 
 
 if __name__ == "__main__":
