@@ -71,12 +71,38 @@ def start_browser():
     _pw = sync_playwright().start()
 
     _browser = _pw.chromium.launch(
-        headless=True
+        headless=True,
+        args=[
+            "--disable-blink-features=AutomationControlled",
+            "--disable-dev-shm-usage",
+            "--no-sandbox"
+        ]
     )
 
     context = _browser.new_context(
         user_agent=HEADERS["User-Agent"],
-        locale="bg-BG"
+        locale="bg-BG",
+        viewport={"width": 1366, "height": 900}
+    )
+
+    # -------------------------------------------------
+    # STEALTH: прикриваме типичните следи, по които
+    # anti-bot защитите разпознават headless браузър
+    # -------------------------------------------------
+
+    context.add_init_script(
+        """
+        Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+        Object.defineProperty(navigator, 'languages', {get: () => ['bg-BG', 'bg', 'en-US', 'en']});
+        Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
+        window.chrome = { runtime: {} };
+        const originalQuery = window.navigator.permissions.query;
+        window.navigator.permissions.query = (parameters) => (
+            parameters.name === 'notifications'
+                ? Promise.resolve({ state: Notification.permission })
+                : originalQuery(parameters)
+        );
+        """
     )
 
     _page = context.new_page()
@@ -297,6 +323,33 @@ def fetch_product_page(url):
         except Exception:
 
             pass
+
+        # ако still сме на interstitial ("Един момент...",
+        # "Just a moment", "Please wait" и т.н.) — изчакваме
+        # допълнително и проверяваме отново, до 3 опита
+        for attempt in range(3):
+
+            current_title = _page.title()
+
+            if not any(
+                marker in current_title
+                for marker in [
+                    "момент",
+                    "moment",
+                    "wait",
+                    "Please wait",
+                    "checking"
+                ]
+            ):
+
+                break
+
+            print(
+                f"🔬 DEBUG: все още interstitial "
+                f"('{current_title}'), изчакване {attempt + 1}/3..."
+            )
+
+            _page.wait_for_timeout(5000)
 
         current_url = _page.url
 
