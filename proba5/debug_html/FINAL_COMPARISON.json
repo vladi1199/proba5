@@ -1,0 +1,61 @@
+[
+  {
+    "term": "946537",
+    "label": "sku_946537",
+    "status": 200,
+    "size": 227664,
+    "raw_hash": "78d2b1ee0e26a43f5f51a5ea0bff3b709832f8520d82e737a62b51c42084cbf9",
+    "normalized_hash": "aa54b097ca8e818c409befc64c58a0bda93124671ad7175d67961d89f7a41a2e",
+    "product_ids": [
+      "2557"
+    ]
+  },
+  {
+    "term": "946534",
+    "label": "sku_946534",
+    "status": 200,
+    "size": 227664,
+    "raw_hash": "c20567a23c0588305bdb68e22533b964cd51e8c162565ac1d5fa0ea8f9006bca",
+    "normalized_hash": "17115e8d3480d865e213c65dc774528b04d7e84d727443b81f6af7d801dcd4e8",
+    "product_ids": [
+      "2557"
+    ]
+  },
+  {
+    "term": "946535",
+    "label": "sku_946535",
+    "status": 200,
+    "size": 227664,
+    "raw_hash": "6d602fef0144ab037d8ec78fb652d967add6f5a388ae27bb06c4cfc859454108",
+    "normalized_hash": "17115e8d3480d865e213c65dc774528b04d7e84d727443b81f6af7d801dcd4e8",
+    "product_ids": [
+      "2557"
+    ]
+  },
+  {
+    "term": "2557",
+    "label": "product_2557",
+    "status": 200,
+    "size": 267439,
+    "raw_hash": "e12a5860813f88ba2980eb0d5194ebea3df3e8c21e2d4ca49bb6d007c6030931",
+    "normalized_hash": "ca94ee2962181c90c6e354b7874df8815c76347c1a20f2de7102fd45306f1fc5",
+    "product_ids": [
+      "4877",
+      "3848",
+      "3847",
+      "3844",
+      "3840"
+    ]
+  },
+  {
+    "term": "Комплект мухи за булдо FilStar тип C",
+    "label": "product_name",
+    "status": 200,
+    "size": 227968,
+    "raw_hash": "cdb7be8de6dbf107f84db5cb124137b59fa8ce698de99759e03ada4ca5ba9371",
+    "normalized_hash": "e6c0f31c6190e41c3f8a550b91633eba1aa9104dbd6264a555b2cb39a67061f7",
+    "product_ids": [
+      "2557"
+    ]
+  }
+]

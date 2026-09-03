@@ -1,0 +1,134 @@
+ine d-none" src="/build/images/icons/shopping-cart.svg" alt="cart icon"/>
+                    <img src="/build/images/icons/mobile_cart.svg" alt=""
+                         class="mobile_cart d-xl-none"/>
+                    <span class="products-counter" v-text="selectedStoreRowsQuantity"></span>
+                </a>
+            </div>
+            <a class="cart-text d-xl-block d-none" href="javascript:;">Моята количка</a>
+        </div>
+        <div class="modal-cart">
+            <div class="modal-cart-header d-flex align-items-center" v-if="cart.canSelectStore">
+                <p>Поръчка от склад:</p>
+                <div class="warehouses">
+                    <a @click="selectStore(store)" href="#" :class="{active: (selectedStore && store.id === selectedStore.id)}"  v-for="store in stores">
+                        <span>[[ store.name ]]</span>
+                    </a>
+                </div>
+            </div>
+                        <div class="modal-cart-body">
+                <div class="product d-flex align-items-center" v-if="!cart.quantity && !loading">
+                    Все още не сте добавили продукти.
+                </div>
+                <div class="product d-flex align-items-center" v-if="!loading" v-for="row in selectedStoreRows">
+                    <div class="delete">
+                        <div @click="removeRow(row.id, removeCartRowUrl)" class="product-remove">
+                            <img src="/build/images/icons/DeleteIcon.svg" alt="delete icon"/>
+                        </div>
+                    </div>
+                    <div class="image">
+
+                        <a :href="row.href">
+                            <img :src="row.image" :alt="row.name"/>
+                        </a>
+                    </div>
+                    <div class="name-price">
+                        <h5>
+                            <a class="product-title" :href="row.href">[[row.name]] [[row.year]]</a>
+                        </h5>
+                        <strike v-if="row.originalPrice !== row.price" v-text="formattedPrice(row.originalPrice, '', true)"></strike>
+                       <div class="d-md-flex mt-1">
+                           <h6 v-text="formattedPrice(row.price)"></h6>
+                       </div>
+                    </div>
+                    <div class="count d-flex align-items-center">
+                        <a @click="decrementQuantity(row)">
+                            <img src="/build/images/icons/minus.png" alt="" class=""/>
+                        </a>
+                        <input type="number" readonly="readonly" v-model
+
+class="go-to-cart-box">
+                    <a href="/cart" class="main-button normal premier">Виж количката</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</script>                                                            <cart-widget remove-cart-row-url="/cart/remove"
+                                             :exchange-rate="1.95583"
+                                             :exchange-rate-mode="1"
+                                             :convert-mode="1"
+                                             decrement-url="/cart/decrease"
+                                             increment-url="/cart/product/add-variant-to-cart"
+                                             change-store-url="/cart/change-store"
+                                             :stores="[{&quot;id&quot;:1,&quot;name&quot;:&quot;\u041f\u043b\u043e\u0432\u0434\u0438\u0432&quot;,&quot;isDefault&quot;:true},{&quot;id&quot;:2,&quot;name&quot;:&quot;\u0421\u043e\u0444\u0438\u044f&quot;,&quot;isDefault&quot;:false}]"
+                                             :has-user="0"
+                                             currency="EUR"
+                                             locale="bg"
+                                             :amount-for-free-shipping="75"
+                                             :initial-cart="{&quot;id&quot;:&quot;40552772&quot;,&quot;hash&quot;:&quot;54d8fcec255f81a7a2a714ba84119d96&quot;,&quot;hasInvalidQuantities&quot;:false,&quot;total&quot;:0,&quot;totalPriceAfterDiscount&quot;:0,&quot;originalTotal&quot;:0,&quot;discount&quot;:0,&quot;selectedStore&quot;:{&quot;id&quot;:1,&quot;name&quot;:&quot;\u041f\u043b\u043e\u0432\u0434\u0438\u0432&quot;,&quot;isDefault&quot;:true},&quot;cartOwnerHasFreeDelivery&quot;:false,&quot;canSaveMoneyForOrderProcessing&quot;:false,&quot;hasSavedMoneyForOrderProcessing&quot;:false,&quot;canSelectStore&quot;:false,&quot;canSeeFreeDeliveryLabel&quot;:true,&quot;labelForCartPage&quot;:&quot;\u041f\u0430\u0437\u0430\u0440\u0443\u0432\u0430\u0439\u0442\u0435 \u0437\u0430 \u043e\u0449\u0435 146.69 \u043b\u0432. \/ 75.00 \u20ac \u0432 \u0442\u0435\u043a\u0443\u0449\u0430\u0442\u0430 \u043f\u043e\u0440\u044a\u0447\u043a\u0430 \u0438 \u0449\u0435 \u043f\u043e\u043b\u0443\u0447\u0438\u0442\u0435 \u0431\u0435\u0437\u043f\u043b\u0430\u0442\u043d\u0430 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0430.&quot;,&quot;freeShippingLabel&quot;:&quot;\u041e\u0441\u0442\u0430\u0432\u0430\u0442 \u0432\u0438 \u043e\u0449\u0435 146.69 \u043b\u0432. \/ 75.00 \u20ac \u0434\u043e \u0431\u0435\u0437\u043f\u043b\u0430\u04
+
+ine d-none" src="/build/images/icons/shopping-cart.svg" alt="cart icon"/>
+                    <img src="/build/images/icons/mobile_cart.svg" alt=""
+                         class="mobile_cart d-xl-none"/>
+                    <span class="products-counter" v-text="selectedStoreRowsQuantity"></span>
+                </a>
+            </div>
+            <a class="cart-text d-xl-block d-none" href="javascript:;">Моята количка</a>
+        </div>
+        <div class="modal-cart">
+            <div class="modal-cart-header d-flex align-items-center" v-if="cart.canSelectStore">
+                <p>Поръчка от склад:</p>
+                <div class="warehouses">
+                    <a @click="selectStore(store)" href="#" :class="{active: (selectedStore && store.id === selectedStore.id)}"  v-for="store in stores">
+                        <span>[[ store.name ]]</span>
+                    </a>
+                </div>
+            </div>
+                        <div class="modal-cart-body">
+                <div class="product d-flex align-items-center" v-if="!cart.quantity && !loading">
+                    Все още не сте добавили продукти.
+                </div>
+                <div class="product d-flex align-items-center" v-if="!loading" v-for="row in selectedStoreRows">
+                    <div class="delete">
+                        <div @click="removeRow(row.id, removeCartRowUrl)" class="product-remove">
+                            <img src="/build/images/icons/DeleteIcon.svg" alt="delete icon"/>
+                        </div>
+                    </div>
+                    <div class="image">
+
+                        <a :href="row.href">
+                            <img :src="row.image" :alt="row.name"/>
+                        </a>
+                    </div>
+                    <div class="name-price">
+                        <h5>
+                            <a class="product-title" :href="row.href">[[row.name]] [[row.year]]</a>
+                        </h5>
+                        <strike v-if="row.originalPrice !== row.price" v-text="formattedPrice(row.originalPrice, '', true)"></strike>
+                       <div class="d-md-flex mt-1">
+                           <h6 v-text="formattedPrice(row.price)"></h6>
+                       </div>
+                    </div>
+                    <div class="count d-flex align-items-center">
+                        <a @click="decrementQuantity(row)">
+                            <img src="/build/images/icons/minus.png" alt="" class=""/>
+                        </a>
+                        <input type="number" readonly="readonly" v-model
+
+button normal premier">Виж количката</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</script>                                                                            <cart-widget remove-cart-row-url="/cart/remove"
+                                                     :exchange-rate="1.95583"
+                                                     :exchange-rate-mode="1"
+                                                     :convert-mode="1"
+                                                     decrement-url="/cart/decrease"
+                                                     increment-url="/cart/product/add-variant-to-cart"
+                                                     change-store-url="/cart/change-store"
+                                                     :stores="[{&quot;id&quot;:1,&quot;name&quot;:&quot;\u041f\u043b\u043e\u0432\u0434\u0438\u0432&quot;,&quot;isDefault&quot;:true},{&quot;id&quot;:2,&quot;name&quot;:&quot;\u0421\u043e\u0444\u0438\u044f&quot;,&quot;isDefault&quot;:false}]"
+                                                     :has-user="0"
+                                                     currency="EUR"
+                                                     locale="bg"
+                                                     :amount-for-free-shipping="75"
+                                                     :initial-cart="{&quot;id&quot;:&quot;40552772&quot;,&quot;hash&quot;:&quot;54d8fcec255f81a7a2a714ba84119d96&quot;,&quot;hasInvalidQuantities&quot;:false,&quot;total&quot;:0,&quot;totalPriceAfterDiscount&quot;:0,&quot;originalTotal&quot;:0,&quot;discount&quot;:0,&quot;selectedStore&quot;:{&quot;id&quot;:1,&quot;name&quot;:&quot;\u041f\u043b\u043e\u0432\u0434\u0438\u0432&quot;,&quot;isDefault&quot;:true},&quot;cartOwnerHasFreeDelivery&quot;:false,&quot;canSaveMoneyForOrderProcessing&quot;:false,&quot;hasSavedMoneyForOrderProcessing&quot;:false,&quot;canSelectStore&quot;:false,&quot;canSeeFreeDeliveryLabel&quot;:true,&quot;labelForCartPage&quot;:&quot;\u041f\u0430\u0437\u0430\u0440\u0443\u0432\u0430\u0439\u0442\u0435 \u0437\u0430 \u043e\u0449\u0435 146.69 \u043b\u0432. \/ 75.00 \u20ac \u0432 \u0442\u0435\u043a\u0443\u0449\u0430\u0442\u0430 \u043f\u043e\u0440\u044a\u0447\u043a\u0430 \u0438 \u0449\u0435 \u043f\u043e\u043b\u0443\u0447\u0438\u0442\u0435 \u0431\u0435\u0437\u043f\u043b\u0430\u0442\u043d\u0430 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0430.&quot;,&quot;freeShippingLabel&quot;:&quot;\u041e\u0441\u0442\u0430\u0432\u0430\u0442 \u0432\u0438 \u043e\u0449\u0435 146.69 \u043b\u0432. \/ 75.00 \u20ac \u0434\u043e 

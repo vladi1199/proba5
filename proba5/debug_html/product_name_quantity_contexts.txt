@@ -1,0 +1,618 @@
+s/icons/user.svg" alt="user icon"/></a>
+
+                                
+
+
+                            <script type="text/x-template" id="cart-widget">
+    <div class="d-xl-block d-inline-block" style="vertical-align: middle">
+        <div class="d-flex align-items-center">
+            <div class="cart-image">
+                <a class="d-xl-block d-none" href="javascript:;">
+                    <img class="d-xl-inline d-none" src="/build/images/icons/shopping-cart.svg" alt="cart icon"/>
+                    <img src="/build/images/icons/mobile_cart.svg" alt=""
+                         class="mobile_cart d-xl-none"/>
+                    <span class="products-counter" v-text="selectedStoreRowsQuantity"></span>
+                </a>
+                <a class="d-xl-none" href="/cart">
+                    <img class="d-xl-inline d-none" src="/build/images/icons/shopping-cart.svg" alt="cart icon"/>
+                    <img src="/build/images/icons/mobile_cart.svg" alt=""
+                         class="mobile_cart d-xl-none"/>
+                    <span class="products-counter" v-text="selectedStoreRowsQuantity"></span>
+                </a>
+            </div>
+            <a class="cart-text d-xl-block d-none" href="javascript:;">Моята количка</a>
+        </div>
+        <div class="modal-cart">
+            <div class="modal-cart-header d-flex align-items-center" v-if="cart.canSelectStore">
+                <p>Поръчка от склад:</p>
+                <div class="warehouses">
+                    <a @click="selectStore(store)" href="#" :class="{active: (selectedStore && store.id === selectedStore.id)}"  v-for="store in stores">
+                        <span>[[ store.name ]]</span>
+                    </a>
+                </div>
+            </div>
+                        <div class="modal-cart-body">
+                <div class="product d-flex align-items-center" v-if="!cart.quantity && !loadin
+
+d-xl-inline d-none" src="/build/images/icons/shopping-cart.svg" alt="cart icon"/>
+                    <img src="/build/images/icons/mobile_cart.svg" alt=""
+                         class="mobile_cart d-xl-none"/>
+                    <span class="products-counter" v-text="selectedStoreRowsQuantity"></span>
+                </a>
+                <a class="d-xl-none" href="/cart">
+                    <img class="d-xl-inline d-none" src="/build/images/icons/shopping-cart.svg" alt="cart icon"/>
+                    <img src="/build/images/icons/mobile_cart.svg" alt=""
+                         class="mobile_cart d-xl-none"/>
+                    <span class="products-counter" v-text="selectedStoreRowsQuantity"></span>
+                </a>
+            </div>
+            <a class="cart-text d-xl-block d-none" href="javascript:;">Моята количка</a>
+        </div>
+        <div class="modal-cart">
+            <div class="modal-cart-header d-flex align-items-center" v-if="cart.canSelectStore">
+                <p>Поръчка от склад:</p>
+                <div class="warehouses">
+                    <a @click="selectStore(store)" href="#" :class="{active: (selectedStore && store.id === selectedStore.id)}"  v-for="store in stores">
+                        <span>[[ store.name ]]</span>
+                    </a>
+                </div>
+            </div>
+                        <div class="modal-cart-body">
+                <div class="product d-flex align-items-center" v-if="!cart.quantity && !loading">
+                    Все още не сте добавили продукти.
+                </div>
+                <div class="product d-flex align-items-center" v-if="!loading" v-for="row in selectedStoreRows">
+                    <div class="delete">
+                        <div @click="removeRow(row.id, removeCartRowUrl)" class="product-remove">
+                            <img src="/build/images/icons/DeleteIcon.svg" alt=
+
+="cart-text d-xl-block d-none" href="javascript:;">Моята количка</a>
+        </div>
+        <div class="modal-cart">
+            <div class="modal-cart-header d-flex align-items-center" v-if="cart.canSelectStore">
+                <p>Поръчка от склад:</p>
+                <div class="warehouses">
+                    <a @click="selectStore(store)" href="#" :class="{active: (selectedStore && store.id === selectedStore.id)}"  v-for="store in stores">
+                        <span>[[ store.name ]]</span>
+                    </a>
+                </div>
+            </div>
+                        <div class="modal-cart-body">
+                <div class="product d-flex align-items-center" v-if="!cart.quantity && !loading">
+                    Все още не сте добавили продукти.
+                </div>
+                <div class="product d-flex align-items-center" v-if="!loading" v-for="row in selectedStoreRows">
+                    <div class="delete">
+                        <div @click="removeRow(row.id, removeCartRowUrl)" class="product-remove">
+                            <img src="/build/images/icons/DeleteIcon.svg" alt="delete icon"/>
+                        </div>
+                    </div>
+                    <div class="image">
+
+                        <a :href="row.href">
+                            <img :src="row.image" :alt="row.name"/>
+                        </a>
+                    </div>
+                    <div class="name-price">
+                        <h5>
+                            <a class="product-title" :href="row.href">[[row.name]] [[row.year]]</a>
+                        </h5>
+                        <strike v-if="row.originalPrice !== row.price" v-text="formattedPrice(row.originalPrice, '', true)"></strike>
+                       <div class="d-md-flex mt-1">
+                           <h6 v-text="formattedPrice(row.price)"></h6>
+                       </div>
+  
+
+t="row.name"/>
+                        </a>
+                    </div>
+                    <div class="name-price">
+                        <h5>
+                            <a class="product-title" :href="row.href">[[row.name]] [[row.year]]</a>
+                        </h5>
+                        <strike v-if="row.originalPrice !== row.price" v-text="formattedPrice(row.originalPrice, '', true)"></strike>
+                       <div class="d-md-flex mt-1">
+                           <h6 v-text="formattedPrice(row.price)"></h6>
+                       </div>
+                    </div>
+                    <div class="count d-flex align-items-center">
+                        <a @click="decrementQuantity(row)">
+                            <img src="/build/images/icons/minus.png" alt="" class=""/>
+                        </a>
+                        <input type="number" readonly="readonly" v-model="row.quantity">
+                        <a @click="incrementRowQuantity(row)">
+                            <img src="/build/images/icons/plus1.png" alt="" class=""/>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-cart-footer" v-if="cart.quantity && !loading">
+                <div class="p-2 text-center" v-if="cart.freeShippingLabel">[[ cart.freeShippingLabel ]]</div>
+                <div class="total-price-holder">
+                    <div class="info-content d-flex align-items-center" v-if="cart.quantity">
+                        <p>Общо:</p>
+                        <div class="d-flex">
+                            <p class="big-number" v-text="total"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="go-to-cart-box">
+                    <a href="/cart" class="main-button normal premier">Виж количката</a>
+                </div>
+            </div>
+
+ref">[[row.name]] [[row.year]]</a>
+                        </h5>
+                        <strike v-if="row.originalPrice !== row.price" v-text="formattedPrice(row.originalPrice, '', true)"></strike>
+                       <div class="d-md-flex mt-1">
+                           <h6 v-text="formattedPrice(row.price)"></h6>
+                       </div>
+                    </div>
+                    <div class="count d-flex align-items-center">
+                        <a @click="decrementQuantity(row)">
+                            <img src="/build/images/icons/minus.png" alt="" class=""/>
+                        </a>
+                        <input type="number" readonly="readonly" v-model="row.quantity">
+                        <a @click="incrementRowQuantity(row)">
+                            <img src="/build/images/icons/plus1.png" alt="" class=""/>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-cart-footer" v-if="cart.quantity && !loading">
+                <div class="p-2 text-center" v-if="cart.freeShippingLabel">[[ cart.freeShippingLabel ]]</div>
+                <div class="total-price-holder">
+                    <div class="info-content d-flex align-items-center" v-if="cart.quantity">
+                        <p>Общо:</p>
+                        <div class="d-flex">
+                            <p class="big-number" v-text="total"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="go-to-cart-box">
+                    <a href="/cart" class="main-button normal premier">Виж количката</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</script>                                                            <cart-widget remove-cart-row-url="/cart/remove"
+                                             :exchange-rate="1.955
+
+ </h5>
+                        <strike v-if="row.originalPrice !== row.price" v-text="formattedPrice(row.originalPrice, '', true)"></strike>
+                       <div class="d-md-flex mt-1">
+                           <h6 v-text="formattedPrice(row.price)"></h6>
+                       </div>
+                    </div>
+                    <div class="count d-flex align-items-center">
+                        <a @click="decrementQuantity(row)">
+                            <img src="/build/images/icons/minus.png" alt="" class=""/>
+                        </a>
+                        <input type="number" readonly="readonly" v-model="row.quantity">
+                        <a @click="incrementRowQuantity(row)">
+                            <img src="/build/images/icons/plus1.png" alt="" class=""/>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-cart-footer" v-if="cart.quantity && !loading">
+                <div class="p-2 text-center" v-if="cart.freeShippingLabel">[[ cart.freeShippingLabel ]]</div>
+                <div class="total-price-holder">
+                    <div class="info-content d-flex align-items-center" v-if="cart.quantity">
+                        <p>Общо:</p>
+                        <div class="d-flex">
+                            <p class="big-number" v-text="total"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="go-to-cart-box">
+                    <a href="/cart" class="main-button normal premier">Виж количката</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</script>                                                            <cart-widget remove-cart-row-url="/cart/remove"
+                                             :exchange-rate="1.95583"
+                                             :exchange
+
+)"></h6>
+                       </div>
+                    </div>
+                    <div class="count d-flex align-items-center">
+                        <a @click="decrementQuantity(row)">
+                            <img src="/build/images/icons/minus.png" alt="" class=""/>
+                        </a>
+                        <input type="number" readonly="readonly" v-model="row.quantity">
+                        <a @click="incrementRowQuantity(row)">
+                            <img src="/build/images/icons/plus1.png" alt="" class=""/>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-cart-footer" v-if="cart.quantity && !loading">
+                <div class="p-2 text-center" v-if="cart.freeShippingLabel">[[ cart.freeShippingLabel ]]</div>
+                <div class="total-price-holder">
+                    <div class="info-content d-flex align-items-center" v-if="cart.quantity">
+                        <p>Общо:</p>
+                        <div class="d-flex">
+                            <p class="big-number" v-text="total"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="go-to-cart-box">
+                    <a href="/cart" class="main-button normal premier">Виж количката</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</script>                                                            <cart-widget remove-cart-row-url="/cart/remove"
+                                             :exchange-rate="1.95583"
+                                             :exchange-rate-mode="1"
+                                             :convert-mode="1"
+                                             decrement-url="/cart/decrease"
+                                             increment-url="/cart/product/add-variant-to-cart"
+       
+
+"" class=""/>
+                        </a>
+                        <input type="number" readonly="readonly" v-model="row.quantity">
+                        <a @click="incrementRowQuantity(row)">
+                            <img src="/build/images/icons/plus1.png" alt="" class=""/>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-cart-footer" v-if="cart.quantity && !loading">
+                <div class="p-2 text-center" v-if="cart.freeShippingLabel">[[ cart.freeShippingLabel ]]</div>
+                <div class="total-price-holder">
+                    <div class="info-content d-flex align-items-center" v-if="cart.quantity">
+                        <p>Общо:</p>
+                        <div class="d-flex">
+                            <p class="big-number" v-text="total"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="go-to-cart-box">
+                    <a href="/cart" class="main-button normal premier">Виж количката</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</script>                                                            <cart-widget remove-cart-row-url="/cart/remove"
+                                             :exchange-rate="1.95583"
+                                             :exchange-rate-mode="1"
+                                             :convert-mode="1"
+                                             decrement-url="/cart/decrease"
+                                             increment-url="/cart/product/add-variant-to-cart"
+                                             change-store-url="/cart/change-store"
+                                             :stores="[{&quot;id&quot;:1,&quot;name&quot;:&quot;\u041f\u043b\u043e\u0432\u0434\u0438\u0432&quot;,&quot;isDefault&quot;:true},{&quot;id&quot;:
+
+\u043b\u0443\u0447\u0438\u0442\u0435 \u0431\u0435\u0437\u043f\u043b\u0430\u0442\u043d\u0430 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0430.&quot;,&quot;freeShippingLabel&quot;:&quot;\u041e\u0441\u0442\u0430\u0432\u0430\u0442 \u0432\u0438 \u043e\u0449\u0435 146.69 \u043b\u0432. \/ 75.00 \u20ac \u0434\u043e \u0431\u0435\u0437\u043f\u043b\u0430\u0442\u043d\u0430 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0430.&quot;,&quot;deliveryToBeConfirmed&quot;:false,&quot;amountForFreeShipping&quot;:75,&quot;formattedTaxPrice&quot;:null,&quot;taxPrice&quot;:0,&quot;canSeeOrderProcessingTax&quot;:false,&quot;canSeeDeliveryFee&quot;:false,&quot;calculateTaxInNextStep&quot;:true,&quot;rows&quot;:[],&quot;quantity&quot;:0}"></cart-widget>
+                                                        <button class="navbar-toggler open-mobile-menu" type="button" data-toggle="collapse"
+                                    aria-controls="openMobileNavbar" data-target="#openMobileNavbar"
+                                    aria-expanded="false" aria-label="Toggle navigation">
+                                <span class="navbar-toggler-icon"><img
+                                            src="/build/images/icons/mobile_menu.svg" alt=""
+                                            class="menu-icon"/></span>
+
+                            </button>
+                        </div>
+                                                    <script type="text/x-template" id="search-autocomplete">
+    <form action="/search" method="get" class="form-inline only-for-desktop">
+        <input @click="inputOnClick($event)" @focus="onFocus" autocomplete="off" required="required"
+               @input="onInput"
+               @keydown.enter="onEnter" v-model="term" type="text" name="term"
+               placeholder="Какво търсите днес?"/>
+        <button class="search-button"><img src="/build/images/icons/search-icon.svg" al
+
+            <li class="nav-item cart d-xl-flex d-none" id="myCart">
+                                    <script type="text/x-template" id="cart-widget">
+    <div class="d-xl-block d-inline-block" style="vertical-align: middle">
+        <div class="d-flex align-items-center">
+            <div class="cart-image">
+                <a class="d-xl-block d-none" href="javascript:;">
+                    <img class="d-xl-inline d-none" src="/build/images/icons/shopping-cart.svg" alt="cart icon"/>
+                    <img src="/build/images/icons/mobile_cart.svg" alt=""
+                         class="mobile_cart d-xl-none"/>
+                    <span class="products-counter" v-text="selectedStoreRowsQuantity"></span>
+                </a>
+                <a class="d-xl-none" href="/cart">
+                    <img class="d-xl-inline d-none" src="/build/images/icons/shopping-cart.svg" alt="cart icon"/>
+                    <img src="/build/images/icons/mobile_cart.svg" alt=""
+                         class="mobile_cart d-xl-none"/>
+                    <span class="products-counter" v-text="selectedStoreRowsQuantity"></span>
+                </a>
+            </div>
+            <a class="cart-text d-xl-block d-none" href="javascript:;">Моята количка</a>
+        </div>
+        <div class="modal-cart">
+            <div class="modal-cart-header d-flex align-items-center" v-if="cart.canSelectStore">
+                <p>Поръчка от склад:</p>
+                <div class="warehouses">
+                    <a @click="selectStore(store)" href="#" :class="{active: (selectedStore && store.id === selectedStore.id)}"  v-for="store in stores">
+                        <span>[[ store.name ]]</span>
+                    </a>
+                </div>
+            </div>
+                        <div class="modal-cart-body">
+                <div class="product d-flex align-items-center" v-if="!cart.quantity && !loadin
+
+d-xl-inline d-none" src="/build/images/icons/shopping-cart.svg" alt="cart icon"/>
+                    <img src="/build/images/icons/mobile_cart.svg" alt=""
+                         class="mobile_cart d-xl-none"/>
+                    <span class="products-counter" v-text="selectedStoreRowsQuantity"></span>
+                </a>
+                <a class="d-xl-none" href="/cart">
+                    <img class="d-xl-inline d-none" src="/build/images/icons/shopping-cart.svg" alt="cart icon"/>
+                    <img src="/build/images/icons/mobile_cart.svg" alt=""
+                         class="mobile_cart d-xl-none"/>
+                    <span class="products-counter" v-text="selectedStoreRowsQuantity"></span>
+                </a>
+            </div>
+            <a class="cart-text d-xl-block d-none" href="javascript:;">Моята количка</a>
+        </div>
+        <div class="modal-cart">
+            <div class="modal-cart-header d-flex align-items-center" v-if="cart.canSelectStore">
+                <p>Поръчка от склад:</p>
+                <div class="warehouses">
+                    <a @click="selectStore(store)" href="#" :class="{active: (selectedStore && store.id === selectedStore.id)}"  v-for="store in stores">
+                        <span>[[ store.name ]]</span>
+                    </a>
+                </div>
+            </div>
+                        <div class="modal-cart-body">
+                <div class="product d-flex align-items-center" v-if="!cart.quantity && !loading">
+                    Все още не сте добавили продукти.
+                </div>
+                <div class="product d-flex align-items-center" v-if="!loading" v-for="row in selectedStoreRows">
+                    <div class="delete">
+                        <div @click="removeRow(row.id, removeCartRowUrl)" class="product-remove">
+                            <img src="/build/images/icons/DeleteIcon.svg" alt=
+
+="cart-text d-xl-block d-none" href="javascript:;">Моята количка</a>
+        </div>
+        <div class="modal-cart">
+            <div class="modal-cart-header d-flex align-items-center" v-if="cart.canSelectStore">
+                <p>Поръчка от склад:</p>
+                <div class="warehouses">
+                    <a @click="selectStore(store)" href="#" :class="{active: (selectedStore && store.id === selectedStore.id)}"  v-for="store in stores">
+                        <span>[[ store.name ]]</span>
+                    </a>
+                </div>
+            </div>
+                        <div class="modal-cart-body">
+                <div class="product d-flex align-items-center" v-if="!cart.quantity && !loading">
+                    Все още не сте добавили продукти.
+                </div>
+                <div class="product d-flex align-items-center" v-if="!loading" v-for="row in selectedStoreRows">
+                    <div class="delete">
+                        <div @click="removeRow(row.id, removeCartRowUrl)" class="product-remove">
+                            <img src="/build/images/icons/DeleteIcon.svg" alt="delete icon"/>
+                        </div>
+                    </div>
+                    <div class="image">
+
+                        <a :href="row.href">
+                            <img :src="row.image" :alt="row.name"/>
+                        </a>
+                    </div>
+                    <div class="name-price">
+                        <h5>
+                            <a class="product-title" :href="row.href">[[row.name]] [[row.year]]</a>
+                        </h5>
+                        <strike v-if="row.originalPrice !== row.price" v-text="formattedPrice(row.originalPrice, '', true)"></strike>
+                       <div class="d-md-flex mt-1">
+                           <h6 v-text="formattedPrice(row.price)"></h6>
+                       </div>
+  
+
+t="row.name"/>
+                        </a>
+                    </div>
+                    <div class="name-price">
+                        <h5>
+                            <a class="product-title" :href="row.href">[[row.name]] [[row.year]]</a>
+                        </h5>
+                        <strike v-if="row.originalPrice !== row.price" v-text="formattedPrice(row.originalPrice, '', true)"></strike>
+                       <div class="d-md-flex mt-1">
+                           <h6 v-text="formattedPrice(row.price)"></h6>
+                       </div>
+                    </div>
+                    <div class="count d-flex align-items-center">
+                        <a @click="decrementQuantity(row)">
+                            <img src="/build/images/icons/minus.png" alt="" class=""/>
+                        </a>
+                        <input type="number" readonly="readonly" v-model="row.quantity">
+                        <a @click="incrementRowQuantity(row)">
+                            <img src="/build/images/icons/plus1.png" alt="" class=""/>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-cart-footer" v-if="cart.quantity && !loading">
+                <div class="p-2 text-center" v-if="cart.freeShippingLabel">[[ cart.freeShippingLabel ]]</div>
+                <div class="total-price-holder">
+                    <div class="info-content d-flex align-items-center" v-if="cart.quantity">
+                        <p>Общо:</p>
+                        <div class="d-flex">
+                            <p class="big-number" v-text="total"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="go-to-cart-box">
+                    <a href="/cart" class="main-button normal premier">Виж количката</a>
+                </div>
+            </div>
+
+ref">[[row.name]] [[row.year]]</a>
+                        </h5>
+                        <strike v-if="row.originalPrice !== row.price" v-text="formattedPrice(row.originalPrice, '', true)"></strike>
+                       <div class="d-md-flex mt-1">
+                           <h6 v-text="formattedPrice(row.price)"></h6>
+                       </div>
+                    </div>
+                    <div class="count d-flex align-items-center">
+                        <a @click="decrementQuantity(row)">
+                            <img src="/build/images/icons/minus.png" alt="" class=""/>
+                        </a>
+                        <input type="number" readonly="readonly" v-model="row.quantity">
+                        <a @click="incrementRowQuantity(row)">
+                            <img src="/build/images/icons/plus1.png" alt="" class=""/>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-cart-footer" v-if="cart.quantity && !loading">
+                <div class="p-2 text-center" v-if="cart.freeShippingLabel">[[ cart.freeShippingLabel ]]</div>
+                <div class="total-price-holder">
+                    <div class="info-content d-flex align-items-center" v-if="cart.quantity">
+                        <p>Общо:</p>
+                        <div class="d-flex">
+                            <p class="big-number" v-text="total"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="go-to-cart-box">
+                    <a href="/cart" class="main-button normal premier">Виж количката</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</script>                                                                            <cart-widget remove-cart-row-url="/cart/remove"
+                                                  
+
+ </h5>
+                        <strike v-if="row.originalPrice !== row.price" v-text="formattedPrice(row.originalPrice, '', true)"></strike>
+                       <div class="d-md-flex mt-1">
+                           <h6 v-text="formattedPrice(row.price)"></h6>
+                       </div>
+                    </div>
+                    <div class="count d-flex align-items-center">
+                        <a @click="decrementQuantity(row)">
+                            <img src="/build/images/icons/minus.png" alt="" class=""/>
+                        </a>
+                        <input type="number" readonly="readonly" v-model="row.quantity">
+                        <a @click="incrementRowQuantity(row)">
+                            <img src="/build/images/icons/plus1.png" alt="" class=""/>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-cart-footer" v-if="cart.quantity && !loading">
+                <div class="p-2 text-center" v-if="cart.freeShippingLabel">[[ cart.freeShippingLabel ]]</div>
+                <div class="total-price-holder">
+                    <div class="info-content d-flex align-items-center" v-if="cart.quantity">
+                        <p>Общо:</p>
+                        <div class="d-flex">
+                            <p class="big-number" v-text="total"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="go-to-cart-box">
+                    <a href="/cart" class="main-button normal premier">Виж количката</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</script>                                                                            <cart-widget remove-cart-row-url="/cart/remove"
+                                                     :exchange-rate="1.95583"
+                              
+
+)"></h6>
+                       </div>
+                    </div>
+                    <div class="count d-flex align-items-center">
+                        <a @click="decrementQuantity(row)">
+                            <img src="/build/images/icons/minus.png" alt="" class=""/>
+                        </a>
+                        <input type="number" readonly="readonly" v-model="row.quantity">
+                        <a @click="incrementRowQuantity(row)">
+                            <img src="/build/images/icons/plus1.png" alt="" class=""/>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-cart-footer" v-if="cart.quantity && !loading">
+                <div class="p-2 text-center" v-if="cart.freeShippingLabel">[[ cart.freeShippingLabel ]]</div>
+                <div class="total-price-holder">
+                    <div class="info-content d-flex align-items-center" v-if="cart.quantity">
+                        <p>Общо:</p>
+                        <div class="d-flex">
+                            <p class="big-number" v-text="total"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="go-to-cart-box">
+                    <a href="/cart" class="main-button normal premier">Виж количката</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</script>                                                                            <cart-widget remove-cart-row-url="/cart/remove"
+                                                     :exchange-rate="1.95583"
+                                                     :exchange-rate-mode="1"
+                                                     :convert-mode="1"
+                                                     decrement-url="/cart/decrease"
+                                                     i
+
+"" class=""/>
+                        </a>
+                        <input type="number" readonly="readonly" v-model="row.quantity">
+                        <a @click="incrementRowQuantity(row)">
+                            <img src="/build/images/icons/plus1.png" alt="" class=""/>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-cart-footer" v-if="cart.quantity && !loading">
+                <div class="p-2 text-center" v-if="cart.freeShippingLabel">[[ cart.freeShippingLabel ]]</div>
+                <div class="total-price-holder">
+                    <div class="info-content d-flex align-items-center" v-if="cart.quantity">
+                        <p>Общо:</p>
+                        <div class="d-flex">
+                            <p class="big-number" v-text="total"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="go-to-cart-box">
+                    <a href="/cart" class="main-button normal premier">Виж количката</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</script>                                                                            <cart-widget remove-cart-row-url="/cart/remove"
+                                                     :exchange-rate="1.95583"
+                                                     :exchange-rate-mode="1"
+                                                     :convert-mode="1"
+                                                     decrement-url="/cart/decrease"
+                                                     increment-url="/cart/product/add-variant-to-cart"
+                                                     change-store-url="/cart/change-store"
+                                                     :stores="[{&quot;id&quot;:1,&quot;name&quot;:&quot;\u041f\u043b\u043e\u0
+
+\u043b\u0443\u0447\u0438\u0442\u0435 \u0431\u0435\u0437\u043f\u043b\u0430\u0442\u043d\u0430 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0430.&quot;,&quot;freeShippingLabel&quot;:&quot;\u041e\u0441\u0442\u0430\u0432\u0430\u0442 \u0432\u0438 \u043e\u0449\u0435 146.69 \u043b\u0432. \/ 75.00 \u20ac \u0434\u043e \u0431\u0435\u0437\u043f\u043b\u0430\u0442\u043d\u0430 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0430.&quot;,&quot;deliveryToBeConfirmed&quot;:false,&quot;amountForFreeShipping&quot;:75,&quot;formattedTaxPrice&quot;:null,&quot;taxPrice&quot;:0,&quot;canSeeOrderProcessingTax&quot;:false,&quot;canSeeDeliveryFee&quot;:false,&quot;calculateTaxInNextStep&quot;:true,&quot;rows&quot;:[],&quot;quantity&quot;:0}"></cart-widget>
+                                                                    </li>
+                            </ul>
+
+
+                        </div>
+                    </nav>
+                </div>
+
+
+                                                                                                                                                                                                                                                                                                                                                                
+                                                                                
+
+                                                                                                                                                                                                                                                                                                                                                                
+                                                                                                                                                                
+
+                               
