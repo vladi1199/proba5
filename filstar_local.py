@@ -134,11 +134,48 @@ def variants_of(session, url, delay):
     return out
 
 
+def launched_by_double_click():
+    """True when a frozen build was started from the file manager."""
+    if not getattr(sys, "frozen", False):
+        return False
+    return len(sys.argv) == 1
+
+
+def hold_window(message=None):
+    if message:
+        print("")
+        print("  " + message.replace("\n", "\n  "))
+    if launched_by_double_click():
+        print("")
+        try:
+            input("  Натиснете Enter за изход...")
+        except Exception:
+            pass
+
+
 def app_dir():
     """Directory the app lives in - works frozen (PyInstaller) or as a script."""
     if getattr(sys, "frozen", False):
         return os.path.dirname(os.path.abspath(sys.executable))
     return os.path.dirname(os.path.abspath(__file__))
+
+
+def near_app(path):
+    """Resolve a relative path against the app's own folder.
+
+    Double-clicking does not reliably set the working directory, so a bare
+    filename must mean 'next to the program', not 'wherever the shell is'.
+    """
+    if os.path.isabs(path):
+        return path
+    return os.path.join(app_dir(), path)
+
+
+def default_sku_file():
+    for name in ("all_skus.csv", "sku_list_filstar.csv"):
+        if os.path.exists(near_app(name)):
+            return name
+    return "all_skus.csv"
 
 
 def read_settings():
@@ -290,7 +327,7 @@ def write_outputs(rows, per_file, out_dir):
 
 def main():
     ap = argparse.ArgumentParser(description="Filstar scraper (run locally)")
-    ap.add_argument("--skus", default="sku_list_filstar.csv",
+    ap.add_argument("--skus", default=None,
                     help="CSV whose first column is the SKU")
     ap.add_argument("--out", default=".", help="where to write CSV and XML")
     ap.add_argument("--delay", type=float, default=0.7,
@@ -304,6 +341,15 @@ def main():
     ap.add_argument("--no-upload", action="store_true",
                     help="never upload, even if settings.ini exists")
     args = ap.parse_args()
+
+    if args.skus is None:
+        args.skus = default_sku_file()
+    args.skus = near_app(args.skus)
+    args.out = near_app(args.out)
+
+    if not os.path.exists(args.skus):
+        hold_window("Липсва файлът със SKU-та:\n  %s" % args.skus)
+        sys.exit(1)
 
     if args.fresh:
         for p in (URL_CACHE, VAR_CACHE):
@@ -380,6 +426,9 @@ def main():
         save_json(URL_CACHE, sku_to_url)
         save_json(VAR_CACHE, url_to_variants)
         sys.stderr.write("\nSTOPPED: %s\n" % e)
+        hold_window("Сайтът блокира връзката.\n"
+                    "Включете VPN или сменете сървъра му и пуснете пак.\n"
+                    "Свалените дотук данни са запазени.")
         sys.exit(2)
     except KeyboardInterrupt:
         save_json(URL_CACHE, sku_to_url)
@@ -412,11 +461,13 @@ def main():
         print("               %s  (%d items)" % (p, n))
 
     if args.no_upload:
+        hold_window("Готово.")
         return
     cfg = read_settings()
     if cfg is None:
         print("")
         print("  (няма settings.ini - файловете остават само тук)")
+        hold_window("Готово.")
         return
     try:
         paths = [csv_path] + [p for p, _ in files]
@@ -424,9 +475,11 @@ def main():
         if os.path.exists(nf):
             paths.append(nf)
         publish(cfg, paths, len(files))
+        hold_window("Готово.")
     except Exception as e:
         sys.stderr.write("\n  Качването не успя: %s\n" % e)
         sys.stderr.write("  Файловете са запазени тук и може да се качат по-късно.\n")
+        hold_window()
         sys.exit(3)
 
 
