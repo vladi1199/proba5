@@ -152,9 +152,11 @@ def read_settings():
         repo = cp.get("github", "repo", fallback="").strip()
         token = cp.get("github", "token", fallback="").strip()
         branch = cp.get("github", "branch", fallback="main").strip() or "main"
+        folder = cp.get("github", "path", fallback="").strip().strip("/")
         if not repo or not token:
             return None
-        return {"repo": repo, "token": token, "branch": branch}
+        return {"repo": repo, "token": token, "branch": branch,
+                "folder": folder}
     except Exception:
         return None
 
@@ -200,15 +202,52 @@ def upload_file(cfg, local_path, remote_path):
                            % (remote_path, r.status_code, detail))
 
 
-def publish(cfg, paths):
+def remote_path(cfg, name):
+    return "%s/%s" % (cfg["folder"], name) if cfg.get("folder") else name
+
+
+def delete_file(cfg, name):
+    """Remove a leftover file. Returns True if something was deleted."""
+    api = "https://api.github.com/repos/%s/contents/%s" % (
+        cfg["repo"], remote_path(cfg, name))
+    headers = {
+        "Authorization": "Bearer %s" % cfg["token"],
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    r = requests.get(api, headers=headers, params={"ref": cfg["branch"]}, timeout=60)
+    if r.status_code != 200:
+        return False
+    sha = r.json().get("sha")
+    if not sha:
+        return False
+    r = requests.delete(api, headers=headers, timeout=60, json={
+        "message": "Remove stale %s" % name,
+        "sha": sha,
+        "branch": cfg["branch"],
+    })
+    return r.status_code in (200, 201)
+
+
+def publish(cfg, paths, xml_count):
     print("")
     print("  Качване в GitHub (%s, клон %s)..." % (cfg["repo"], cfg["branch"]))
     for p in paths:
         if not os.path.exists(p):
             continue
         name = os.path.basename(p)
-        upload_file(cfg, p, name)
+        upload_file(cfg, p, remote_path(cfg, name))
         print("    качено: %s" % name)
+
+    # A shorter run must not leave an old, larger set of XML files behind -
+    # the shop would keep reading stale stock from the surplus ones.
+    n = xml_count + 1
+    while n <= xml_count + 20:
+        if delete_file(cfg, "filstar_xml_%d.xml" % n):
+            print("    премахнат стар файл: filstar_xml_%d.xml" % n)
+            n += 1
+        else:
+            break
     print("  Готово.")
 
 
@@ -384,7 +423,7 @@ def main():
         nf = os.path.join(args.out, "not_found_filstar.csv")
         if os.path.exists(nf):
             paths.append(nf)
-        publish(cfg, paths)
+        publish(cfg, paths, len(files))
     except Exception as e:
         sys.stderr.write("\n  Качването не успя: %s\n" % e)
         sys.stderr.write("  Файловете са запазени тук и може да се качат по-късно.\n")
