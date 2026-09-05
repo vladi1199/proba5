@@ -1,0 +1,15 @@
+; Преименувайте този файл на  settings.ini  и попълнете токена.
+; Без него програмата само записва файловете локално и не ги качва.
+;
+; Токенът се прави веднъж от:
+;   github.com  ->  Settings  ->  Developer settings
+;   ->  Personal access tokens  ->  Fine-grained tokens  ->  Generate new token
+;   Repository access: само това хранилище
+;   Permissions -> Repository permissions -> Contents: Read and write
+;
+; settings.ini не се качва в GitHub - в .gitignore е.
+
+[github]
+repo   = vladi1199/proba5
+token  = ЗАЛЕПЕТЕ_ТОКЕНА_ТУК
+branch = main

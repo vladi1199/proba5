@@ -58,16 +58,19 @@ if [ "$RC" -ne 0 ]; then
   exit "$RC"
 fi
 
-echo
-echo " Готово. Файловете са обновени в тази папка."
-echo
-read -r -p " Да ги кача ли в GitHub? (y/n): " PUB
-if [ "$PUB" = "y" ] || [ "$PUB" = "Y" ]; then
-  git add results_filstar.csv filstar_xml_*.xml not_found_filstar.csv
-  git commit -m "Stock update"
-  git push
+if [ "$RC" -eq 3 ]; then
   echo
-  echo " Качено."
+  echo " ------------------------------------------------"
+  echo "  Данните са свалени успешно, но качването"
+  echo "  в GitHub не стана. Проверете settings.ini."
+  echo "  Файловете са запазени в тази папка."
+  echo " ------------------------------------------------"
+  echo
+  read -r -p " Enter за изход..." _
+  exit 3
 fi
+
+echo
+echo " Готово. Наличностите са обновени."
 echo
 read -r -p " Enter за изход..." _

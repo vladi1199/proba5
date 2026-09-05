@@ -23,6 +23,8 @@ Output matches what nasluka-feeds already reads:
 """
 
 import argparse
+import base64
+import configparser
 import csv
 import html as H
 import json
@@ -132,6 +134,84 @@ def variants_of(session, url, delay):
     return out
 
 
+def app_dir():
+    """Directory the app lives in - works frozen (PyInstaller) or as a script."""
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(os.path.abspath(sys.executable))
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+def read_settings():
+    """settings.ini next to the app. Absent or incomplete means 'do not upload'."""
+    path = os.path.join(app_dir(), "settings.ini")
+    if not os.path.exists(path):
+        return None
+    cp = configparser.ConfigParser()
+    try:
+        cp.read(path, encoding="utf-8")
+        repo = cp.get("github", "repo", fallback="").strip()
+        token = cp.get("github", "token", fallback="").strip()
+        branch = cp.get("github", "branch", fallback="main").strip() or "main"
+        if not repo or not token:
+            return None
+        return {"repo": repo, "token": token, "branch": branch}
+    except Exception:
+        return None
+
+
+def upload_file(cfg, local_path, remote_path):
+    """Create or update one file through the GitHub contents API."""
+    api = "https://api.github.com/repos/%s/contents/%s" % (cfg["repo"], remote_path)
+    headers = {
+        "Authorization": "Bearer %s" % cfg["token"],
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    with open(local_path, "rb") as fh:
+        content = base64.b64encode(fh.read()).decode("ascii")
+
+    sha = None
+    r = requests.get(api, headers=headers,
+                     params={"ref": cfg["branch"]}, timeout=60)
+    if r.status_code == 200:
+        sha = r.json().get("sha")
+    elif r.status_code == 401:
+        raise RuntimeError("Токенът в settings.ini е невалиден или изтекъл.")
+    elif r.status_code == 404 and "/" not in cfg["repo"]:
+        raise RuntimeError("repo в settings.ini трябва да е във вида "
+                           "'потребител/хранилище'.")
+
+    payload = {
+        "message": "Stock update %s" % time.strftime("%Y-%m-%d %H:%M"),
+        "content": content,
+        "branch": cfg["branch"],
+    }
+    if sha:
+        payload["sha"] = sha
+
+    r = requests.put(api, headers=headers, json=payload, timeout=120)
+    if r.status_code not in (200, 201):
+        detail = ""
+        try:
+            detail = r.json().get("message", "")
+        except Exception:
+            pass
+        raise RuntimeError("GitHub отказа %s (HTTP %s) %s"
+                           % (remote_path, r.status_code, detail))
+
+
+def publish(cfg, paths):
+    print("")
+    print("  Качване в GitHub (%s, клон %s)..." % (cfg["repo"], cfg["branch"]))
+    for p in paths:
+        if not os.path.exists(p):
+            continue
+        name = os.path.basename(p)
+        upload_file(cfg, p, name)
+        print("    качено: %s" % name)
+    print("  Готово.")
+
+
 def write_outputs(rows, per_file, out_dir):
     os.makedirs(out_dir, exist_ok=True)
 
@@ -182,6 +262,8 @@ def main():
                     help="only process the first N SKUs - use for a test run")
     ap.add_argument("--fresh", action="store_true",
                     help="ignore the cache and refetch everything")
+    ap.add_argument("--no-upload", action="store_true",
+                    help="never upload, even if settings.ini exists")
     args = ap.parse_args()
 
     if args.fresh:
@@ -289,6 +371,24 @@ def main():
     print("  wrote        %s" % csv_path)
     for p, n in files:
         print("               %s  (%d items)" % (p, n))
+
+    if args.no_upload:
+        return
+    cfg = read_settings()
+    if cfg is None:
+        print("")
+        print("  (няма settings.ini - файловете остават само тук)")
+        return
+    try:
+        paths = [csv_path] + [p for p, _ in files]
+        nf = os.path.join(args.out, "not_found_filstar.csv")
+        if os.path.exists(nf):
+            paths.append(nf)
+        publish(cfg, paths)
+    except Exception as e:
+        sys.stderr.write("\n  Качването не успя: %s\n" % e)
+        sys.stderr.write("  Файловете са запазени тук и може да се качат по-късно.\n")
+        sys.exit(3)
 
 
 if __name__ == "__main__":

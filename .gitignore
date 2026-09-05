@@ -1,3 +1,5 @@
+settings.ini
+settings.local.ini
 .cache/
 *.pyc
 __pycache__/
