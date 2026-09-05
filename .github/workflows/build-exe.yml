@@ -4,8 +4,9 @@ name: Build standalone apps
 # block on runners is irrelevant here.
 on:
   push:
-    branches: [local-scraper]
+    branches: [main]
     paths: ['filstar_local.py', '.github/workflows/build-exe.yml']
+    tags: ['v*']
   workflow_dispatch:
 
 jobs:
@@ -71,3 +72,36 @@ jobs:
         with:
           name: filstar-macos
           path: package/
+
+  release:
+    needs: [windows, macos]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: artifacts }
+      - name: Zip each package
+        run: |
+          cd artifacts
+          for d in */; do (cd "$d" && zip -r "../${d%/}.zip" .); done
+          ls -la *.zip
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.zip
+          generate_release_notes: true
+          body: |
+            ## Как се пуска
+
+            1. Свалете `filstar-windows.zip` (или `filstar-macos.zip`)
+            2. Разархивирайте някъде на компютъра
+            3. **Пуснете VPN**
+            4. Двоен клик върху `Обнови наличностите.bat`
+
+            Не ви трябва Python. Отнема около 2 часа за целия каталог и може
+            да се остави да работи само. Ако спре с "сайтът блокира връзката",
+            сменете сървъра на VPN-а и пуснете пак - продължава оттам.
+
+            За автоматично качване в GitHub: преименувайте
+            `settings.ini.example` на `settings.ini` и попълнете токена.

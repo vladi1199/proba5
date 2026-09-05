@@ -1,8 +1,10 @@
 name: Update XML Daily
 
 on:
-  schedule:
-    - cron: '0 0 * * *'  # Всеки ден в 00:00 UTC (03:00 BG време)
+  # DISABLED - this ran the old scraper, which Filstar broke.
+  # The working scraper now runs locally; see RUN.md.
+  # schedule:
+    # - cron: '0 0 * * *'  # Всеки ден в 00:00 UTC (03:00 BG време)
   workflow_dispatch:
 
 jobs:
