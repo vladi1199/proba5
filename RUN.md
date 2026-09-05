@@ -1,96 +1,121 @@
-# Filstar scraper — local runner
+# Filstar — обновяване на наличностите
 
-## Why this runs on a desktop and not on GitHub
+## За клиента: как се пуска
 
-filstar.com is behind Cloudflare. Product pages return **403 "Един момент..."**
-to datacenter IPs. Verified from a GitHub Actions runner with:
+Трябва еднократна подготовка, после е двоен клик.
 
-* plain `requests` — 403
-* full browser headers — 403
-* homepage first for cookies — 403 (the homepage 403s too)
-* search first, then product with a Referer — 403
-* **a real headed Chromium under xvfb, automation flags stripped — 403**
+**Първи път:**
 
-It is IP reputation, not the browser and not the headers, so no user-agent
-trick or login cookie fixes it (`cf_clearance` is bound to the IP that earned
-it). A normal home connection, or a VPN exit that isn't flagged, gets 200 with
-no browser at all.
+1. Инсталирайте Python от https://www.python.org/downloads/
+   При инсталацията сложете отметка **„Add Python to PATH"**.
+2. Свалете тази папка на компютъра.
 
-`https://filstar.com/api/search` is the one exception — it answers 200 even
-from GitHub. That is why the old scraper still half-works. But search resolves
-**every variant SKU to its parent product**, so sibling SKUs all share one
-stock value. Per-variant stock only exists on the product page.
+**Всеки път:**
 
-## What you get that the old feed didn't
+1. **Пуснете VPN.** Без него сайтът на Filstar блокира връзката.
+2. Двоен клик върху:
+   * Windows — `Обнови наличностите.bat`
+   * Mac / Linux — `obnovi-nalichnostite.command`
+3. Изчакайте. Отнема около 2 часа за целия каталог. Показва докъде е
+   стигнало. Може да се остави да работи само.
+4. Накрая пита дали да качи резултата в GitHub. Отговорете `y`.
 
-* **real quantities** — the old feed wrote `<quantity/>` on every row
-* **per-variant stock** — 946534/35/36/37 come back as 876 / 593 / 785 / 82
-  where search reported them as one identical blob
-* wholesale price (`traderPrice`) alongside retail, in the CSV
-* far fewer requests: one product page resolves all of that product's
-  variants, so siblings cost nothing
+**Ако спре с „сайтът блокира връзката":** сменете сървъра на VPN-а и пуснете
+файла пак. Свалените дотогава данни са запазени — продължава оттам, не
+започва отначало. Спирането с Ctrl+C е безопасно по същата причина.
 
-## Running it
+---
 
-Needs Python 3.8+ and one dependency.
+## За разработчик
+
+### Защо се пуска локално, а не в GitHub Actions
+
+filstar.com е зад Cloudflare. Продуктовите страници връщат **403 „Един
+момент…"** на IP адреси от датацентрове. Проверено от GitHub Actions runner с:
+
+* обикновен `requests` — 403
+* пълни browser headers — 403
+* първо начална страница за бисквитки — 403 (и самата начална страница дава 403)
+* първо search, после продукт с Referer — 403
+* **истински headed Chromium под xvfb, със скрити automation флагове — 403**
+
+Значи е репутация на IP адреса, не браузърът и не headers. Никакъв user-agent
+трик или логин не помага — `cf_clearance` е вързан за IP-то, което го е
+получило. Домашна връзка или VPN изход, който не е маркиран, връща 200 без
+никакъв браузър.
+
+`https://filstar.com/api/search` е единственото изключение — отговаря 200 дори
+от GitHub. Затова старият скрипт още работи наполовина. Но search резолвва
+**всяко SKU на вариант към родителския продукт**, затова братските SKU-та
+споделят една наличност. Наличност по вариант има само на продуктовата
+страница, в JSON, вграден във Vue prop.
+
+### Какво дава повече от стария feed
+
+* **истински бройки** — старият пишеше `<quantity/>` на всеки ред
+* **наличност по вариант** — 946534/35/36/37 излизат 876 / 593 / 785 / 82,
+  докато search ги връщаше като един и същ резултат
+* цена на едро (`traderPrice`) до цената на дребно, в CSV-то
+* по-малко заявки — една продуктова страница резолвва всичките ѝ варианти
+
+### Ръчно пускане
 
 ```bash
 pip install requests
+python3 filstar_local.py --skus all_skus.csv
 ```
 
-**Connect the VPN first.** Then:
-
-```bash
-# test run - 40 SKUs, about a minute
-python3 filstar_local.py --skus sku_list_filstar.csv --limit 40
-
-# the real thing
-python3 filstar_local.py --skus sku_list_filstar.csv
-```
-
-Expect roughly 1–2 hours for a full list. Progress prints as it goes.
-
-### If it stops
-
-```
-STOPPED: HTTP 403 ... Cloudflare is challenging this connection.
-```
-
-The VPN dropped or that exit is flagged. Switch exit, run the same command
-again — it caches to `.cache/` and resumes where it stopped rather than
-starting over. Ctrl+C is safe for the same reason.
-
-### Options
-
-| flag | meaning |
+| флаг | значение |
 |---|---|
-| `--skus FILE` | CSV whose first column is the SKU (default `sku_list_filstar.csv`) |
-| `--out DIR` | where to write CSV and XML (default: current directory) |
-| `--delay N` | seconds between requests, default 1.0. Lower is faster and ruder |
-| `--limit N` | only the first N SKUs — for testing |
-| `--per-file N` | items per XML file, default 1400 |
-| `--fresh` | ignore the cache and refetch everything |
+| `--skus FILE` | CSV, чиято първа колона е SKU (по подразбиране `sku_list_filstar.csv`) |
+| `--out DIR` | къде да запише CSV и XML |
+| `--delay N` | секунди между заявките, по подразбиране 0.7 |
+| `--limit N` | само първите N SKU — за тест |
+| `--per-file N` | items на XML файл, по подразбиране 1400 |
+| `--fresh` | игнорира кеша и сваля всичко наново |
 
-## Output
+### Списъкът със SKU-та
+
+`all_skus.csv` е обединението на списъците от proba4 и proba5 — 6710 уникални,
+от които **6709 съществуват в магазина**. Двата стари списъка почти не се
+застъпват (само 3 общи SKU), затова нито един поотделно не покрива каталога.
+
+Списъците са правени от стария CloudCart каталог и са леко остарели.
+Пресъздаването им от WooCommerce е смяна на CSV, не промяна в кода.
+
+### Изход
 
 * `results_filstar.csv` — SKU, наличност, бройки, цена, цена на едро, модел
-* `filstar_xml_1.xml`, `_2.xml`, … — 1400 items each
-* `not_found_filstar.csv` — SKUs the search could not resolve
+* `filstar_xml_1.xml`, `_2.xml`, … — по 1400 items
+* `not_found_filstar.csv` — SKU-та, които search не намери
 
-The XML is the shape the shop's `nasluka-feeds` plugin already reads:
+XML-ът е точно формата, който плъгинът `nasluka-feeds` вече чете:
 
 ```xml
 <products><item><sku/><price/><quantity/><availability/></item></products>
 ```
 
-`availability` is `in_stock` / `out_of_stock`. Verified against the plugin's
-own PHP `simplexml` parser.
+`availability` е `in_stock` / `out_of_stock`.
 
-## Publishing the result
+### Проверено от край до край
 
-The shop reads the XML over HTTP. Commit the generated files to this repo and
-they are served from `raw.githubusercontent.com`, exactly as before — the only
-change is that the files are produced on a desktop instead of by the Action.
+Срещу истинския магазин, през `raw.githubusercontent.com`, с плъгина
+`nasluka-feeds`:
+
+```
+rows 24, matched 24, unmatched 0, stock_changed 24
+946534  10 -> 876      946537  10 -> 82
+946535  10 -> 593      951786  10 -> 4
+946536  10 -> 785      951787  10 -> 262
+```
+
+Преди това всички стояха на 10 — резервната стойност, която плъгинът слага,
+когато feed-ът не дава бройка. Старият feed никога не даваше.
+
+### Публикуване
+
+Магазинът чете XML-а по HTTP, така че commit-ването го публикува през
+`raw.githubusercontent.com` — както досега. Сменя се само кой го произвежда.
 
 ```bash
 git add results_filstar.csv filstar_xml_*.xml not_found_filstar.csv
@@ -98,10 +123,10 @@ git commit -m "Stock update $(date +%F)"
 git push
 ```
 
-Do not commit `.cache/` — it is already ignored.
+`.cache/` не се качва — вече е в `.gitignore`.
 
-## Worth knowing
+### Предпазна мрежа
 
-The plugin refuses to apply a feed whose contents have stopped changing
-(`Nasluka_Feeds_Sync::is_stale()`), so a run that silently stops updating will
-not mark the catalogue sold out. It just goes quiet. Check the dates.
+Плъгинът отказва да приложи feed, чието съдържание е спряло да се променя
+(`Nasluka_Feeds_Sync::is_stale()`), така че спрял скрипт няма да маркира
+каталога като изчерпан. Просто спира да обновява. Гледайте датите.

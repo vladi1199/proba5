@@ -174,8 +174,8 @@ def main():
     ap.add_argument("--skus", default="sku_list_filstar.csv",
                     help="CSV whose first column is the SKU")
     ap.add_argument("--out", default=".", help="where to write CSV and XML")
-    ap.add_argument("--delay", type=float, default=1.0,
-                    help="seconds between requests (default 1.0)")
+    ap.add_argument("--delay", type=float, default=0.7,
+                    help="seconds between requests (default 0.7)")
     ap.add_argument("--per-file", type=int, default=1400,
                     help="items per XML file (default 1400)")
     ap.add_argument("--limit", type=int, default=0,
@@ -192,7 +192,11 @@ def main():
     skus = read_skus(args.skus)
     if args.limit:
         skus = skus[:args.limit]
-    print("SKUs to resolve: %d" % len(skus))
+    print("")
+    print("  Filstar stock update")
+    print("  %d SKUs to check. This takes a while - you can leave it running." % len(skus))
+    print("  Safe to stop with Ctrl+C; running it again resumes where it stopped.")
+    print("")
 
     sku_to_url = load_json(URL_CACHE, {})
     url_to_variants = load_json(VAR_CACHE, {})
@@ -203,6 +207,7 @@ def main():
     wanted = set(skus)
     searches = fetches = 0
     t0 = time.time()
+    last_report = 0.0
 
     try:
         while pending:
@@ -237,12 +242,18 @@ def main():
                 not_found.append(sku)
 
             done = len(resolved) + len(not_found)
-            if done % 50 < 1 or not pending:
-                rate = done / max(time.time() - t0, 1)
+            now = time.time()
+            if now - last_report >= 15 or not pending:
+                last_report = now
+                rate = done / max(now - t0, 1)
                 left = (len(skus) - done) / max(rate, 0.01)
-                print("  %d/%d  resolved=%d missing=%d  searches=%d pages=%d  ~%d min left"
-                      % (done, len(skus), len(resolved), len(not_found),
-                         searches, fetches, left / 60))
+                pct = 100.0 * done / max(len(skus), 1)
+                print("  %5.1f%%  %d/%d done   in stock so far %d   "
+                      "requests %d   about %d min left"
+                      % (pct, done, len(skus), sum(1 for v in resolved.values()
+                                                   if v["quantity"] > 0),
+                         searches + fetches, left / 60))
+                sys.stdout.flush()
 
     except Blocked as e:
         save_json(URL_CACHE, sku_to_url)
