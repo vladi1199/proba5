@@ -470,10 +470,10 @@ def main():
         hold_window("Готово.")
         return
     try:
-        paths = [csv_path] + [p for p, _ in files]
-        nf = os.path.join(args.out, "not_found_filstar.csv")
-        if os.path.exists(nf):
-            paths.append(nf)
+        # Only the XML goes online. results_filstar.csv carries Filstar's
+        # WHOLESALE prices ("Цена на едро") and must never be published -
+        # it stays on the operator's machine. The XML has no such column.
+        paths = [p for p, _ in files]
         publish(cfg, paths, len(files))
         hold_window("Готово.")
     except Exception as e:
