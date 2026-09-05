@@ -1,0 +1,73 @@
+name: Build standalone apps
+
+# Packaging only - no network calls to filstar.com, so the Cloudflare
+# block on runners is irrelevant here.
+on:
+  push:
+    branches: [local-scraper]
+    paths: ['filstar_local.py', '.github/workflows/build-exe.yml']
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install requests pyinstaller
+      - name: Build filstar.exe
+        run: pyinstaller --onefile --name filstar --console filstar_local.py
+      - name: Stage the package
+        shell: bash
+        run: |
+          mkdir -p package
+          cp dist/filstar.exe package/
+          cp all_skus.csv package/
+          cp RUN.md package/
+          cat > "package/Обнови наличностите.bat" <<'EOF'
+          @echo off
+          chcp 65001 >nul
+          title Filstar - обновяване на наличностите
+          cd /d "%~dp0"
+          echo.
+          echo  ВАЖНО: пуснете VPN преди да продължите.
+          echo.
+          pause
+          filstar.exe --skus all_skus.csv
+          if errorlevel 2 (
+            echo.
+            echo  СПРЯНО: сайтът блокира връзката.
+            echo  Сменете сървъра на VPN-а и пуснете файла отново.
+            echo  Свалените данни са запазени.
+            echo.
+          )
+          echo.
+          pause
+          EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: filstar-windows
+          path: package/
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install requests pyinstaller
+      - run: pyinstaller --onefile --name filstar --console filstar_local.py
+      - name: Stage the package
+        run: |
+          mkdir -p package
+          cp dist/filstar package/
+          cp all_skus.csv RUN.md package/
+          printf '#!/usr/bin/env bash\ncd "$(dirname "$0")"\necho\necho " ВАЖНО: пуснете VPN преди да продължите."\necho\nread -r -p " Enter за старт..." _\n./filstar --skus all_skus.csv\nRC=$?\nif [ "$RC" -eq 2 ]; then echo; echo " СПРЯНО: сайтът блокира връзката. Сменете VPN сървъра и пуснете пак."; fi\nread -r -p " Enter за изход..." _\n' > "package/obnovi-nalichnostite.command"
+          chmod +x package/filstar "package/obnovi-nalichnostite.command"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: filstar-macos
+          path: package/
